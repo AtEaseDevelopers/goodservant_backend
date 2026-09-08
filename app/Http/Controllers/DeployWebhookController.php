@@ -6,7 +6,7 @@ class DeployWebhookController extends Controller
 {
     public function pull(string $secret)
     {
-        $expected = env('DEPLOY_SECRET');
+        $expected = config('deploy.secret');
 
         if (empty($expected) || !hash_equals($expected, $secret)) {
             abort(404);
