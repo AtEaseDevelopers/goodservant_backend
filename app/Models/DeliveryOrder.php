@@ -7,41 +7,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
 
-/**
- * Class DeliveryOrder
- * @package App\Models
- * @version August 13, 2022, 2:11 pm UTC
- *
- * @property \App\Models\Location $destinate
- * @property \App\Models\Item $item
- * @property \App\Models\Location $source
- * @property \App\Models\Driver $driver
- * @property \App\Models\Lorry $lorry
- * @property \App\Models\Vendor $vendor
- * @property string $dono
- * @property string|\Carbon\Carbon $date
- * @property integer $driver_id
- * @property integer $lorry_id
- * @property integer $vendor_id
- * @property integer $source_id
- * @property integer $destinate_id
- * @property integer $item_id
- * @property number $weight
- * @property number $shipweight
- * @property number $fees
- * @property number $tol
- * @property number $billingrate
- * @property number $commissionrate
- * @property integer $status
- * @property string $remark
- * @property integer $calstatus
- * @property string $STR_UDF1
- * @property string $STR_UDF2
- * @property string $STR_UDF3
- * @property integer $INT_UDF1
- * @property integer $INT_UDF2
- * @property integer $INT_UDF3
- */
 class DeliveryOrder extends Model
 {
     // use SoftDeletes;
@@ -49,45 +14,23 @@ class DeliveryOrder extends Model
     use HasFactory;
 
     public $table = 'deliveryorders';
-    
+
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
-
-
-    protected $dates = ['deleted_at'];
-
-
 
     public $fillable = [
         'dono',
         'date',
+        'customer_id',
         'driver_id',
-        'lorry_id',
-        'vendor_id',
-        'source_id',
-        'destinate_id',
-        'item_id',
-        'weight',
-        'shipweight',
-        'fees',
-        'tol',
-        'billingrate',
-        'commissionrate',
+        'kelindan_id',
+        'agent_id',
+        'supervisor_id',
+        'paymentterm',
         'status',
         'remark',
-        'calstatus',
-        'STR_UDF1',
-        'STR_UDF2',
-        'STR_UDF3',
-        'INT_UDF1',
-        'INT_UDF2',
-        'INT_UDF3'
-    ];
-
-    protected $attributes = [
-        'fees' => 0.00,
-        'tol' => 0.00,
-        'calstatus' => 1
+        'chequeno',
+        'invoice_id'
     ];
 
     /**
@@ -98,28 +41,16 @@ class DeliveryOrder extends Model
     protected $casts = [
         'id' => 'integer',
         'dono' => 'string',
-        'date' => 'date:d-m-Y',
+        'date' => 'datetime:d-m-Y H:i:s',
+        'customer_id' => 'integer',
         'driver_id' => 'integer',
-        'lorry_id' => 'integer',
-        'vendor_id' => 'integer',
-        'source_id' => 'integer',
-        'destinate_id' => 'integer',
-        'item_id' => 'integer',
-        'weight' => 'float',
-        'shipweight' => 'float',
-        'fees' => 'float',
-        'tol' => 'float',
-        'billingrate' => 'float',
-        'commissionrate' => 'float',
+        'kelindan_id' => 'integer',
+        'agent_id' => 'integer',
+        'supervisor_id' => 'integer',
+        'paymentterm' => 'integer',
         'status' => 'integer',
         'remark' => 'string',
-        'calstatus;' => 'integer',
-        'STR_UDF1' => 'string',
-        'STR_UDF2' => 'string',
-        'STR_UDF3' => 'string',
-        'INT_UDF1' => 'integer',
-        'INT_UDF2' => 'integer',
-        'INT_UDF3' => 'integer'
+        'invoice_id' => 'integer'
     ];
 
     /**
@@ -128,84 +59,57 @@ class DeliveryOrder extends Model
      * @var array
      */
     public static $rules = [
-        // 'dono' => 'required|string|max:255|unique:deliveryorders,dono',
-        'dono' => 'required|string|max:255',
+        'dono' => 'nullable|string|max:255',
         'date' => 'required',
-        'driver_id' => 'required',
-        'lorry_id' => 'required',
-        'vendor_id' => 'required',
-        'source_id' => 'required',
-        'destinate_id' => 'required',
-        'item_id' => 'required',
-        'weight' => 'required|numeric',
-        'shipweight' => 'nullable|numeric',
-        // 'billingrate' => 'required|numeric',
-        // 'commissionrate' => 'required|numeric',
-        // 'fees' => 'required|numeric',
-        // 'tol' => 'required|numeric',
+        'customer_id' => 'required',
         'status' => 'required',
-        'remark' => 'nullable|string',
-        'STR_UDF1' => 'nullable|string',
-        'STR_UDF2' => 'nullable|string',
-        'STR_UDF3' => 'nullable|string',
-        'INT_UDF1' => 'nullable|integer',
-        'INT_UDF2' => 'nullable|integer',
-        'INT_UDF3' => 'nullable|integer',
+        'remark' => 'nullable|string|max:255',
         'created_at' => 'nullable',
-        'updated_at' => 'nullable',
-        'deleted_at' => 'nullable'
+        'updated_at' => 'nullable'
     ];
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
-    public function destinate()
+    public function customer()
     {
-        return $this->belongsTo(\App\Models\Location::class, 'destinate_id');
+        return $this->belongsTo(\App\Models\Customer::class, 'customer_id', 'id');
     }
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
-    public function item()
-    {
-        return $this->belongsTo(\App\Models\Item::class, 'item_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
-    public function source()
-    {
-        return $this->belongsTo(\App\Models\Location::class, 'source_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
     public function driver()
     {
-        return $this->belongsTo(\App\Models\Driver::class, 'driver_id');
+        return $this->belongsTo(\App\Models\Driver::class, 'driver_id', 'id');
     }
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
-    public function lorry()
+    public function kelindan()
     {
-        return $this->belongsTo(\App\Models\Lorry::class, 'lorry_id');
+        return $this->belongsTo(\App\Models\Kelindan::class, 'kelindan_id', 'id');
     }
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     **/
-    public function vendor()
+    public function agent()
     {
-        return $this->belongsTo(\App\Models\Vendor::class, 'vendor_id');
+        return $this->belongsTo(\App\Models\Agent::class, 'agent_id', 'id');
+    }
+
+    public function supervisor()
+    {
+        return $this->belongsTo(\App\Models\Supervisor::class, 'supervisor_id', 'id');
+    }
+
+    public function deliveryorderdetail()
+    {
+        return $this->hasMany(\App\Models\DeliveryOrderDetail::class, 'deliveryorder_id');
+    }
+
+    public function salesorder()
+    {
+        return $this->hasOne(\App\Models\SalesOrder::class, 'deliveryorder_id');
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(\App\Models\Invoice::class, 'invoice_id', 'id');
     }
 
     public function getDateAttribute($value)
     {
-        return Carbon::parse($value)->format('d-m-Y');
+        return Carbon::parse($value)->format('d-m-Y H:i:s');
     }
 }

@@ -41,7 +41,7 @@ class CodeDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('codes.action'), 'printable' => false])
             ->parameters([
                 'dom'       => 'Bfrtip',

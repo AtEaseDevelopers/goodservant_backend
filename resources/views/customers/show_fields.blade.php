@@ -28,6 +28,12 @@
     <p>{{ $paymentterm }}</p>
 </div>
 
+<!-- Is DO Customer Field -->
+<div class="form-group">
+    {!! Form::label('is_do_customer', __('customers.is_do_customer')) !!}:
+    <p>{{ $customer->is_do_customer ? 'Yes' : 'No' }}</p>
+</div>
+
 <!-- Group Field -->
 <div class="form-group">
     {!! Form::label('group', __('customers.group')) !!}:

@@ -42,7 +42,7 @@ class DriverDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('drivers.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
@@ -112,7 +112,7 @@ class DriverDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                    'targets' => 5,
+                    'targets' => 4,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
                 ],
                 'initComplete' => 'function(){
@@ -167,10 +167,10 @@ class DriverDataTable extends DataTable
             'data' => 'name',
             'name' => 'drivers.name']),
 
-            'ic'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('drivers.ic'),
-            'data' => 'ic',
-            'name' => 'drivers.ic']),
-            
+            // 'ic'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('drivers.ic'),
+            // 'data' => 'ic',
+            // 'name' => 'drivers.ic']),
+
             'phone'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('drivers.phone'),
             'data' => 'phone',
             'name' => 'drivers.phone']),

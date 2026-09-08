@@ -299,33 +299,60 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('reportItems', $reportItems);
         });
 
+        // Note: delivery_orders.fields used to compose priceItems/itemItems/sourceItems/
+        // destinateItems/vendorItems/lorryItems for the old logistics-style Delivery
+        // Order (weight/lorry/vendor billing). That module was dead code (no table, no
+        // routes) and has been replaced by a sales-style Delivery Order (customer +
+        // product lines, mirroring Invoice) as part of the Sales Order -> Delivery
+        // Order -> Invoice workflow. Composers below match invoices.fields/invoices.detail.
+        View::composer(['sales_orders.fields'], function ($view) {
+            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
+            $view->with('customerItems', $customerItems);
+        });
+        View::composer(['sales_orders.fields'], function ($view) {
+            $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();
+            $view->with('driverItems', $driverItems);
+        });
+        View::composer(['sales_orders.fields'], function ($view) {
+            $kelindanItems = Kelindan::pluck('name','id')->toArray();
+            $view->with('kelindanItems', $kelindanItems);
+        });
+        View::composer(['sales_orders.fields'], function ($view) {
+            $agentItems = Agent::pluck('name','id')->toArray();
+            $view->with('agentItems', $agentItems);
+        });
+        View::composer(['sales_orders.fields'], function ($view) {
+            $supervisorItems = Supervisor::pluck('name','id')->toArray();
+            $view->with('supervisorItems', $supervisorItems);
+        });
+        View::composer(['sales_orders.detail'], function ($view) {
+            $productItems = Product::pluck('name','id')->toArray();
+            $view->with('productItems', $productItems);
+        });
+
         View::composer(['delivery_orders.fields'], function ($view) {
-            $priceItems = Price::where('status',1)->select('vendor_id','item_id','source_id','destinate_id','minrange','maxrange','billingrate')->get();
-            $view->with('priceItems', $priceItems);
+            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
+            $view->with('customerItems', $customerItems);
         });
         View::composer(['delivery_orders.fields'], function ($view) {
-            $itemItems = Item::where('status',1)->pluck('code','id')->toArray();
-            $view->with('itemItems', $itemItems);
-        });
-        View::composer(['delivery_orders.fields'], function ($view) {
-            $sourceItems = Location::where('source',1)->where('status',1)->pluck('code','id')->toArray();
-            $view->with('sourceItems', $sourceItems);
-        });
-        View::composer(['delivery_orders.fields'], function ($view) {
-            $destinateItems = Location::where('destination',1)->where('status',1)->pluck('code','id')->toArray();
-            $view->with('destinateItems', $destinateItems);
-        });
-        View::composer(['delivery_orders.fields'], function ($view) {
-            $vendorItems = Vendor::where('status',1)->pluck('code','id')->toArray();
-            $view->with('vendorItems', $vendorItems);
-        });
-        View::composer(['delivery_orders.fields'], function ($view) {
-            $driverItems = Driver::where('status',1)->pluck('name','id')->toArray();
+            $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();
             $view->with('driverItems', $driverItems);
         });
         View::composer(['delivery_orders.fields'], function ($view) {
-            $lorryItems = Lorry::pluck('lorryno','id')->toArray();
-            $view->with('lorryItems', $lorryItems);
+            $kelindanItems = Kelindan::pluck('name','id')->toArray();
+            $view->with('kelindanItems', $kelindanItems);
+        });
+        View::composer(['delivery_orders.fields'], function ($view) {
+            $agentItems = Agent::pluck('name','id')->toArray();
+            $view->with('agentItems', $agentItems);
+        });
+        View::composer(['delivery_orders.fields'], function ($view) {
+            $supervisorItems = Supervisor::pluck('name','id')->toArray();
+            $view->with('supervisorItems', $supervisorItems);
+        });
+        View::composer(['delivery_orders.detail'], function ($view) {
+            $productItems = Product::pluck('name','id')->toArray();
+            $view->with('productItems', $productItems);
         });
 
         View::composer(['loanpayments.fields'], function ($view) {

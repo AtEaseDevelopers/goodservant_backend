@@ -15,14 +15,12 @@
                              Delivery Orders
                              <a class="pull-right" href="{{ route('deliveryOrders.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
-                             <a class="pull-right text-success pr-2" id="massactive" href="#" alt="Mass active"><i class="fa fa-check fa-lg"></i></a>
-                             <a class="pull-right text-secondary pr-2" id="masssave" href="#" alt="Save view"><i class="fa fa-save fa-lg"></i></a>
+                             <button type="button" class="btn btn-info btn-sm pull-right mr-2" id="combineconvert" title="Combine the selected delivery orders (must all be from the same customer) into one invoice">
+                                <i class="fa fa-object-group"></i> Combine and Convert
+                             </button>
                          </div>
                          <div class="card-body">
                              @include('delivery_orders.table')
-                              <div class="pull-right mr-3">
-                                     
-                              </div>
                          </div>
                      </div>
                   </div>
@@ -36,55 +34,9 @@
         $(document).keyup(function(e) {
             if(e.altKey && e.keyCode == 78){
                 $('.card .card-header a')[0].click();
-            } 
-        });
-        
-        $(document).on("click", "#masssave", function(e){
-            var m = "";
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one row');
-                return;
-            }else if(window.checkboxid.length == 1){
-                m = "Confirm to save 1 row"
-            }else{
-                m = "Confirm to save " + window.checkboxid.length + " rows!"
             }
-            $.confirm({
-                title: 'Save View',
-                content: m,
-                buttons: {
-                    Yes: function() {
-                        masssave(window.checkboxid);
-                    },
-                    No: function() {
-                        return;
-                    }
-                }
-            });
-            
         });
 
-        function masssave(ids){
-            ShowLoad();
-            $.ajax({
-                url: "{{config('app.url')}}/deliveryOrders/masssave",
-                type:"POST",
-                data:{
-                ids: ids
-                ,_token: "{{ csrf_token() }}"
-                },
-                success:function(response){
-                    window.checkboxid = [];
-                    $('.buttons-reload').click();
-                    toastr.success('Please find Save View ID: '+response, 'Save Successfully', {showEasing: "swing", hideEasing: "linear", showMethod: "fadeIn", hideMethod: "fadeOut", positionClass: "toast-bottom-right", timeOut: 0, allowHtml: true });
-                },
-                error: function(error) {
-                    noti('e','Please contact your administrator',error.responseJSON.message)
-                    HideLoad();
-                }
-            });
-        }
-        
         $(document).on("click", "#massdelete", function(e){
             var m = "";
             if(window.checkboxid.length == 0){
@@ -108,41 +60,10 @@
                 }
             });
         });
-        
-        $(document).on("click", "#massactive", function(e){
-            var m = "";
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one row');
-                return;
-            }else if(window.checkboxid.length == 1){
-                m = "Confirm to update 1 row"
-            }else{
-                m = "Confirm to update " + window.checkboxid.length + " rows!"
-            }
-            $.confirm({
-                title: 'Mass Update',
-                content: m,
-                buttons: {
-                    Active: function() {
-                        massupdatestatus(window.checkboxid,1);
-                    },
-                    Unactive: function() {
-                        massupdatestatus(window.checkboxid,0);
-                    },
-                    somethingElse: {
-                        text: 'Cancel',
-                        btnClass: 'btn-gray',
-                        keys: ['enter', 'shift']
-                    }
-                }
-            });
-            
-        });
-
         function massdelete(ids){
             ShowLoad();
             $.ajax({
-                url: "{{config('app.url')}}/deliveryOrders/massdestroy",
+                url: "{{ url('/deliveryOrders/massdestroy') }}",
                 type:"POST",
                 data:{
                 ids: ids
@@ -159,24 +80,48 @@
                 }
             });
         }
-        function massupdatestatus(ids,status){
+
+        $(document).on("click", "#combineconvert", function(e){
+            var m = "";
+            if(window.checkboxid.length == 0){
+                noti('i','Info','Please select at least one delivery order');
+                return;
+            }else if(window.checkboxid.length == 1){
+                m = "Confirm to convert 1 delivery order into an invoice?"
+            }else{
+                m = "Confirm to combine " + window.checkboxid.length + " delivery orders (must be from the same customer) into one invoice?"
+            }
+            $.confirm({
+                title: 'Combine and Convert',
+                content: m,
+                buttons: {
+                    Yes: function() {
+                        combineConvertDo(window.checkboxid);
+                    },
+                    No: function() {
+                        return;
+                    }
+                }
+            });
+        });
+
+        function combineConvertDo(ids){
             ShowLoad();
             $.ajax({
-                url: "{{config('app.url')}}/deliveryOrders/massupdatestatus",
+                url: "{{ url('/deliveryOrders/combine-convert') }}",
                 type:"POST",
                 data:{
-                ids: ids,
-                status: status
-                ,_token: "{{ csrf_token() }}"
+                    ids: ids,
+                    _token: "{{ csrf_token() }}"
                 },
                 success:function(response){
                     window.checkboxid = [];
                     $('.buttons-reload').click();
-                    noti('s','Update Successfully',response+' row(s) had been updated.')
+                    noti('s','Converted', response.message);
                 },
                 error: function(error) {
-                    noti('e','Please contact your administrator',error.responseJSON.message)
                     HideLoad();
+                    noti('e','Please contact your administrator', error.responseJSON?.message || 'Failed to convert Delivery Orders');
                 }
             });
         }

@@ -484,10 +484,10 @@
         <span class="navbar-toggler-icon"></span>
     </button>
     <a class="navbar-brand" href="{{config('app.url')}}">
-        <img class="navbar-brand-full" src="{{config('app.url')}}/logo.png" height="30"
-             alt="Multiline Logo">
-        <img class="navbar-brand-minimized" src="{{config('app.url')}}/logo.png" width="30"
-             height="30" alt="Multiline Logo">
+        <img class="navbar-brand-full" src="{{config('app.url')}}/logo.png" height="46"
+             alt="Snoodle Logo">
+        <img class="navbar-brand-minimized" src="{{config('app.url')}}/favicon-192.png" width="30"
+             height="30" alt="Snoodle Logo">
     </a>
     <button class="navbar-toggler sidebar-toggler d-md-down-none" type="button" data-toggle="sidebar-lg-show">
         <span class="navbar-toggler-icon"></span>

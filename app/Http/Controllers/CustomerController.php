@@ -69,7 +69,8 @@ class CustomerController extends AppBaseController
     {
         $input = $request->all();
         $input['group'] = implode(",",$input['group'] ?? []);
-        
+        $input['is_do_customer'] = $request->has('is_do_customer');
+
         $customer = $this->customerRepository->create($input);
 
         Flash::success(__('customers.customer_saved_successfully'));
@@ -148,6 +149,7 @@ class CustomerController extends AppBaseController
 
         $input = $request->all();
         $input['group'] = implode(",",$input['group'] ?? []);
+        $input['is_do_customer'] = $request->has('is_do_customer');
 
         $customer = $this->customerRepository->update($input, $id);
 

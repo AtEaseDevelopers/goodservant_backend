@@ -187,29 +187,8 @@ Route::group(['middleware' => ['auth']], function() {
     // Route::resource('saveviews', App\Http\Controllers\saveviewsController::class);
     // Route::post('/saveviews/massdestroy', [App\Http\Controllers\saveviewsController::class, 'massdestroy']);
     // Route::get('/saveviews/view/{id}', [App\Http\Controllers\saveviewsController::class, 'view'])->name('showview');
-    // Route::group(['middleware' => ['permission:deliveryorder']], function() {
-    //     Route::resource('deliveryOrders', App\Http\Controllers\DeliveryOrderController::class);
-    //     Route::post('/prices/getBillingRate', [App\Http\Controllers\PriceController::class, 'getBillingRate']);
-    //     Route::post('/deliveryOrders/getDriverInfo', [App\Http\Controllers\DeliveryOrderController::class, 'getDriverInfo']);
-    //     Route::post('/deliveryOrders/getDriverLorry', [App\Http\Controllers\DeliveryOrderController::class, 'getDriverLorry']);
-    //     Route::post('/deliveryOrders/getLorryInfo', [App\Http\Controllers\DeliveryOrderController::class, 'getLorryInfo']);
-    //     Route::post('/deliveryOrders/getClaimInfo', [App\Http\Controllers\DeliveryOrderController::class, 'getClaimInfo']);
-    //     Route::post('/deliveryOrders/getBillingRateInfo', [App\Http\Controllers\DeliveryOrderController::class, 'getBillingRateInfo']);
-    //     Route::post('/deliveryOrders/getCommissionRateInfo', [App\Http\Controllers\DeliveryOrderController::class, 'getCommissionRateInfo']);
-    //     Route::post('/deliveryOrders/getBillingRate', [App\Http\Controllers\DeliveryOrderController::class, 'getBillingRate']);
-    //     Route::post('/deliveryOrders/getCommissionRate', [App\Http\Controllers\DeliveryOrderController::class, 'getCommissionRate']);
-    //     Route::post('/items/getBillingRate', [App\Http\Controllers\ItemController::class, 'getBillingRate']);
-    //     Route::post('/items/getCommissionRate', [App\Http\Controllers\ItemController::class, 'getCommissionRate']);
-    //     Route::post('/deliveryOrders/massdestroy', [App\Http\Controllers\DeliveryOrderController::class, 'massdestroy']);
-    //     Route::post('/deliveryOrders/massupdatestatus', [App\Http\Controllers\DeliveryOrderController::class, 'massupdatestatus']);
-    //     Route::post('/deliveryOrders/masssave', [App\Http\Controllers\DeliveryOrderController::class, 'masssave']);
-    //     //Archived DeliveryOrder//
-    //     Route::get('/archived/deliveryOrders', [App\Http\Controllers\ArcDeliveryOrderController::class, 'index']);
-    //     Route::get('/archived/deliveryOrders/index', [App\Http\Controllers\ArcDeliveryOrderController::class, 'index']);
-    //     Route::get('/archived/deliveryOrders/{id}', [App\Http\Controllers\ArcDeliveryOrderController::class, 'show']);
-    //     Route::post('/archived/deliveryOrders/getClaimInfo', [App\Http\Controllers\ArcDeliveryOrderController::class, 'getClaimInfo']);
-    //     //Archived DeliveryOrder//
-    // });
+    // Delivery Order is now implemented under the 'permission:invoice' group below
+    // (see Sales Order / Delivery Order routes), replacing this old dead scaffolding.
     // Route::group(['middleware' => ['permission:loan']], function() {
     //     Route::resource('loans', App\Http\Controllers\LoanController::class);
     //     Route::post('loans/{loan}/start', [App\Http\Controllers\LoanController::class, 'start'])->name('loans.start');
@@ -450,6 +429,29 @@ Route::group(['middleware' => ['auth']], function() {
         Route::post('/debit-notes/{id}/cancel', [App\Http\Controllers\DebitNoteController::class, 'cancel'])->name('debit-notes.cancel');
 
     });
+    Route::group(['middleware' => ['permission:invoice']], function() {
+        //Sales Order
+        Route::get('/salesOrders/{id}/detail', [App\Http\Controllers\SalesOrderController::class, 'detail'])->name('salesOrders.detail');
+        Route::post('/salesOrders/{id}/adddetail', [App\Http\Controllers\SalesOrderController::class, 'adddetail'])->name('salesOrders.adddetail');
+        Route::delete('/salesOrders/{id}/deletedetail', [App\Http\Controllers\SalesOrderController::class, 'deletedetail'])->name('salesOrders.deletedetail');
+        Route::get('/salesOrders/customer/{id}', [App\Http\Controllers\SalesOrderController::class, 'getcustomer']);
+        Route::get('/salesOrders/getprice/{salesorder_id}/{product_id}', [App\Http\Controllers\SalesOrderController::class, 'getprice']);
+        Route::post('/salesOrders/convert', [App\Http\Controllers\SalesOrderController::class, 'convert'])->name('salesOrders.convert');
+        Route::resource('salesOrders', App\Http\Controllers\SalesOrderController::class);
+        Route::post('/salesOrders/massdestroy', [App\Http\Controllers\SalesOrderController::class, 'massdestroy']);
+        Route::get('/print/salesOrders/getSoViewPDF/{id}/{function}', [App\Http\Controllers\SalesOrderController::class, 'getSoViewPDF'])->name('salesorder.print');
+
+        //Delivery Order
+        Route::get('/deliveryOrders/{id}/detail', [App\Http\Controllers\DeliveryOrderController::class, 'detail'])->name('deliveryOrders.detail');
+        Route::post('/deliveryOrders/{id}/adddetail', [App\Http\Controllers\DeliveryOrderController::class, 'adddetail'])->name('deliveryOrders.adddetail');
+        Route::delete('/deliveryOrders/{id}/deletedetail', [App\Http\Controllers\DeliveryOrderController::class, 'deletedetail'])->name('deliveryOrders.deletedetail');
+        Route::get('/deliveryOrders/customer/{id}', [App\Http\Controllers\DeliveryOrderController::class, 'getcustomer']);
+        Route::get('/deliveryOrders/getprice/{deliveryorder_id}/{product_id}', [App\Http\Controllers\DeliveryOrderController::class, 'getprice']);
+        Route::post('/deliveryOrders/combine-convert', [App\Http\Controllers\DeliveryOrderController::class, 'combineConvert'])->name('deliveryOrders.combine-convert');
+        Route::resource('deliveryOrders', App\Http\Controllers\DeliveryOrderController::class);
+        Route::post('/deliveryOrders/massdestroy', [App\Http\Controllers\DeliveryOrderController::class, 'massdestroy']);
+        Route::get('/print/deliveryOrders/getDoViewPDF/{id}/{function}', [App\Http\Controllers\DeliveryOrderController::class, 'getDoViewPDF'])->name('deliveryorder.print');
+    });
     Route::group(['middleware' => ['permission:task']], function() {
         Route::resource('tasks', App\Http\Controllers\TaskController::class);
         Route::resource('taskTransfers', App\Http\Controllers\TaskTransferController::class);
@@ -501,7 +503,7 @@ Route::group(['middleware' => ['auth']], function() {
         });
     });
 
-    Route::get('/language/load', [LanguageController::class, 'loadTranslations'])->name('language.load');   
+    Route::get('/language/load', [App\Http\Controllers\LanguageController::class, 'loadTranslations'])->name('language.load');
     
     Route::group(['middleware' => ['permission:code']], function() {
         Route::resource('customer_group', App\Http\Controllers\CustomerGroupController::class);

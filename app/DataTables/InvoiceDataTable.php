@@ -64,7 +64,7 @@ class InvoiceDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('invoices.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
@@ -134,12 +134,12 @@ class InvoiceDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 8,
+                        'targets' => 6,
                         'visible' => true,
                         'render' => 'function(data, type){var totalprice = 0; $.each(data,function(index,value){ totalprice=totalprice+parseFloat(value.totalprice) }); return totalprice.toFixed(2);}'
                     ],
                     [
-                    'targets' => 9,
+                    'targets' => 7,
                     'render' => 'function(data, type, row){
                             var paymentTerms = {
                                 1: \'Cash\',
@@ -152,7 +152,7 @@ class InvoiceDataTable extends DataTable
                         }'
                     ],
                     [
-                    'targets' => 10,
+                    'targets' => 8,
                     'render' => 'function(data, type){return data == 1 ? "Completed" : "New";}'
                     ],
                   
@@ -231,17 +231,17 @@ class InvoiceDataTable extends DataTable
                 'name' => 'kelindan.name'
             ]),
 
-            'agent_id' => new \Yajra\DataTables\Html\Column([
-                'title' => trans('invoices.agent'),
-                'data' => 'agent.name',
-                'name' => 'agent.name'
-            ]),
+            // 'agent_id' => new \Yajra\DataTables\Html\Column([
+            //     'title' => trans('invoices.agent'),
+            //     'data' => 'agent.name',
+            //     'name' => 'agent.name'
+            // ]),
 
-            'supervisor_id' => new \Yajra\DataTables\Html\Column([
-                'title' => trans('invoices.supervisor'),
-                'data' => 'supervisor.name',
-                'name' => 'supervisor.name'
-            ]),
+            // 'supervisor_id' => new \Yajra\DataTables\Html\Column([
+            //     'title' => trans('invoices.supervisor'),
+            //     'data' => 'supervisor.name',
+            //     'name' => 'supervisor.name'
+            // ]),
 
             'total' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.total_price'),

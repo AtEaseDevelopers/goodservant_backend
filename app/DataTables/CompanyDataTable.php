@@ -44,7 +44,7 @@ class CompanyDataTable extends DataTable
     {
         return $this->builder()
         ->columns($this->getColumns())
-        ->minifiedAjax()
+        ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
         ->addAction(['title' => trans('companies.action'), 'printable' => false])
         ->parameters([
             'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
@@ -157,9 +157,9 @@ class CompanyDataTable extends DataTable
             'address3',
             'address4',
 
-            'group_id'=> new \Yajra\DataTables\Html\Column(['title' => 'Group',
-            'data' => 'group.description',
-            'name' => 'group.description'])
+            // 'group_id'=> new \Yajra\DataTables\Html\Column(['title' => 'Group',
+            // 'data' => 'group.description',
+            // 'name' => 'group.description'])
         ];
     }
 

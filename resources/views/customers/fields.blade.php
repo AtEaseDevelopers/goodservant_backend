@@ -21,6 +21,15 @@
             ], null, ['class' => 'form-control']) }}
         </div>
 
+        <!-- Is DO Customer Field -->
+        <div class="form-group">
+            <div class="checkbox">
+                <label>
+                    {!! Form::checkbox('is_do_customer', 1, null) !!} {{ __('customers.is_do_customer') }}
+                </label>
+            </div>
+        </div>
+
         <!-- Group Field -->
         <div class="form-group">
             {!! Form::label('group', __('customers.group')) !!}:

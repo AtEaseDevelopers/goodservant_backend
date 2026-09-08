@@ -66,30 +66,37 @@
         </tr>
         <tr>
             <td>
-                <p class="company">AT EASE SOFTWARE SOLUTION SDN BHD</p>
+                <p class="company">{{ env('INVOICE_NAME') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">(1481747P)</p>
+                <p class="address">{{ env('INVOICE_SSM') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">Level 11, Menara KEN TTDI, 37, Jalan Burhanuddin Helmi</p>
+                <p class="address">{{ env('INVOICE_ADDRESS1') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">Taman Tun Dr Ismail, 60000 Kuala Lumpur,</p>
+                <p class="address">{{ env('INVOICE_ADDRESS2') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">Wilayah Persekutuan Kuala Lumpur.</p>
+                <p class="address">{{ env('INVOICE_ADDRESS3') }}</p>
             </td>
         </tr>
-       
+        @if(env('INVOICE_PHONE'))
+        <tr>
+            <td>
+                <p class="address">Tel: {{ env('INVOICE_PHONE') }}</p>
+            </td>
+        </tr>
+        @endif
+
         <tr>
             <td>
                 <br>

@@ -53,7 +53,7 @@ class UserDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('user.action'), 'printable' => false])
             ->parameters([
                 'dom'       => 'Bfrtip',

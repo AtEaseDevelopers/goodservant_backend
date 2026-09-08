@@ -73,8 +73,13 @@ class InvoiceController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if($input['invoiceno'] == null){
-            Code::where('code','invoicerunningnumber')->first()->increment('value');
-            $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+            if ($input['paymentterm'] == 2) {
+                Code::where('code','invoicerunningnumber')->first()->increment('value');
+                $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+            } else {
+                Code::where('code','cashsalesrunningnumber')->first()->increment('value');
+                $input['invoiceno'] = 'CS'.sprintf('%07d',Code::where('code','cashsalesrunningnumber')->first()->value);
+            }
         }
 
         $invoice = $this->invoiceRepository->create($input);
@@ -185,8 +190,13 @@ class InvoiceController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if($input['invoiceno'] == null){
-            Code::where('code','invoicerunningnumber')->first()->increment('value');
-            $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+            if ($input['paymentterm'] == 2) {
+                Code::where('code','invoicerunningnumber')->first()->increment('value');
+                $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+            } else {
+                Code::where('code','cashsalesrunningnumber')->first()->increment('value');
+                $input['invoiceno'] = 'CS'.sprintf('%07d',Code::where('code','cashsalesrunningnumber')->first()->value);
+            }
         }
 
         $invoice = $this->invoiceRepository->update($input, $id);
@@ -640,6 +650,7 @@ class InvoiceController extends AppBaseController
         ->with('customer')
         ->with('driver')
         ->with('invoicedetail.product')
+        ->with('invoicedetail.deliveryorder')
         ->first();
 
         if (empty($invoice)) {
@@ -655,10 +666,45 @@ class InvoiceController extends AppBaseController
         ->where('companies.group_id',explode(',',$invoice->customer->group)[0])
         ->select('companies.*')
         ->first() ?? null;
+
+        // Invoices produced via Delivery Order combine-and-convert show a full A4
+        // business-invoice layout referencing the source DO(s), instead of the
+        // narrow receipt-style layout used for direct/SO-converted invoices.
+        $isConvertedFromDo = InvoiceDetail::where('invoice_id', $id)->whereNotNull('deliveryorder_id')->exists();
+        $view = $isConvertedFromDo ? 'invoices.print_converted' : 'invoices.print';
+        $sourceDoNo = null;
+        $totalPages = 1;
+
+        if ($isConvertedFromDo) {
+            // "Our D/O No." only makes sense when every line traces back to the same
+            // source Delivery Order (a single-DO conversion) - a combined invoice has
+            // lines from multiple DOs, so it's left blank instead.
+            $sourceDoNumbers = $invoice->invoicedetail->pluck('deliveryorder.dono')->filter()->unique();
+            $sourceDoNo = $sourceDoNumbers->count() === 1 ? $sourceDoNumbers->first() : null;
+
+            $pageUsableHeightPt = 565;
+            $tableHeaderHeightPt = 20;
+            $rowHeightPt = 16;
+            $footerHeightPt = 140;
+            $rowCount = count($invoice['invoicedetail']);
+            $contentHeightPt = $tableHeaderHeightPt + ($rowCount * $rowHeightPt) + $footerHeightPt;
+            $totalPages = max(1, (int) ceil($contentHeightPt / $pageUsableHeightPt));
+        }
+
         try{
-            $pdf = Pdf::loadView('invoices.print', array(
-                'invoice' => $invoice
+            $pdf = Pdf::loadView($view, array(
+                'invoice' => $invoice,
+                'sourceDoNo' => $sourceDoNo,
+                'totalPages' => $totalPages
             ));
+
+            if ($isConvertedFromDo) {
+                if($function == 'download'){
+                    return $pdf->setPaper('a4', 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');
+                }elseif($function == 'view'){
+                    return $pdf->setPaper('a4', 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->stream('view.pdf');
+                }
+            }
 
             if($function == 'download'){
                 return $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');

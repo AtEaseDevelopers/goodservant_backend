@@ -41,7 +41,7 @@ class CustomerGroupDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('customer_group.action'), 'printable' => false])
             ->parameters([
                 'dom'       => 'Bfrtip',

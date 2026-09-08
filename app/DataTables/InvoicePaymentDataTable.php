@@ -61,7 +61,7 @@ class InvoicePaymentDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('invoice_payments.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
@@ -160,17 +160,6 @@ class InvoicePaymentDataTable extends DataTable
                                 return "Unknown";
                             }
                         }'
-                    ],
-                    [
-                    'targets' => 11,
-                    'render' => 'function(data, type){
-                        if(data == 1) {
-                            return "Synced";
-                        } else if (data == 2) {
-                            return "Voided";
-                        }
-                        
-                    }'
                     ],
                 ],
                 'initComplete' => 'function(){
@@ -271,10 +260,10 @@ class InvoicePaymentDataTable extends DataTable
 
             // 'remark',
 
-            'group'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.group'),
-            'data' => 'customer.GroupDescription',
-            'name' => 'customer.group',
-            'orderable' => false]),
+            // 'group'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.group'),
+            // 'data' => 'customer.GroupDescription',
+            // 'name' => 'customer.group',
+            // 'orderable' => false]),
         ];
     }
 

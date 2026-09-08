@@ -162,7 +162,7 @@ class CustomerDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
             ->addAction(['title' => trans('customers.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
@@ -244,11 +244,11 @@ class CustomerDataTable extends DataTable
                                                         }'
                     ],
                     [
-                        'targets' => 7,
+                        'targets' => 5,
                         'className' => "truncate"
                     ],
                     [
-                    'targets' => 8,
+                    'targets' => 6,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
                 ],
                 'initComplete' => 'function(){
@@ -302,23 +302,23 @@ class CustomerDataTable extends DataTable
             // 'data' => 'groups.description',
             // 'name' => 'groups.description']),
 
-            'agent_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.agent'),
-            'data' => 'agent.name',
-            'name' => 'agent.name']),
+            // 'agent_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.agent'),
+            // 'data' => 'agent.name',
+            // 'name' => 'agent.name']),
 
-            'supervisor_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.operation'),
-            'data' => 'supervisor.name',
-            'name' => 'supervisor.name']),
+            // 'supervisor_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.operation'),
+            // 'data' => 'supervisor.name',
+            // 'name' => 'supervisor.name']),
 
             'phone',
             'address',
             'status',
             'credit',
-            
-            'sst'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.ssm'),
-            'data' => 'sst',
-            'name' => 'sst']),
-            
+
+            // 'sst'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.ssm'),
+            // 'data' => 'sst',
+            // 'name' => 'sst']),
+
             'tin',
 
             'group_descr'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.group'),

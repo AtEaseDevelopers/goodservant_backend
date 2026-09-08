@@ -23,6 +23,8 @@ class InvoiceDetail extends Model
     public $fillable = [
         'invoice_id',
         'product_id',
+        'sales_order_id',
+        'deliveryorder_id',
         'quantity',
         'price',
         'totalprice',
@@ -38,6 +40,8 @@ class InvoiceDetail extends Model
         'id' => 'integer',
         'invoice_id' => 'integer',
         'product_id' => 'integer',
+        'sales_order_id' => 'integer',
+        'deliveryorder_id' => 'integer',
         'quantity' => 'integer',
         'price' => 'float',
         'remark' => 'string'
@@ -67,5 +71,15 @@ class InvoiceDetail extends Model
     {
         return $this->belongsTo(\App\Models\Product::class, 'product_id', 'id');
     }
-    
+
+    public function salesorder()
+    {
+        return $this->belongsTo(\App\Models\SalesOrder::class, 'sales_order_id', 'id');
+    }
+
+    public function deliveryorder()
+    {
+        return $this->belongsTo(\App\Models\DeliveryOrder::class, 'deliveryorder_id', 'id');
+    }
+
 }

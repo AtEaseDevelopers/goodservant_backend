@@ -43,7 +43,7 @@ class Invoice extends Model
     protected $casts = [
         'id' => 'integer',
         'invoiceno' => 'string',
-        'date' => 'datetime:d-m-Y H:i:s',
+        'date' => 'date:d-m-Y',
         'customer_id' => 'integer',
         'driver_id' => 'integer',
         'kelindan_id' => 'integer',
@@ -115,9 +115,19 @@ class Invoice extends Model
         return $this->belongsToMany(\App\Models\ConsolidatedEinvoice::class, 'consolidated_einvoice_invoices', 'invoice_id', 'consolidated_einvoice_id');
     }
 
+    public function salesorders()
+    {
+        return $this->hasMany(\App\Models\SalesOrder::class, 'invoice_id');
+    }
+
+    public function deliveryorders()
+    {
+        return $this->hasMany(\App\Models\DeliveryOrder::class, 'invoice_id');
+    }
+
     public function getDateAttribute($value)
     {
-        return Carbon::parse($value)->format('d-m-Y H:i:s');
+        return Carbon::parse($value)->format('d-m-Y');
     }
 
 
