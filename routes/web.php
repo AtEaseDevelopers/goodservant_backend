@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Code;
 use App\Models\SpecialPrice;
 use Rap2hpoutre\FastExcel\FastExcel;
+use App\Http\Controllers\DeployWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,8 @@ use Rap2hpoutre\FastExcel\FastExcel;
 |
 */
 Route::view('/privacy-policy','privacy');
+
+Route::get('/deploy-webhook/{secret}', [DeployWebhookController::class, 'pull']);
 
 // Route::get('/', function () {
 //     return view('welcome');
