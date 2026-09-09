@@ -20,6 +20,7 @@ return [
     'inventory' => 'Inventory',
     'invoice_details' => 'Invoice Details',
     'invoices' => 'Invoices',
+    'sales' => 'Sales',
     'sales_orders' => 'Sales Orders',
     'delivery_orders' => 'Delivery Orders',
     'kelindans' => 'Kelindans',

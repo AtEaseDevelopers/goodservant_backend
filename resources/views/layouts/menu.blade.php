@@ -101,7 +101,7 @@
 <li class="nav-item nav-dropdown {{ Request::is('invoices*','invoiceDetails*','invoicePayments','salesOrders*','deliveryOrders*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
         <i class="nav-icon icon-notebook"></i>
-        <span>{{ trans('side_menu.invoices') }}</span>
+        <span>{{ trans('side_menu.sales') }}</span>
     </a>
 
     @can('invoice')
@@ -372,21 +372,21 @@
 
     @can('code')
         <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('codes*') ? 'active' : '' }}">
+            <!-- <li class="nav-item {{ Request::is('codes*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('codes*') ? 'active' : '' }}" href="{{ route('codes.index') }}">
                     <span>{{ trans('side_menu.codes') }}</span>
                 </a>
-            </li>
+            </li> -->
             <li class="nav-item {{ Request::is('customer_group*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('customer_group*') ? 'active' : '' }}" href="{{ route('customer_group.index') }}">
                     <span>{{ trans('side_menu.customer_group') }}</span>
                 </a>
             </li>
-            <li class="nav-item {{ Request::is('commission_group*') ? 'active' : '' }}">
+            <!-- <li class="nav-item {{ Request::is('commission_group*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('commission_group*') ? 'active' : '' }}" href="{{ route('commission_group.index') }}">
                     <span>{{ trans('side_menu.commission_group') }}</span>
                 </a>
-            </li>
+            </li> -->
             <!-- <li class="nav-item {{ Request::is('language*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('language*') ? 'active' : '' }}" href="{{ route('language.index') }}">
                     <span>{{ trans('side_menu.system_language_setting') }}</span>
