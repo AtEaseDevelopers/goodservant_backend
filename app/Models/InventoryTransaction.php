@@ -27,7 +27,8 @@ class InventoryTransaction extends Model
         'type',
         'remark',
         'date',
-        'user'
+        'user',
+        'trip_id'
     ];
 
     /**
@@ -43,7 +44,8 @@ class InventoryTransaction extends Model
         'type' => 'integer',
         'remark' => 'string',
         'date' => 'date:d-m-Y H:i:s',
-        'user' => 'string'
+        'user' => 'string',
+        'trip_id' => 'integer'
     ];
 
     /**

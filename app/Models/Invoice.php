@@ -32,7 +32,8 @@ class Invoice extends Model
         'paymentterm',
         'status',
         'remark',
-        'chequeno'
+        'chequeno',
+        'trip_id'
     ];
 
     /**
@@ -51,7 +52,8 @@ class Invoice extends Model
         'supervisor_id' => 'integer',
         'paymentterm' => 'integer',
         'status' => 'integer',
-        'remark' => 'string'
+        'remark' => 'string',
+        'trip_id' => 'integer'
     ];
 
     /**

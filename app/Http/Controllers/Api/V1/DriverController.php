@@ -26,6 +26,7 @@ use App\Models\Code;
 use App\Models\InventoryBalance;
 use App\Models\InventoryTransaction;
 use App\Models\InventoryTransfer;
+use App\Models\TripInventoryBalance;
 use App\Models\foc;
 use App\Models\DriverLocation;
 use App\Models\Language;
@@ -403,6 +404,20 @@ class DriverController extends Controller
                     $newtrip->type = 1;
                     $newtrip->date = date("Y-m-d H:i:s");
                     $newtrip->save();
+                    //record active trip on driver
+                    Driver::where('id', $driver->id)->update(['trip_id' => $newtrip->id, 'lorry_id' => $data['lorry_id']]);
+                    //snapshot lorry stock at start of trip
+                    $startbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
+                    foreach($startbalances as $startbalance){
+                        TripInventoryBalance::create([
+                            'trip_id' => $newtrip->id,
+                            'driver_id' => $driver->id,
+                            'lorry_id' => $data['lorry_id'],
+                            'product_id' => $startbalance->product_id,
+                            'quantity' => $startbalance->quantity,
+                            'type' => TripInventoryBalance::TYPE_START,
+                        ]);
+                    }
                     //generate task
                     $assigns = Assign::where('driver_id', $driver->id)->orderby('sequence','asc')->get()->toarray();
                     $count = 1;
@@ -451,6 +466,20 @@ class DriverController extends Controller
                 $newtrip->type = 1;
                 $newtrip->date = date("Y-m-d H:i:s");
                 $newtrip->save();
+                //record active trip on driver
+                Driver::where('id', $driver->id)->update(['trip_id' => $newtrip->id, 'lorry_id' => $data['lorry_id']]);
+                //snapshot lorry stock at start of trip
+                $startbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
+                foreach($startbalances as $startbalance){
+                    TripInventoryBalance::create([
+                        'trip_id' => $newtrip->id,
+                        'driver_id' => $driver->id,
+                        'lorry_id' => $data['lorry_id'],
+                        'product_id' => $startbalance->product_id,
+                        'quantity' => $startbalance->quantity,
+                        'type' => TripInventoryBalance::TYPE_START,
+                    ]);
+                }
                 //generate task
                 $assigns = Assign::where('driver_id', $driver->id)->orderby('sequence','asc')->get()->toarray();
                 $count = 1;
@@ -587,10 +616,24 @@ class DriverController extends Controller
                                 $inventorytransaction->type = 5;
                                 $inventorytransaction->date = date('Y-m-d H:i:s');
                                 $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
+                                $inventorytransaction->trip_id = $driver->trip_id;
                                 $inventorytransaction->save();
                             }
                         }
                     }
+                    //snapshot lorry stock at end of trip, then clear driver's active trip
+                    $endbalances = InventoryBalance::where('lorry_id', $trip->lorry_id)->get();
+                    foreach($endbalances as $endbalance){
+                        TripInventoryBalance::create([
+                            'trip_id' => $driver->trip_id,
+                            'driver_id' => $driver->id,
+                            'lorry_id' => $trip->lorry_id,
+                            'product_id' => $endbalance->product_id,
+                            'quantity' => $endbalance->quantity,
+                            'type' => TripInventoryBalance::TYPE_END,
+                        ]);
+                    }
+                    Driver::where('id', $driver->id)->update(['trip_id' => null, 'lorry_id' => null]);
                     DB::commit();
                     return response()->json([
                         'result' => true,
@@ -676,6 +719,20 @@ class DriverController extends Controller
                     $newtrip->type = 1;
                     $newtrip->date = date("Y-m-d H:i:s");
                     $newtrip->save();
+                    //record active trip on driver
+                    Driver::where('id', $driver->id)->update(['trip_id' => $newtrip->id, 'lorry_id' => $data['lorry_id']]);
+                    //snapshot lorry stock at start of trip
+                    $startbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
+                    foreach($startbalances as $startbalance){
+                        TripInventoryBalance::create([
+                            'trip_id' => $newtrip->id,
+                            'driver_id' => $driver->id,
+                            'lorry_id' => $data['lorry_id'],
+                            'product_id' => $startbalance->product_id,
+                            'quantity' => $startbalance->quantity,
+                            'type' => TripInventoryBalance::TYPE_START,
+                        ]);
+                    }
                     //generate task
                     $assigns = Assign::where('driver_id', $driver->id)->orderby('sequence','asc')->get()->toarray();
                     $count = 1;
@@ -722,6 +779,20 @@ class DriverController extends Controller
                 $newtrip->type = 1;
                 $newtrip->date = date("Y-m-d H:i:s");
                 $newtrip->save();
+                //record active trip on driver
+                Driver::where('id', $driver->id)->update(['trip_id' => $newtrip->id, 'lorry_id' => $data['lorry_id']]);
+                //snapshot lorry stock at start of trip
+                $startbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
+                foreach($startbalances as $startbalance){
+                    TripInventoryBalance::create([
+                        'trip_id' => $newtrip->id,
+                        'driver_id' => $driver->id,
+                        'lorry_id' => $data['lorry_id'],
+                        'product_id' => $startbalance->product_id,
+                        'quantity' => $startbalance->quantity,
+                        'type' => TripInventoryBalance::TYPE_START,
+                    ]);
+                }
                 //generate task
                 $assigns = Assign::where('driver_id', $driver->id)->orderby('sequence','asc')->get()->toarray();
                 $count = 1;
@@ -769,6 +840,19 @@ class DriverController extends Controller
                     $newtrip->type = 2;
                     $newtrip->date = date("Y-m-d H:i:s");
                     $newtrip->save();
+                    //snapshot lorry stock at end of trip, then clear driver's active trip
+                    $endbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
+                    foreach($endbalances as $endbalance){
+                        TripInventoryBalance::create([
+                            'trip_id' => $driver->trip_id,
+                            'driver_id' => $driver->id,
+                            'lorry_id' => $data['lorry_id'],
+                            'product_id' => $endbalance->product_id,
+                            'quantity' => $endbalance->quantity,
+                            'type' => TripInventoryBalance::TYPE_END,
+                        ]);
+                    }
+                    Driver::where('id', $driver->id)->update(['trip_id' => null, 'lorry_id' => null]);
                     //cancelled task
                     $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['status' => 9]);
                     return response()->json([
@@ -1705,6 +1789,7 @@ class DriverController extends Controller
             $invoice->status = 1;
             $invoice->chequeno = $data['cheque_no'];
             $invoice->remark = $data['remark'];
+            $invoice->trip_id = $driver->trip_id;
             $invoice->save();
             $totalprice = 0;
             foreach($data['invoicedetail'] as $id){
@@ -2553,6 +2638,7 @@ class DriverController extends Controller
                  $frominventorytransaction->type = 4;
                  $frominventorytransaction->user = $fromdriver->employeeid . " (".$fromdriver->name.") => " . $todriver->employeeid . " (".$todriver->name.")";
                  $frominventorytransaction->date = date('Y-m-d H:i:s');
+                 $frominventorytransaction->trip_id = $fromdriver->trip_id;
                  $frominventorytransaction->save();
                  //to
                  $toinventorybalance = Inventorybalance::where('lorry_id',$inventorytransfer->to_lorry_id)
@@ -2574,6 +2660,7 @@ class DriverController extends Controller
                  $toinventorytransaction->type = 4;
                  $toinventorytransaction->user = $fromdriver->employeeid . " (".$fromdriver->name.") => " . $todriver->employeeid . " (".$todriver->name.")";
                  $toinventorytransaction->date = date('Y-m-d H:i:s');
+                 $toinventorytransaction->trip_id = $todriver->trip_id;
                  $toinventorytransaction->save();
                  DB::commit();
                  return response()->json([

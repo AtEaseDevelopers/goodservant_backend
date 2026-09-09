@@ -31,7 +31,8 @@ class SalesOrder extends Model
         'remark',
         'chequeno',
         'deliveryorder_id',
-        'invoice_id'
+        'invoice_id',
+        'trip_id'
     ];
 
     /**
@@ -52,7 +53,8 @@ class SalesOrder extends Model
         'status' => 'integer',
         'remark' => 'string',
         'deliveryorder_id' => 'integer',
-        'invoice_id' => 'integer'
+        'invoice_id' => 'integer',
+        'trip_id' => 'integer'
     ];
 
     /**

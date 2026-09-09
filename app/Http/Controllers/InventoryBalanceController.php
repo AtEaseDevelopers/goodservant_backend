@@ -12,6 +12,7 @@ use App\Http\Controllers\AppBaseController;
 use Response;
 use App\Models\InventoryBalance;
 use App\Models\InventoryTransaction;
+use App\Models\Driver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -42,6 +43,9 @@ class InventoryBalanceController extends AppBaseController
 		$lorryIds = $data['lorry_id'];  // This will be an array of selected lorry IDs
 
 		foreach ($lorryIds as $lorryId) {
+			$activeDriver = Driver::where('lorry_id', $lorryId)->whereNotNull('trip_id')->first();
+			$tripId = $activeDriver->trip_id ?? null;
+
 			$inventoryBalance = InventoryBalance::where('product_id', $data['product_id'])
 				->where('lorry_id', $lorryId)
 				->first();
@@ -59,6 +63,7 @@ class InventoryBalanceController extends AppBaseController
 				$inventoryTransaction->quantity = $data['quantity'];
 				$inventoryTransaction->date = date("Y-m-d H:i:s");
 				$inventoryTransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
+				$inventoryTransaction->trip_id = $tripId;
 				$inventoryTransaction->save();
 
 				Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
@@ -78,6 +83,7 @@ class InventoryBalanceController extends AppBaseController
 				$inventoryTransaction->quantity = $data['quantity'];
 				$inventoryTransaction->date = date("Y-m-d H:i:s");
 				$inventoryTransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
+				$inventoryTransaction->trip_id = $tripId;
 				$inventoryTransaction->save();
 
 				Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been inserted successfully.');
@@ -104,6 +110,8 @@ class InventoryBalanceController extends AppBaseController
     public function stockout(Request $request)
     {
         $data = $request->all();
+        $activeDriver = Driver::where('lorry_id', $data['lorry_id'])->whereNotNull('trip_id')->first();
+        $tripId = $activeDriver->trip_id ?? null;
         $inventoryBalance = InventoryBalance::where('product_id',$data['product_id'])->where('lorry_id',$data['lorry_id'])->first();
         if(!empty($inventoryBalance)){
             if($inventoryBalance->quantity >= $data['quantity']){
@@ -116,6 +124,7 @@ class InventoryBalanceController extends AppBaseController
                 $inventorytransaction->quantity = $data['quantity'] * -1;
                 $inventorytransaction->date = date("Y-m-d H:i:s");
                 $inventorytransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
+                $inventorytransaction->trip_id = $tripId;
                 $inventorytransaction->save();
                 Flash::success('Inventory Balance had been updated successfully.');
             }else{

@@ -30,7 +30,8 @@ class DeliveryOrder extends Model
         'status',
         'remark',
         'chequeno',
-        'invoice_id'
+        'invoice_id',
+        'trip_id'
     ];
 
     /**
@@ -50,7 +51,8 @@ class DeliveryOrder extends Model
         'paymentterm' => 'integer',
         'status' => 'integer',
         'remark' => 'string',
-        'invoice_id' => 'integer'
+        'invoice_id' => 'integer',
+        'trip_id' => 'integer'
     ];
 
     /**

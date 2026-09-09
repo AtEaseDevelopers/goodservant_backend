@@ -305,6 +305,8 @@ class DeliveryOrderController extends AppBaseController
                 ? 'Combined from ' . $deliveryOrders->count() . ' delivery order(s)'
                 : $first->remark;
             $invoice->chequeno = $first->chequeno;
+            $tripIds = $deliveryOrders->pluck('trip_id')->unique();
+            $invoice->trip_id = $tripIds->count() === 1 ? $tripIds->first() : null;
             $invoice->save();
 
             foreach ($deliveryOrders as $deliveryOrder) {

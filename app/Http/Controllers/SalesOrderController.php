@@ -335,6 +335,7 @@ class SalesOrderController extends AppBaseController
         $deliveryOrder->status = 0;
         $deliveryOrder->remark = $salesOrder->remark;
         $deliveryOrder->chequeno = $chequeno;
+        $deliveryOrder->trip_id = $salesOrder->trip_id;
         $deliveryOrder->save();
 
         foreach ($salesOrder->salesorderdetail as $line) {
@@ -376,6 +377,7 @@ class SalesOrderController extends AppBaseController
         $invoice->status = 0;
         $invoice->remark = $salesOrder->remark;
         $invoice->chequeno = $chequeno;
+        $invoice->trip_id = $salesOrder->trip_id;
         $invoice->save();
 
         foreach ($salesOrder->salesorderdetail as $line) {

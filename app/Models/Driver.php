@@ -39,6 +39,8 @@ class Driver extends Model
         'remark',
         'session',
         'invoice_runningnumber',
+        'trip_id',
+        'lorry_id',
     ];
 
     protected $hidden = [
@@ -66,6 +68,8 @@ class Driver extends Model
         'status' => 'integer',
         'remark' => 'string',
         'session' => 'string',
+        'trip_id' => 'integer',
+        'lorry_id' => 'integer',
     ];
 
     /**
