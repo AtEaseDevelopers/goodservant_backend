@@ -460,6 +460,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::resource('taskTransfers', App\Http\Controllers\TaskTransferController::class);
     });
     Route::group(['middleware' => ['permission:trip']], function() {
+        Route::get('trips/{id}/report', [App\Http\Controllers\TripController::class, 'report'])->name('trips.report');
         Route::resource('trips', App\Http\Controllers\TripController::class);
 
     });

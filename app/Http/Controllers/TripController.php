@@ -13,6 +13,13 @@ use Response;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\Trip;
+use App\Models\Invoice;
+use App\Models\DeliveryOrder;
+use App\Models\TripInventoryBalance;
+use App\Models\InventoryTransaction;
+use App\Models\Product;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TripController extends AppBaseController
 {
@@ -213,5 +220,165 @@ class TripController extends AppBaseController
         Flash::success('Trip deleted successfully.');
 
         return redirect(route('trips.index'));
+    }
+
+    /**
+     * Generate the end-of-trip PDF report (sales + stock movement).
+     *
+     * @param string $id encrypted trip id (the End Trip row)
+     */
+    public function report($id)
+    {
+        $id = Crypt::decrypt($id);
+
+        // The clicked row is the end trip (type=2)
+        $endTrip = Trip::with(['driver', 'kelindan', 'lorry'])->findOrFail($id);
+
+        // Find the corresponding start trip (type=1) for this driver immediately before the end trip
+        $startTrip = Trip::where('driver_id', $endTrip->driver_id)
+            ->where('type', 1)
+            ->where('id', '<', $endTrip->id)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Invoices created during this trip. Excludes invoices produced by converting/
+        // combining a DO - those are just paperwork done later against the source DO's
+        // trip_id; the DO itself (below) already represents what happened on this trip.
+        $invoices = collect();
+        if ($startTrip) {
+            $invoices = Invoice::where('trip_id', $startTrip->id)
+                ->where('status', 1)
+                ->whereDoesntHave('invoicedetail', function ($q) {
+                    $q->whereNotNull('deliveryorder_id');
+                })
+                ->with(['customer', 'invoicedetail.product'])
+                ->get();
+        }
+
+        // DOs created during this trip - listed in their own section and counted in
+        // Sales Used, but stay out of the payment breakdown (no money collected yet)
+        $deliveryOrders = collect();
+        if ($startTrip) {
+            $deliveryOrders = DeliveryOrder::where('trip_id', $startTrip->id)
+                ->with(['customer', 'deliveryorderdetail.product'])
+                ->get();
+        }
+
+        $paymentLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online BankIn', 4 => 'E-wallet', 5 => 'Cheque'];
+
+        // Aggregate payment breakdown
+        $breakdown = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+        foreach ($invoices as $invoice) {
+            $term = (int) $invoice->paymentterm;
+            if (array_key_exists($term, $breakdown)) {
+                $breakdown[$term] += $invoice->invoicedetail->sum('totalprice');
+            }
+        }
+        $grandTotal = array_sum($breakdown);
+
+        // Trip duration
+        $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
+        $endTime = Carbon::parse($endTrip->getRawOriginal('date') ?? $endTrip->date);
+        $duration = $startTime ? $startTime->diff($endTime) : null;
+
+        // ── Stock Movement Table ───────────────────────────────────────────────
+        $lorryId = $startTrip ? $startTrip->lorry_id : $endTrip->lorry_id;
+        $tripStartDate = $startTime ? $startTime->toDateTimeString() : null;
+        $tripEndDate = $endTime->toDateTimeString();
+
+        $openingMap = TripInventoryBalance::where('trip_id', $startTrip->id ?? 0)
+            ->where('type', TripInventoryBalance::TYPE_START)
+            ->with('product:id,name')
+            ->get()
+            ->keyBy('product_id');
+
+        $closingMap = TripInventoryBalance::where('trip_id', $startTrip->id ?? 0)
+            ->where('type', TripInventoryBalance::TYPE_END)
+            ->with('product:id,name')
+            ->get()
+            ->keyBy('product_id');
+
+        $txBase = InventoryTransaction::where('lorry_id', $lorryId)
+            ->where('trip_id', $startTrip->id ?? 0)
+            ->when($tripStartDate, fn ($q) => $q->where('date', '>=', $tripStartDate))
+            ->where('date', '<=', $tripEndDate);
+
+        $adminInMap = (clone $txBase)->where('type', 1)
+            ->selectRaw('product_id, SUM(quantity) as total')->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $adminOutMap = (clone $txBase)->where('type', 2)
+            ->selectRaw('product_id, SUM(ABS(quantity)) as total')->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $wastageMap = (clone $txBase)->where('type', 5)
+            ->selectRaw('product_id, SUM(ABS(quantity)) as total')->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        // Sales Used, split by source. DO lines are always counted from
+        // deliveryorderdetail; Invoice lines only count when deliveryorder_id is
+        // null, since a converted DO's invoicedetail rows carry deliveryorder_id
+        // and would otherwise double-count what the DO section already counts.
+        $invoiceSalesMap = [];
+        foreach ($invoices as $invoice) {
+            foreach ($invoice->invoicedetail as $detail) {
+                if ($detail->product_id && empty($detail->deliveryorder_id)) {
+                    $invoiceSalesMap[$detail->product_id] = ($invoiceSalesMap[$detail->product_id] ?? 0) + $detail->quantity;
+                }
+            }
+        }
+        $doSalesMap = [];
+        foreach ($deliveryOrders as $deliveryOrder) {
+            foreach ($deliveryOrder->deliveryorderdetail as $detail) {
+                if ($detail->product_id) {
+                    $doSalesMap[$detail->product_id] = ($doSalesMap[$detail->product_id] ?? 0) + $detail->quantity;
+                }
+            }
+        }
+
+        $allProductIds = collect($openingMap->keys())
+            ->merge($closingMap->keys())
+            ->merge($adminInMap->keys())
+            ->merge($adminOutMap->keys())
+            ->merge($wastageMap->keys())
+            ->merge(array_keys($invoiceSalesMap))
+            ->merge(array_keys($doSalesMap))
+            ->unique()->values();
+
+        $productNames = Product::whereIn('id', $allProductIds)->pluck('name', 'id');
+
+        $stockMovements = $allProductIds->map(function ($pid) use ($openingMap, $closingMap, $adminInMap, $adminOutMap, $wastageMap, $invoiceSalesMap, $doSalesMap, $productNames) {
+            return [
+                'product_name' => $openingMap[$pid]->product->name ?? $closingMap[$pid]->product->name ?? ($productNames[$pid] ?? '-'),
+                'opening_stock' => (int) ($openingMap[$pid]->quantity ?? 0),
+                'admin_in' => (int) ($adminInMap[$pid] ?? 0),
+                'admin_out' => (int) ($adminOutMap[$pid] ?? 0),
+                'sales_invoice' => (int) ($invoiceSalesMap[$pid] ?? 0),
+                'sales_do' => (int) ($doSalesMap[$pid] ?? 0),
+                'wastage' => (int) ($wastageMap[$pid] ?? 0),
+                'closing_stock' => (int) ($closingMap[$pid]->quantity ?? 0),
+            ];
+        })->sortBy('product_name')->values();
+
+        // Drop rows where every column is 0 - nothing happened for that product on this trip
+        $stockMovements = $stockMovements->reject(function ($row) {
+            return $row['opening_stock'] === 0
+                && $row['admin_in'] === 0
+                && $row['admin_out'] === 0
+                && $row['sales_invoice'] === 0
+                && $row['sales_do'] === 0
+                && $row['wastage'] === 0
+                && $row['closing_stock'] === 0;
+        })->values();
+        // ──────────────────────────────────────────────────────────────────────
+
+        $pdf = Pdf::loadView('trips.report', compact(
+            'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
+            'breakdown', 'grandTotal', 'paymentLabels',
+            'startTime', 'endTime', 'duration',
+            'stockMovements'
+        ))->setPaper('a4', 'portrait');
+
+        return $pdf->stream('daily-sales-report-' . $endTrip->id . '.pdf');
     }
 }
