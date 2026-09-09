@@ -244,13 +244,13 @@
                 </a>
             </li>
         </ul>
-        <ul class="nav-dropdown-items">
+        <!-- <ul class="nav-dropdown-items">
             <li class="nav-item {{ Request::is('servicedetails*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('servicedetails*') ? 'active' : '' }}" href="{{ route('servicedetails.index') }}">
                     <span>{{ trans('side_menu.lorry_service') }}</span>
                 </a>
             </li>
-        </ul>
+        </ul> -->
     @endcan
 
     @can('driver')
