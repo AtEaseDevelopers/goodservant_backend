@@ -27,8 +27,8 @@ use App\Http\Controllers\DeployWebhookController;
 */
 Route::view('/privacy-policy','privacy');
 
-Route::get('/deploy-webhook/{secret}', [DeployWebhookController::class, 'pull']);
-Route::get('/deploy-webhook-migrate/{secret}', [DeployWebhookController::class, 'migrate']);
+Route::get('/git-pull', [DeployWebhookController::class, 'pull']);
+Route::get('/migrate', [DeployWebhookController::class, 'migrate']);
 
 // Route::get('/', function () {
 //     return view('welcome');

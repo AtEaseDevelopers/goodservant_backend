@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 class DeployWebhookController extends Controller
 {
-    public function pull(string $secret)
+    public function pull()
     {
-        $this->checkSecret($secret);
-
         $basePath = base_path();
         $php = '/usr/bin/php8.3';
         $composer = '/usr/local/bin/composer';
@@ -25,24 +23,13 @@ class DeployWebhookController extends Controller
         ]);
     }
 
-    public function migrate(string $secret)
+    public function migrate()
     {
-        $this->checkSecret($secret);
-
         $php = '/usr/bin/php8.3';
 
         return $this->runCommands(base_path(), [
             "{$php} artisan migrate --force",
         ]);
-    }
-
-    private function checkSecret(string $secret)
-    {
-        $expected = config('deploy.secret');
-
-        if (empty($expected) || !hash_equals($expected, $secret)) {
-            abort(404);
-        }
     }
 
     private function runCommands(string $basePath, array $commands)
