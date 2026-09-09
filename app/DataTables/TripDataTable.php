@@ -22,9 +22,6 @@ class TripDataTable extends DataTable
       return $dataTable->addColumn('action', function ($row) {
         if ($row->type == 2) {
             return '<div class="btn-group">
-                        <a href="' . route('trips.show', Crypt::encrypt($row->id)) . '" class="btn btn-ghost-success">
-                            <i class="fa fa-eye"></i>
-                        </a>
                         <a href="' . route('trips.report', Crypt::encrypt($row->id)) . '" target="_blank" class="btn btn-sm btn-primary">
                             <i class="fa fa-file-pdf-o"></i> Report
                         </a>
