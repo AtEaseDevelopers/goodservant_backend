@@ -462,6 +462,7 @@ Route::group(['middleware' => ['auth']], function() {
     });
     Route::group(['middleware' => ['permission:trip']], function() {
         Route::get('trips/{id}/report', [App\Http\Controllers\TripController::class, 'report'])->name('trips.report');
+        Route::get('trips/{id}/report/pdf', [App\Http\Controllers\TripController::class, 'reportPdf'])->name('trips.report.pdf');
         Route::resource('trips', App\Http\Controllers\TripController::class);
 
     });

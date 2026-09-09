@@ -223,11 +223,39 @@ class TripController extends AppBaseController
     }
 
     /**
-     * Generate the end-of-trip PDF report (sales + stock movement).
+     * Show the end-of-trip report (sales + stock movement) as an on-screen page.
      *
      * @param string $id encrypted trip id (the End Trip row)
      */
     public function report($id)
+    {
+        $data = $this->buildReportData($id);
+
+        return view('trips.report_view', $data);
+    }
+
+    /**
+     * Download/print the same report as a PDF.
+     *
+     * @param string $id encrypted trip id (the End Trip row)
+     */
+    public function reportPdf($id)
+    {
+        $data = $this->buildReportData($id);
+
+        $pdf = Pdf::loadView('trips.report', $data)->setPaper('a4', 'portrait');
+
+        return $pdf->stream('daily-sales-report-' . $data['endTrip']->id . '.pdf');
+    }
+
+    /**
+     * Gather all the data needed for both the on-screen and PDF versions of the
+     * end-of-trip report.
+     *
+     * @param string $id encrypted trip id (the End Trip row)
+     * @return array
+     */
+    private function buildReportData($id)
     {
         $id = Crypt::decrypt($id);
 
@@ -372,13 +400,11 @@ class TripController extends AppBaseController
         })->values();
         // ──────────────────────────────────────────────────────────────────────
 
-        $pdf = Pdf::loadView('trips.report', compact(
+        return compact(
             'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
             'breakdown', 'grandTotal', 'paymentLabels',
             'startTime', 'endTime', 'duration',
             'stockMovements'
-        ))->setPaper('a4', 'portrait');
-
-        return $pdf->stream('daily-sales-report-' . $endTrip->id . '.pdf');
+        );
     }
 }
