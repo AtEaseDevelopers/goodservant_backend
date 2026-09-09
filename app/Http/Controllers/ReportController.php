@@ -33,6 +33,7 @@ use App\Models\InvoicePayment;
 use App\Models\Customer;
 use App\Models\Agent;
 use App\Models\Product;
+use App\Models\Trip;
 use App\Exports\SellerInformationExport;
 use App\Exports\MonthlySaleReport;
 use App\Exports\DailySaleReportExport;
@@ -59,6 +60,120 @@ class ReportController extends AppBaseController
     public function index(ReportDataTable $reportDataTable)
     {
         return $reportDataTable->render('reports.index');
+    }
+
+    // ── Daily Sales Report ──────────────────────────────────────────────────
+
+    public function dailySalesForm()
+    {
+        $lorries = Lorry::orderBy('lorryno')->get();
+        $customers = Customer::orderBy('company')->get();
+        $paymentTerms = Customer::PAYMENT_TERMS;
+
+        return view('reports.daily_sales_filters', compact('lorries', 'customers', 'paymentTerms'));
+    }
+
+    public function dailySalesPdf(Request $request)
+    {
+        // A whole month across many drivers can be thousands of invoices/lines, and
+        // dompdf (pure-PHP rendering) is memory/CPU heavy for large documents - bump
+        // the limits for just this request rather than raising them site-wide.
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $dateFrom = $request->date_from;
+        $dateTo = $request->date_to;
+        $lorryIds = array_filter($request->input('lorry_ids', []));
+        $customerId = $request->customer_id ?: null;
+        $paymentType = $request->payment_type ?: null;
+
+        $query = Invoice::whereBetween(DB::raw('DATE(date)'), [$dateFrom, $dateTo])
+            ->where('status', 1)
+            ->with([
+                'customer:id,company',
+                'driver:id,name',
+                'invoicedetail:id,invoice_id,product_id,quantity,price,totalprice,remark',
+                'invoicedetail.product:id,name',
+                'trip:id,lorry_id',
+            ]);
+
+        // Filter by lorry via the trip the invoice was created on, not drivers.lorry_id
+        // - that column only reflects whichever lorry a driver is CURRENTLY on and is
+        // reset to null once their trip ends, so it can't be used for historical reports.
+        if (!empty($lorryIds)) {
+            $tripIds = Trip::whereIn('lorry_id', $lorryIds)->pluck('id');
+            $query->whereIn('trip_id', $tripIds);
+        }
+        if ($customerId) {
+            $query->where('customer_id', $customerId);
+        }
+        if ($paymentType) {
+            $query->where('paymentterm', $paymentType);
+        }
+
+        $invoices = $query->orderBy('date')->get();
+
+        $paymentLabels = Customer::PAYMENT_TERMS;
+        $breakdown = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+        foreach ($invoices as $invoice) {
+            $term = (int) $invoice->paymentterm;
+            if (array_key_exists($term, $breakdown)) {
+                $breakdown[$term] += $invoice->invoicedetail->sum('totalprice');
+            }
+        }
+        $grandTotal = array_sum($breakdown);
+
+        $filterLorry = !empty($lorryIds) ? (Lorry::whereIn('id', $lorryIds)->pluck('lorryno')->implode(', ') ?: 'All') : 'All';
+        $filterCustomer = $customerId ? (Customer::find($customerId)?->company ?? 'All') : 'All';
+        $filterPayment = $paymentType ? ($paymentLabels[$paymentType] ?? 'All') : 'All';
+
+        // Split Invoice Details into one section per lorry whenever more than one
+        // lorry is in play - either explicitly (2+ selected) or implicitly ("All
+        // lorries", i.e. none selected). Only a single specific lorry selected keeps
+        // the flat list, since grouping would just be one section anyway.
+        $groupByLorry = count($lorryIds) !== 1;
+        $invoiceGroups = collect();
+        if ($groupByLorry) {
+            $grouped = $invoices->groupBy(fn ($invoice) => $invoice->trip?->lorry_id ?? 0);
+
+            if (!empty($lorryIds)) {
+                // Explicit multi-lorry filter: keep the order the user picked them in.
+                $lorryNames = Lorry::whereIn('id', $lorryIds)->pluck('lorryno', 'id');
+                foreach ($lorryIds as $lorryId) {
+                    if ($grouped->has($lorryId)) {
+                        $invoiceGroups->push([
+                            'label' => $lorryNames[$lorryId] ?? ('Lorry #' . $lorryId),
+                            'invoices' => $grouped[$lorryId],
+                        ]);
+                    }
+                }
+            } else {
+                // No filter (all lorries): group by whichever lorries actually turn up
+                // in this date range, ordered by lorry number.
+                $presentLorryIds = $grouped->keys()->filter()->values();
+                $lorryNames = Lorry::whereIn('id', $presentLorryIds)->orderBy('lorryno')->pluck('lorryno', 'id');
+                foreach ($lorryNames as $lorryId => $lorryName) {
+                    $invoiceGroups->push(['label' => $lorryName, 'invoices' => $grouped[$lorryId]]);
+                }
+            }
+
+            if ($grouped->has(0)) {
+                $invoiceGroups->push(['label' => 'No Trip / Lorry', 'invoices' => $grouped[0]]);
+            }
+        }
+
+        $pdf = Pdf::loadView('reports.daily_sales_pdf', compact(
+            'invoices', 'breakdown', 'grandTotal', 'paymentLabels',
+            'dateFrom', 'dateTo', 'filterLorry', 'filterCustomer', 'filterPayment',
+            'groupByLorry', 'invoiceGroups'
+        ))->setPaper('a4', 'landscape');
+
+        return $pdf->stream('daily-sales-report-' . $dateFrom . '-to-' . $dateTo . '.pdf');
     }
 
     /**

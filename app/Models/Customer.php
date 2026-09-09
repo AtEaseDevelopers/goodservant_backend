@@ -19,6 +19,13 @@ class Customer extends Model
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
 
+    const PAYMENT_TERMS = [
+        1 => 'Cash',
+        2 => 'Credit',
+        3 => 'Online BankIn',
+        4 => 'E-wallet',
+        5 => 'Cheque',
+    ];
 
     public $appends = [
         'GroupDescription',
