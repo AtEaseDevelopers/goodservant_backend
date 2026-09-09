@@ -17,7 +17,7 @@ class DeployWebhookController extends Controller
         $composer = '/usr/local/bin/composer';
 
         $commands = [
-            'git pull origin main',
+            'git -c safe.directory=' . escapeshellarg($basePath) . ' pull origin main',
             "{$php} {$composer} install --no-dev --optimize-autoloader --no-interaction",
             "{$php} artisan migrate --force",
             "{$php} artisan config:clear",
