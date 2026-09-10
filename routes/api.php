@@ -66,7 +66,6 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('/driver/deliveryOrder/combine-convert', [App\Http\Controllers\Api\V1\DriverController::class, 'combineconvertdeliveryorder']);
 
     //Packing List
-    Route::get('/driver/packing-list', [App\Http\Controllers\Api\V1\DriverController::class, 'getpackinglist']);
     Route::post('/driver/packing-list/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'packinglistpdf']);
 
      //Invoice Payment

@@ -568,28 +568,10 @@ return [
     // ── Packing List ─────────────────────────────────────────────────────
     [
         'category' => 'Packing List',
-        'method' => 'GET',
-        'path' => '/driver/packing-list',
-        'methodName' => 'getpackinglist',
-        'description' => "Builds a matrix of quantities (per product code) invoiced to each of a date's task customers - the JSON data behind a packing list sheet.",
-        'auth' => ['session' => true, 'trip' => false],
-        'params' => [
-            ['name' => 'date', 'in' => 'query', 'type' => 'date (Y-m-d)', 'required' => false, 'note' => 'defaults to today'],
-        ],
-        'exampleRequest' => null,
-        'exampleResponse' => [
-            'result' => true, 'message' => '..|api.message.packing_list_get_successfully',
-            'data' => ['driver' => 'Selva Kumar', 'date' => date('Y-m-d'), 'products' => ['KLP', 'MT'], 'rows' => [['customer_id' => 1, 'customer_name' => 'ABC Sdn Bhd', 'quantities' => ['KLP' => 5, 'MT' => 0]]]],
-        ],
-        'errors' => "401 invalid_session\n500 on exception",
-        'responseType' => 'json',
-    ],
-    [
-        'category' => 'Packing List',
         'method' => 'POST',
         'path' => '/driver/packing-list/pdf',
         'methodName' => 'packinglistpdf',
-        'description' => 'Same aggregation as GET /driver/packing-list plus column totals, rendered to PDF (A4 landscape) and streamed directly.',
+        'description' => "Builds a matrix of quantities (per product) invoiced to each of a date's task customers, rendered to PDF (A4 landscape) and streamed directly. JSON-only variant was removed - PDF is the only response this endpoint returns.",
         'auth' => ['session' => true, 'trip' => false],
         'params' => [
             ['name' => 'date', 'in' => 'body', 'type' => 'date (Y-m-d)', 'required' => false, 'note' => 'defaults to today'],

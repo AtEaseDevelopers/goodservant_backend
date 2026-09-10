@@ -4224,63 +4224,6 @@ class DriverController extends Controller
 
     // ── Packing List ─────────────────────────────────────────────────────────
 
-    public function getpackinglist(Request $request){
-        try{
-            $driver = Driver::where('session', $request->header('session'))->first();
-            if(empty($driver)){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
-                    'data' => null
-                ], 401);
-            }
-            $date = $request->input('date', date('Y-m-d'));
-
-            $tasks = Task::where('driver_id', $driver->id)
-                ->where('date', $date)
-                ->orderBy('sequence')
-                ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
-                ->get();
-
-            $products = Product::orderBy('id')->get(['id','code','name']);
-
-            $rows = $tasks->map(function($task) use ($products){
-                $quantities = array_fill_keys($products->pluck('code')->all(), 0);
-                if($task->invoice){
-                    foreach($task->invoice->invoicedetail as $detail){
-                        $code = $detail->product->code ?? null;
-                        if($code !== null && array_key_exists($code, $quantities)){
-                            $quantities[$code] += $detail->quantity;
-                        }
-                    }
-                }
-                return [
-                    'customer_id' => $task->customer_id,
-                    'customer_name' => $task->customer->company ?? '-',
-                    'quantities' => $quantities,
-                ];
-            });
-
-            return response()->json([
-                'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.packing_list_get_successfully',
-                'data' => [
-                    'driver' => $driver->name,
-                    'date' => $date,
-                    'products' => $products->pluck('code'),
-                    'rows' => $rows,
-                ]
-            ], 200);
-        }
-        catch(Exception $e){
-            return response()->json([
-                'result' => false,
-                'message' => __LINE__.$this->message_separator.$e->getMessage(),
-                'data' => null
-            ], 500);
-        }
-    }
-
     public function packinglistpdf(Request $request){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
