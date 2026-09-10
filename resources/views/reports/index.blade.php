@@ -40,6 +40,29 @@
                                     </div>
                                 </div>
 
+                                {{-- Packing List --}}
+                                <div class="col-md-4 mb-4">
+                                    <div class="card h-100 shadow-sm" style="border-left: 4px solid #28a745;">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <span class="fa-stack fa-lg mr-3" style="color:#28a745;">
+                                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                                    <i class="fa fa-truck fa-stack-1x fa-inverse"></i>
+                                                </span>
+                                                <h5 class="mb-0">Packing List</h5>
+                                            </div>
+                                            <p class="text-muted small">
+                                                Generate a driver's packing list for a given date - customers by task sequence, quantity per product.
+                                            </p>
+                                        </div>
+                                        <div class="card-footer bg-transparent border-0">
+                                            <a href="{{ route('reports.packing-list') }}" class="btn btn-success btn-sm">
+                                                <i class="fa fa-arrow-right"></i> Open Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>

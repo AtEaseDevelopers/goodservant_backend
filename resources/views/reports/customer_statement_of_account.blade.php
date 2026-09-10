@@ -78,7 +78,7 @@
                     <table>
                         <tr>
                             <td style="width:255px;">
-                                <h2 class="tabletitle" style="width:350px;"><b>{{ env('INVOICE_NAME') }}</b></h2>
+                                <h2 class="tabletitle" style="width:350px;"><b>{{ config('invoice.name') }}</b></h2>
                             </td>
                             <td style="font-size:10px;vertical-align:bottom;text-align:left;">
                                 <p class="tabletitle"></p>
@@ -86,12 +86,12 @@
                         </tr>
                         <tr>
                             <td colspan="2">
-                                <p class="tabletitle">{{ env('INVOICE_SSM') }} {{ env('INVOICE_ADDRESS1') }}</p>
+                                <p class="tabletitle">{{ config('invoice.ssm') }} {{ config('invoice.address1') }}</p>
                             </td>
                         </tr>
                         <tr>
                             <td colspan="2">
-                                <p class="tabletitle">{{ env('INVOICE_ADDRESS2') }}</p>
+                                <p class="tabletitle">{{ config('invoice.address2') }}</p>
                             </td>
                         </tr>
                         <tr>

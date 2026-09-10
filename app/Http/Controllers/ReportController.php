@@ -34,6 +34,7 @@ use App\Models\Customer;
 use App\Models\Agent;
 use App\Models\Product;
 use App\Models\Trip;
+use App\Models\Task;
 use App\Exports\SellerInformationExport;
 use App\Exports\MonthlySaleReport;
 use App\Exports\DailySaleReportExport;
@@ -174,6 +175,72 @@ class ReportController extends AppBaseController
         ))->setPaper('a4', 'landscape');
 
         return $pdf->stream('daily-sales-report-' . $dateFrom . '-to-' . $dateTo . '.pdf');
+    }
+
+    // ── Packing List ─────────────────────────────────────────────────────────
+
+    public function packingListForm()
+    {
+        $drivers = Driver::orderBy('name')->get();
+
+        return view('reports.packing_list_filters', compact('drivers'));
+    }
+
+    public function packingListPdf(Request $request)
+    {
+        $request->validate([
+            'driver_id' => 'required|integer|exists:drivers,id',
+            'date' => 'required|date',
+        ]);
+
+        $driver = Driver::findOrFail($request->driver_id);
+        $date = $request->date;
+
+        // Sorted by task sequence, one row per customer assigned to this driver
+        // for the day - whether or not an order/invoice has actually been created
+        // for that stop yet.
+        $tasks = Task::where('driver_id', $driver->id)
+            ->where('date', $date)
+            ->orderBy('sequence')
+            ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
+            ->get();
+
+        $products = Product::orderBy('id')->get(['id', 'code', 'name']);
+
+        $rows = $tasks->map(function ($task) use ($products) {
+            $quantities = array_fill_keys($products->pluck('id')->all(), 0);
+
+            if ($task->invoice) {
+                foreach ($task->invoice->invoicedetail as $detail) {
+                    if (isset($quantities[$detail->product_id])) {
+                        $quantities[$detail->product_id] += $detail->quantity;
+                    }
+                }
+            }
+
+            return [
+                'customer_id' => $task->customer_id,
+                'customer_name' => $task->customer?->company ?? '-',
+                'quantities' => $quantities,
+            ];
+        });
+
+        $totals = array_fill_keys($products->pluck('id')->all(), 0);
+        foreach ($rows as $row) {
+            foreach ($row['quantities'] as $productId => $qty) {
+                $totals[$productId] += $qty;
+            }
+        }
+
+        $pdf = Pdf::loadView('reports.packing_list_pdf', [
+            'driver' => $driver,
+            'date' => $date,
+            'products' => $products,
+            'rows' => $rows,
+            'totals' => $totals,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->stream('packing-list-' . $driver->name . '-' . $date . '.pdf');
     }
 
     /**

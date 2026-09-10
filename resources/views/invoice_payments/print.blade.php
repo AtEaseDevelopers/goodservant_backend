@@ -26,12 +26,11 @@
         }
 
         .login-image{
-            background-image: url('{{config('app.url')}}/logo.png');
             width: auto;
             height: 55px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
             margin-bottom: 0.5rem;
         }
         .company{
@@ -61,7 +60,7 @@
     <table class="invoice">
         <tr>
             <td>
-                <div class="login-image"></div>
+                <img class="login-image" src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
             </td>
         </tr>
         <tr>
@@ -86,7 +85,7 @@
         </tr>
         <tr>
             <td>
-                <p class="address">{{ $invoice['customer']['groupcompany']->address3 ?? env('INVOICE_ADDRESS3') }}</p>
+                <p class="address">{{ $invoice['customer']['groupcompany']->address3 ?? config('invoice.address3') }}</p>
             </td>
         </tr>
         <tr>

@@ -73,7 +73,7 @@
         <thead>
             <tr class="no-border">
                 <td colspan="3">
-                    <h3 class="tabletitle"><b>{{ env('INVOICE_NAME') }}</b></h3>
+                    <h3 class="tabletitle"><b>{{ config('invoice.name') }}</b></h3>
                 </td>
             </tr>
             <tr class="no-border">

@@ -50,10 +50,10 @@
 <body>
 
 <div class="header">
-    <h1>{{ env('INVOICE_NAME') }}</h1>
-    <p>{{ env('INVOICE_SSM') }}</p>
+    <h1>{{ config('invoice.name') }}</h1>
+    <p>{{ config('invoice.ssm') }}</p>
     <p>
-        {{ implode(', ', array_filter([env('INVOICE_ADDRESS1'), env('INVOICE_ADDRESS2'), env('INVOICE_ADDRESS3')])) }}
+        {{ implode(', ', array_filter([config('invoice.address1'), config('invoice.address2'), config('invoice.address3')])) }}
     </p>
 </div>
 

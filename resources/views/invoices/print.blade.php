@@ -26,12 +26,11 @@
         }
 
         .login-image{
-            background-image: url('{{config('app.url')}}/logo.png');
             width: auto;
             height: 55px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
             margin-bottom: 0.5rem;
         }
         .company{
@@ -61,38 +60,38 @@
     <table class="invoice">
         <tr>
             <td>
-                <div class="login-image"></div>
+                <img class="login-image" src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
             </td>
         </tr>
         <tr>
             <td>
-                <p class="company">{{ env('INVOICE_NAME') }}</p>
+                <p class="company">{{ config('invoice.name') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ env('INVOICE_SSM') }}</p>
+                <p class="address">{{ config('invoice.ssm') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ env('INVOICE_ADDRESS1') }}</p>
+                <p class="address">{{ config('invoice.address1') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ env('INVOICE_ADDRESS2') }}</p>
+                <p class="address">{{ config('invoice.address2') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ env('INVOICE_ADDRESS3') }}</p>
+                <p class="address">{{ config('invoice.address3') }}</p>
             </td>
         </tr>
-        @if(env('INVOICE_PHONE'))
+        @if(config('invoice.phone'))
         <tr>
             <td>
-                <p class="address">Tel: {{ env('INVOICE_PHONE') }}</p>
+                <p class="address">Tel: {{ config('invoice.phone') }}</p>
             </td>
         </tr>
         @endif

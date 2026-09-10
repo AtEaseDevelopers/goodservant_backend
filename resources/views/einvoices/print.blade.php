@@ -26,12 +26,9 @@
         }
 
         .login-image{
-            background-image: url('{{config('app.url')}}/logo.png');
             width: auto;
             height: 75px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
+            display: block;
             margin-bottom: 1rem;
         }
         .company{
@@ -80,27 +77,27 @@
     <table class="invoice">
         <tr>
             <td>
-                <p class="company">{{ $invoice['customer']['groupcompany']->name ?? env('INVOICE_NAME') }}</p>
+                <p class="company">{{ $invoice['customer']['groupcompany']->name ?? config('invoice.name') }}</p>
             </td>
         </tr>
       <tr>
             <td>
-                <p class="address">{{ $invoice['customer']['groupcompany']->ssm ?? env('INVOICE_SSM') }}</p>
+                <p class="address">{{ $invoice['customer']['groupcompany']->ssm ?? config('invoice.ssm') }}</p>
             </td>
         </tr> 
         <tr>
             <td>
-                <p class="address">{{ $invoice['customer']['groupcompany']->address1 ?? env('INVOICE_ADDRESS1') }}</p>
+                <p class="address">{{ $invoice['customer']['groupcompany']->address1 ?? config('invoice.address1') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ $invoice['customer']['groupcompany']->address2 ?? env('INVOICE_ADDRESS2') }}</p>
+                <p class="address">{{ $invoice['customer']['groupcompany']->address2 ?? config('invoice.address2') }}</p>
             </td>
         </tr>
         <tr>
             <td>
-                <p class="address">{{ $invoice['customer']['groupcompany']->address3 ?? env('INVOICE_ADDRESS3') }}</p>
+                <p class="address">{{ $invoice['customer']['groupcompany']->address3 ?? config('invoice.address3') }}</p>
             </td>
         </tr>
         <tr>

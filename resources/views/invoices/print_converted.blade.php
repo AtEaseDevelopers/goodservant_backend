@@ -76,13 +76,13 @@
 <body>
     <div class="header">
         <table class="letterhead">
-            <tr><td><p class="company-name">{{ $invoice['customer']['groupcompany']->name ?? env('INVOICE_NAME') }}</p></td></tr>
-            <tr><td><p>{{ $invoice['customer']['groupcompany']->ssm ?? env('INVOICE_SSM') }}</p></td></tr>
-            <tr><td><p>{{ $invoice['customer']['groupcompany']->address1 ?? env('INVOICE_ADDRESS1') }}</p></td></tr>
-            <tr><td><p>{{ $invoice['customer']['groupcompany']->address2 ?? env('INVOICE_ADDRESS2') }}</p></td></tr>
-            <tr><td><p>{{ $invoice['customer']['groupcompany']->address3 ?? env('INVOICE_ADDRESS3') }}</p></td></tr>
-            @if(env('INVOICE_PHONE'))
-            <tr><td><p>TEL: {{ env('INVOICE_PHONE') }}</p></td></tr>
+            <tr><td><p class="company-name">{{ $invoice['customer']['groupcompany']->name ?? config('invoice.name') }}</p></td></tr>
+            <tr><td><p>{{ $invoice['customer']['groupcompany']->ssm ?? config('invoice.ssm') }}</p></td></tr>
+            <tr><td><p>{{ $invoice['customer']['groupcompany']->address1 ?? config('invoice.address1') }}</p></td></tr>
+            <tr><td><p>{{ $invoice['customer']['groupcompany']->address2 ?? config('invoice.address2') }}</p></td></tr>
+            <tr><td><p>{{ $invoice['customer']['groupcompany']->address3 ?? config('invoice.address3') }}</p></td></tr>
+            @if(config('invoice.phone'))
+            <tr><td><p>TEL: {{ config('invoice.phone') }}</p></td></tr>
             @endif
         </table>
 
@@ -157,7 +157,7 @@
         <div class="notes">
             <p>Notes :</p>
             <p>1. All cheques should be crossed and made payable to</p>
-            <p>&nbsp;&nbsp;&nbsp;{{ $invoice['customer']['groupcompany']->name ?? env('INVOICE_NAME') }}</p>
+            <p>&nbsp;&nbsp;&nbsp;{{ $invoice['customer']['groupcompany']->name ?? config('invoice.name') }}</p>
             <p>2. Goods sold are neither returnable nor refundable. Otherwise a cancellation fee of 20% on purchase price will be imposed.</p>
         </div>
 
