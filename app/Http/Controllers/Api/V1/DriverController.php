@@ -1906,7 +1906,43 @@ class DriverController extends Controller
             ], 500);
         }
     }
-    
+
+    public function getinvoicebyid($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $invoice = Invoice::where('id', $id)
+                ->where('driver_id', $driver->id)
+                ->with('customer', 'driver', 'invoicedetail.product')
+                ->first();
+            if(empty($invoice)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_not_found',
+                    'data' => null
+                ], 404);
+            }
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.invoice_get_successfully',
+                'data' => $invoice
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
       public function invoicepdf(Request $request)
 	{
 	    try{
@@ -3693,6 +3729,42 @@ class DriverController extends Controller
         }
     }
 
+    public function getsalesorderbyid($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $salesOrder = SalesOrder::where('id', $id)
+                ->where('driver_id', $driver->id)
+                ->with('customer', 'salesorderdetail.product')
+                ->first();
+            if(empty($salesOrder)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_not_found',
+                    'data' => null
+                ], 404);
+            }
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_get_successfully',
+                'data' => $salesOrder
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     /**
      * Convert a Sales Order into a Delivery Order (if customer.is_do_customer
      * and Credit is chosen) or straight into an Invoice - mirroring
@@ -3946,6 +4018,42 @@ class DriverController extends Controller
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.delivery_order_list_successfully',
                 'data' => $deliveryOrders
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function getdeliveryorderbyid($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $deliveryOrder = DeliveryOrder::where('id', $id)
+                ->where('driver_id', $driver->id)
+                ->with('customer', 'deliveryorderdetail.product')
+                ->first();
+            if(empty($deliveryOrder)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_not_found',
+                    'data' => null
+                ], 404);
+            }
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.delivery_order_get_successfully',
+                'data' => $deliveryOrder
             ], 200);
         }
         catch(Exception $e){

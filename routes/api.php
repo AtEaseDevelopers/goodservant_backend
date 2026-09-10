@@ -52,14 +52,17 @@ Route::group(['prefix' => 'v1'], function () {
     //Invoice
     Route::post('/driver/invoice', [App\Http\Controllers\Api\V1\DriverController::class, 'addinvoice']);
     Route::post('/driver/invoice/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'invoicepdf']);
+    Route::get('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicebyid']);
 
     //Sales Order
     Route::post('/driver/salesOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'addsalesorder']);
     Route::get('/driver/salesOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getsalesorder']);
+    Route::get('/driver/salesOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getsalesorderbyid']);
     Route::post('/driver/salesOrder/convert', [App\Http\Controllers\Api\V1\DriverController::class, 'convertsalesorder']);
 
     //Delivery Order
     Route::get('/driver/deliveryOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorder']);
+    Route::get('/driver/deliveryOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorderbyid']);
     Route::post('/driver/deliveryOrder/combine-convert', [App\Http\Controllers\Api\V1\DriverController::class, 'combineconvertdeliveryorder']);
 
     //Packing List
