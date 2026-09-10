@@ -14,6 +14,7 @@ use App\Models\Code;
 use App\Models\SpecialPrice;
 use Rap2hpoutre\FastExcel\FastExcel;
 use App\Http\Controllers\DeployWebhookController;
+use App\Http\Controllers\ApiDocsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,7 @@ Route::view('/privacy-policy','privacy');
 
 Route::get('/git-pull', [DeployWebhookController::class, 'pull']);
 Route::get('/migrate', [DeployWebhookController::class, 'migrate']);
+Route::get('/api-docs', [ApiDocsController::class, 'index']);
 
 // Route::get('/', function () {
 //     return view('welcome');
