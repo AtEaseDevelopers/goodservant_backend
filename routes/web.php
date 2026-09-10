@@ -30,7 +30,7 @@ Route::view('/privacy-policy','privacy');
 
 Route::get('/git-pull', [DeployWebhookController::class, 'pull']);
 Route::get('/migrate', [DeployWebhookController::class, 'migrate']);
-Route::get('/api-docs', [ApiDocsController::class, 'index']);
+Route::get('/api', [ApiDocsController::class, 'index']);
 
 // Route::get('/', function () {
 //     return view('welcome');
