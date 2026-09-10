@@ -53,6 +53,19 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('/driver/invoice', [App\Http\Controllers\Api\V1\DriverController::class, 'addinvoice']);
     Route::post('/driver/invoice/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'invoicepdf']);
 
+    //Sales Order
+    Route::post('/driver/salesOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'addsalesorder']);
+    Route::get('/driver/salesOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getsalesorder']);
+    Route::post('/driver/salesOrder/convert', [App\Http\Controllers\Api\V1\DriverController::class, 'convertsalesorder']);
+
+    //Delivery Order
+    Route::get('/driver/deliveryOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorder']);
+    Route::post('/driver/deliveryOrder/combine-convert', [App\Http\Controllers\Api\V1\DriverController::class, 'combineconvertdeliveryorder']);
+
+    //Packing List
+    Route::get('/driver/packing-list', [App\Http\Controllers\Api\V1\DriverController::class, 'getpackinglist']);
+    Route::post('/driver/packing-list/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'packinglistpdf']);
+
      //Invoice Payment
     Route::post('/driver/invoicepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'addpayment']);
     Route::post('/driver/invoicepayment/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'paymentpdf']);

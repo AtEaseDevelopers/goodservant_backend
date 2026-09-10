@@ -27,6 +27,10 @@ use App\Models\InventoryBalance;
 use App\Models\InventoryTransaction;
 use App\Models\InventoryTransfer;
 use App\Models\TripInventoryBalance;
+use App\Models\SalesOrder;
+use App\Models\SalesOrderDetail;
+use App\Models\DeliveryOrder;
+use App\Models\DeliveryOrderDetail;
 use App\Models\foc;
 use App\Models\DriverLocation;
 use App\Models\Language;
@@ -3526,6 +3530,708 @@ class DriverController extends Controller
                 'message' => __LINE__.$this->message_separator.'api.message.language_update_successfully',
                 'data' => $result
             ], 200);
-       
-    }   
+
+    }
+
+    // ── Sales Orders ─────────────────────────────────────────────────────────
+    // No payment method is required at creation - it's chosen at convert() time.
+    // No inventory/FOC effects here either - those only happen once an Invoice
+    // actually exists (convertsalesorder / combineconvertdeliveryorder).
+
+    public function addsalesorder(Request $request){
+        try{
+            $data = $request->all();
+            //check session
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            //validation
+            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
+            if(!empty($trip)){
+                if($trip->type == 2){
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                        'data' => null
+                    ], 401);
+                }
+            }else{
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'sales_order_id' => 'present|nullable|numeric',
+                'date' => 'date_format:Y-m-d H:i:s',
+                'customer_id' => 'required|numeric',
+                'remark' => 'present|nullable|string',
+                'salesorderdetail' => 'required|array',
+                'salesorderdetail.*.product_id' => 'required',
+                'salesorderdetail.*.quantity' => 'required',
+                'salesorderdetail.*.price' => 'required',
+                'salesorderdetail.*.foc' => 'required|boolean'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $customer = Customer::where('id',$data['customer_id'])->first();
+            if(empty($customer)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                    'data' => null
+                ], 400);
+            }
+            //process
+            DB::beginTransaction();
+            $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)
+                ->whereNull('deliveryorder_id')->whereNull('invoice_id')->first();
+            $sono = null;
+            $id = null;
+            if(!empty($extsalesorder)){
+                $sono = $extsalesorder->sono;
+                $id = $extsalesorder->id;
+                SalesOrderDetail::where('sales_order_id',$extsalesorder->id)->delete();
+            }else{
+                $runningno = Code::where('code','sorunningnumber')->first();
+                $runningno->value = intval($runningno->value) + 1;
+                $runningno->save();
+                $sono = "SO".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+            }
+            $salesOrder = new SalesOrder();
+            if($id != null){
+                $salesOrder->id = $id;
+            }
+            $salesOrder->sono = $sono;
+            $salesOrder->date = $data['date'] ?? date('Y-m-d H:i:s');
+            $salesOrder->customer_id = $data['customer_id'];
+            $salesOrder->driver_id = $trip->driver_id;
+            $salesOrder->kelindan_id = $trip->kelindan_id;
+            $salesOrder->agent_id = $customer->agent_id;
+            $salesOrder->supervisor_id = $customer->supervisor_id;
+            $salesOrder->status = 0;
+            $salesOrder->remark = $data['remark'] ?? null;
+            $salesOrder->trip_id = $driver->trip_id;
+            $salesOrder->save();
+            foreach($data['salesorderdetail'] as $line){
+                $product = Product::where('id',$line['product_id'])->first();
+                if(empty($product)){
+                    DB::rollback();
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.invalid_product',
+                        'data' => null
+                    ], 400);
+                }
+                $detail = new SalesOrderDetail();
+                $detail->sales_order_id = $salesOrder->id;
+                $detail->product_id = $line['product_id'];
+                $detail->quantity = $line['quantity'];
+                $detail->price = $line['price'];
+                $detail->totalprice = $line['quantity'] * $line['price'];
+                $detail->remark = $line['foc'] ? 'FOC' : null;
+                $detail->save();
+            }
+            Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
+            DB::commit();
+            $so = SalesOrder::where('id',$salesOrder->id)->with('salesorderdetail.product')->first();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_add_successfully',
+                'data' => $so
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function getsalesorder(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $salesOrders = SalesOrder::where('driver_id', $driver->id)
+                ->whereNull('deliveryorder_id')
+                ->whereNull('invoice_id')
+                ->with('customer', 'salesorderdetail.product')
+                ->orderby('date','desc')
+                ->get();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_list_successfully',
+                'data' => $salesOrders
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Convert a Sales Order into a Delivery Order (if customer.is_do_customer
+     * and Credit is chosen) or straight into an Invoice - mirroring
+     * SalesOrderController::convert(). The Invoice path additionally deducts
+     * lorry inventory and applies FOC rules, matching addinvoice() - the
+     * DO path does not, since a DO isn't a completed sale yet.
+     */
+    public function convertsalesorder(Request $request){
+        try{
+            $data = $request->all();
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'sales_order_id' => 'required|numeric',
+                'paymentterm' => 'required|numeric|gt:0|lt:6',
+                'cheque_no' => 'present|nullable|string'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $salesOrder = SalesOrder::with('salesorderdetail')->where('id',$data['sales_order_id'])->first();
+            if(empty($salesOrder)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_not_found',
+                    'data' => null
+                ], 400);
+            }
+            if(!empty($salesOrder->deliveryorder_id) || !empty($salesOrder->invoice_id)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_already_converted',
+                    'data' => null
+                ], 400);
+            }
+            if($salesOrder->salesorderdetail->isEmpty()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_empty',
+                    'data' => null
+                ], 400);
+            }
+            $customer = Customer::where('id',$salesOrder->customer_id)->first();
+            if(empty($customer)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                    'data' => null
+                ], 400);
+            }
+            $paymentterm = (int) $data['paymentterm'];
+            DB::beginTransaction();
+            if($customer->is_do_customer && $paymentterm == 2){
+                $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null);
+                DB::commit();
+                $result = DeliveryOrder::where('id',$deliveryOrder->id)->with('deliveryorderdetail.product')->first();
+                return response()->json([
+                    'result' => true,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_converted_to_delivery_order',
+                    'data' => $result
+                ], 200);
+            }else{
+                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null);
+                DB::commit();
+                $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product')->first();
+                return response()->json([
+                    'result' => true,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_converted_to_invoice',
+                    'data' => $result
+                ], 200);
+            }
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno){
+        $runningno = Code::where('code','dorunningnumber')->first();
+        $runningno->value = intval($runningno->value) + 1;
+        $runningno->save();
+        $dono = "DO".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+
+        $deliveryOrder = new DeliveryOrder();
+        $deliveryOrder->dono = $dono;
+        $deliveryOrder->date = $salesOrder->getRawOriginal('date');
+        $deliveryOrder->customer_id = $salesOrder->customer_id;
+        $deliveryOrder->driver_id = $salesOrder->driver_id;
+        $deliveryOrder->kelindan_id = $salesOrder->kelindan_id;
+        $deliveryOrder->agent_id = $salesOrder->agent_id;
+        $deliveryOrder->supervisor_id = $salesOrder->supervisor_id;
+        $deliveryOrder->paymentterm = $paymentterm;
+        $deliveryOrder->status = 0;
+        $deliveryOrder->remark = $salesOrder->remark;
+        $deliveryOrder->chequeno = $chequeno;
+        $deliveryOrder->trip_id = $salesOrder->trip_id;
+        $deliveryOrder->save();
+
+        foreach($salesOrder->salesorderdetail as $line){
+            $detail = new DeliveryOrderDetail();
+            $detail->deliveryorder_id = $deliveryOrder->id;
+            $detail->product_id = $line->product_id;
+            $detail->quantity = $line->quantity;
+            $detail->price = $line->price;
+            $detail->totalprice = $line->totalprice;
+            $detail->remark = $line->remark;
+            $detail->save();
+        }
+
+        $salesOrder->deliveryorder_id = $deliveryOrder->id;
+        $salesOrder->save();
+
+        return $deliveryOrder;
+    }
+
+    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno){
+        if($paymentterm == 2){
+            $runningno = Code::where('code','invoicerunningnumber')->first();
+            $runningno->value = intval($runningno->value) + 1;
+            $runningno->save();
+            $invoiceno = "INV".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+        }else{
+            $runningno = Code::where('code','cashsalesrunningnumber')->first();
+            $runningno->value = intval($runningno->value) + 1;
+            $runningno->save();
+            $invoiceno = "CS".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+        }
+
+        $invoice = new Invoice();
+        $invoice->invoiceno = $invoiceno;
+        $invoice->date = $salesOrder->getRawOriginal('date');
+        $invoice->customer_id = $salesOrder->customer_id;
+        $invoice->driver_id = $salesOrder->driver_id;
+        $invoice->kelindan_id = $salesOrder->kelindan_id;
+        $invoice->agent_id = $salesOrder->agent_id;
+        $invoice->supervisor_id = $salesOrder->supervisor_id;
+        $invoice->paymentterm = $paymentterm;
+        $invoice->status = 1;
+        $invoice->remark = $salesOrder->remark;
+        $invoice->chequeno = $chequeno;
+        $invoice->trip_id = $salesOrder->trip_id;
+        $invoice->save();
+
+        $lorryId = optional(Driver::find($salesOrder->driver_id))->lorry_id;
+        $totalprice = 0;
+        foreach($salesOrder->salesorderdetail as $line){
+            $detail = new InvoiceDetail();
+            $detail->invoice_id = $invoice->id;
+            $detail->product_id = $line->product_id;
+            $detail->sales_order_id = $salesOrder->id;
+            $detail->quantity = $line->quantity;
+            $detail->price = $line->price;
+            $detail->totalprice = $line->totalprice;
+            $detail->remark = $line->remark;
+            $detail->save();
+            $totalprice = $totalprice + $detail->totalprice;
+
+            if($line->remark !== 'FOC'){
+                $focrule = foc::where('customer_id', $salesOrder->customer_id)
+                    ->where('product_id', $line->product_id)
+                    ->where('startdate', '<=', date('Y-m-d H:i:s'))
+                    ->where('enddate', '>', date('Y-m-d H:i:s'))
+                    ->where('status', 1)
+                    ->first();
+                if($focrule){
+                    $newAchieveQuantity = $focrule->achievequantity + $line->quantity;
+                    $newStatus = ($newAchieveQuantity >= $focrule->quantity) ? 0 : 1;
+                    $focrule->update([
+                        'achievequantity' => $newAchieveQuantity,
+                        'status' => $newStatus
+                    ]);
+                }
+            }
+
+            if($lorryId){
+                $inventorybalance = InventoryBalance::where('lorry_id', $lorryId)->where('product_id', $line->product_id)->first();
+                if(empty($inventorybalance)){
+                    $newinventorybalance = new InventoryBalance();
+                    $newinventorybalance->lorry_id = $lorryId;
+                    $newinventorybalance->product_id = $line->product_id;
+                    $newinventorybalance->quantity = 0 - $line->quantity;
+                    $newinventorybalance->save();
+                }else{
+                    $inventorybalance->quantity = $inventorybalance->quantity - $line->quantity;
+                    $inventorybalance->save();
+                }
+                $inventorytransaction = new InventoryTransaction();
+                $inventorytransaction->lorry_id = $lorryId;
+                $inventorytransaction->product_id = $line->product_id;
+                $inventorytransaction->quantity = $line->quantity * -1;
+                $inventorytransaction->type = 3;
+                $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
+                $inventorytransaction->date = date('Y-m-d H:i:s');
+                $inventorytransaction->trip_id = $salesOrder->trip_id;
+                $inventorytransaction->save();
+            }
+        }
+
+        if($paymentterm == 1){
+            $invoicepayment = new InvoicePayment();
+            $invoicepayment->invoice_id = $invoice->id;
+            $invoicepayment->type = 1;
+            $invoicepayment->customer_id = $invoice->customer_id;
+            $invoicepayment->amount = $totalprice;
+            $invoicepayment->status = 1;
+            $invoicepayment->driver_id = $salesOrder->driver_id;
+            $invoicepayment->approve_by = optional($salesOrder->driver)->name;
+            $invoicepayment->approve_at = date('Y-m-d H:i:s');
+            $invoicepayment->save();
+        }
+
+        $salesOrder->invoice_id = $invoice->id;
+        $salesOrder->save();
+
+        return $invoice;
+    }
+
+    // ── Delivery Orders ──────────────────────────────────────────────────────
+
+    public function getdeliveryorder(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $deliveryOrders = DeliveryOrder::where('driver_id', $driver->id)
+                ->whereNull('invoice_id')
+                ->with('customer', 'deliveryorderdetail.product')
+                ->orderby('date','desc')
+                ->get();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.delivery_order_list_successfully',
+                'data' => $deliveryOrders
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Combine one or more same-customer Delivery Orders into a single Invoice -
+     * mirroring DeliveryOrderController::combineConvert(), plus inventory/FOC
+     * effects (an invoice now genuinely exists), matching addinvoice().
+     */
+    public function combineconvertdeliveryorder(Request $request){
+        try{
+            $data = $request->all();
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'ids' => 'required|array|min:1',
+                'ids.*' => 'required|numeric'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $deliveryOrders = DeliveryOrder::with('deliveryorderdetail')->whereIn('id',$data['ids'])->whereNull('invoice_id')->get();
+            if($deliveryOrders->isEmpty()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_not_found',
+                    'data' => null
+                ], 400);
+            }
+            $customerIds = $deliveryOrders->pluck('customer_id')->unique();
+            if($customerIds->count() > 1){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_must_be_same_customer',
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            $first = $deliveryOrders->first();
+            $runningno = Code::where('code','invoicerunningnumber')->first();
+            $runningno->value = intval($runningno->value) + 1;
+            $runningno->save();
+            $invoiceno = "INV".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+
+            $invoice = new Invoice();
+            $invoice->invoiceno = $invoiceno;
+            $invoice->date = $first->getRawOriginal('date');
+            $invoice->customer_id = $first->customer_id;
+            $invoice->driver_id = $first->driver_id;
+            $invoice->kelindan_id = $first->kelindan_id;
+            $invoice->agent_id = $first->agent_id;
+            $invoice->supervisor_id = $first->supervisor_id;
+            $invoice->paymentterm = $first->paymentterm;
+            $invoice->status = 1;
+            $invoice->remark = $deliveryOrders->count() > 1 ? 'Combined from ' . $deliveryOrders->count() . ' delivery order(s)' : $first->remark;
+            $invoice->chequeno = $first->chequeno;
+            $tripIds = $deliveryOrders->pluck('trip_id')->unique();
+            $invoice->trip_id = $tripIds->count() === 1 ? $tripIds->first() : null;
+            $invoice->save();
+
+            $lorryId = optional(Driver::find($first->driver_id))->lorry_id;
+            $totalprice = 0;
+            foreach($deliveryOrders as $deliveryOrder){
+                foreach($deliveryOrder->deliveryorderdetail as $line){
+                    $detail = new InvoiceDetail();
+                    $detail->invoice_id = $invoice->id;
+                    $detail->product_id = $line->product_id;
+                    $detail->deliveryorder_id = $deliveryOrder->id;
+                    $detail->quantity = $line->quantity;
+                    $detail->price = $line->price;
+                    $detail->totalprice = $line->totalprice;
+                    $detail->remark = $line->remark;
+                    $detail->save();
+                    $totalprice = $totalprice + $detail->totalprice;
+
+                    if($line->remark !== 'FOC'){
+                        $focrule = foc::where('customer_id', $deliveryOrder->customer_id)
+                            ->where('product_id', $line->product_id)
+                            ->where('startdate', '<=', date('Y-m-d H:i:s'))
+                            ->where('enddate', '>', date('Y-m-d H:i:s'))
+                            ->where('status', 1)
+                            ->first();
+                        if($focrule){
+                            $newAchieveQuantity = $focrule->achievequantity + $line->quantity;
+                            $newStatus = ($newAchieveQuantity >= $focrule->quantity) ? 0 : 1;
+                            $focrule->update([
+                                'achievequantity' => $newAchieveQuantity,
+                                'status' => $newStatus
+                            ]);
+                        }
+                    }
+
+                    if($lorryId){
+                        $inventorybalance = InventoryBalance::where('lorry_id', $lorryId)->where('product_id', $line->product_id)->first();
+                        if(empty($inventorybalance)){
+                            $newinventorybalance = new InventoryBalance();
+                            $newinventorybalance->lorry_id = $lorryId;
+                            $newinventorybalance->product_id = $line->product_id;
+                            $newinventorybalance->quantity = 0 - $line->quantity;
+                            $newinventorybalance->save();
+                        }else{
+                            $inventorybalance->quantity = $inventorybalance->quantity - $line->quantity;
+                            $inventorybalance->save();
+                        }
+                        $inventorytransaction = new InventoryTransaction();
+                        $inventorytransaction->lorry_id = $lorryId;
+                        $inventorytransaction->product_id = $line->product_id;
+                        $inventorytransaction->quantity = $line->quantity * -1;
+                        $inventorytransaction->type = 3;
+                        $inventorytransaction->user = optional($first->driver)->employeeid ?? 'system';
+                        $inventorytransaction->date = date('Y-m-d H:i:s');
+                        $inventorytransaction->trip_id = $invoice->trip_id;
+                        $inventorytransaction->save();
+                    }
+                }
+
+                $deliveryOrder->invoice_id = $invoice->id;
+                $deliveryOrder->save();
+            }
+
+            if($first->paymentterm == 1){
+                $invoicepayment = new InvoicePayment();
+                $invoicepayment->invoice_id = $invoice->id;
+                $invoicepayment->type = 1;
+                $invoicepayment->customer_id = $invoice->customer_id;
+                $invoicepayment->amount = $totalprice;
+                $invoicepayment->status = 1;
+                $invoicepayment->driver_id = $first->driver_id;
+                $invoicepayment->approve_by = optional($first->driver)->name;
+                $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                $invoicepayment->save();
+            }
+
+            DB::commit();
+            $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product')->first();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.delivery_order_converted_to_invoice',
+                'data' => $result
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    // ── Packing List ─────────────────────────────────────────────────────────
+
+    public function getpackinglist(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $date = $request->input('date', date('Y-m-d'));
+
+            $tasks = Task::where('driver_id', $driver->id)
+                ->where('date', $date)
+                ->orderBy('sequence')
+                ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
+                ->get();
+
+            $products = Product::orderBy('id')->get(['id','code','name']);
+
+            $rows = $tasks->map(function($task) use ($products){
+                $quantities = array_fill_keys($products->pluck('code')->all(), 0);
+                if($task->invoice){
+                    foreach($task->invoice->invoicedetail as $detail){
+                        $code = $detail->product->code ?? null;
+                        if($code !== null && array_key_exists($code, $quantities)){
+                            $quantities[$code] += $detail->quantity;
+                        }
+                    }
+                }
+                return [
+                    'customer_id' => $task->customer_id,
+                    'customer_name' => $task->customer->company ?? '-',
+                    'quantities' => $quantities,
+                ];
+            });
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.packing_list_get_successfully',
+                'data' => [
+                    'driver' => $driver->name,
+                    'date' => $date,
+                    'products' => $products->pluck('code'),
+                    'rows' => $rows,
+                ]
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function packinglistpdf(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $date = $request->input('date', date('Y-m-d'));
+
+            $tasks = Task::where('driver_id', $driver->id)
+                ->where('date', $date)
+                ->orderBy('sequence')
+                ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
+                ->get();
+
+            $products = Product::orderBy('id')->get(['id', 'code', 'name']);
+
+            $rows = $tasks->map(function ($task) use ($products) {
+                $quantities = array_fill_keys($products->pluck('id')->all(), 0);
+                if ($task->invoice) {
+                    foreach ($task->invoice->invoicedetail as $detail) {
+                        if (isset($quantities[$detail->product_id])) {
+                            $quantities[$detail->product_id] += $detail->quantity;
+                        }
+                    }
+                }
+                return [
+                    'customer_id' => $task->customer_id,
+                    'customer_name' => $task->customer?->company ?? '-',
+                    'quantities' => $quantities,
+                ];
+            });
+
+            $totals = array_fill_keys($products->pluck('id')->all(), 0);
+            foreach ($rows as $row) {
+                foreach ($row['quantities'] as $productId => $qty) {
+                    $totals[$productId] += $qty;
+                }
+            }
+
+            $pdf = Pdf::loadView('reports.packing_list_pdf', [
+                'driver' => $driver,
+                'date' => $date,
+                'products' => $products,
+                'rows' => $rows,
+                'totals' => $totals,
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->stream('packing-list-' . $driver->name . '-' . $date . '.pdf');
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
 }
