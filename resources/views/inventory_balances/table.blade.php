@@ -1,4 +1,6 @@
-@section('css')
+{!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped table-bordered'], true) !!}
+
+@push('styles')
     @include('layouts.datatables_css')
     <style>
         /* Alternate a background per lorry group (not per row) - overrides
@@ -22,9 +24,7 @@
             background-color: #c9d8f7 !important;
         }
     </style>
-@endsection
-
-{!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped table-bordered'], true) !!}
+@endpush
 
 @push('scripts')
     @include('layouts.datatables_js')
