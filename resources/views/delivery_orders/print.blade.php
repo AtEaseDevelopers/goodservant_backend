@@ -28,10 +28,10 @@
         .login-image{
             width: auto;
             height: 55px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
             margin-bottom: 0.5rem;
+        }
+        .login-image-cell{
+            text-align: center;
         }
         .company{
             font-weight: bold;
@@ -59,7 +59,7 @@
 <body>
     <table class="invoice">
         <tr>
-            <td>
+            <td class="login-image-cell">
                 <img class="login-image" src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
             </td>
         </tr>
