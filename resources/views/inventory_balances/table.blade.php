@@ -1,5 +1,13 @@
 @section('css')
     @include('layouts.datatables_css')
+    <style>
+        tr.dtrg-start td {
+            background-color: #f0f4ff;
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 2px solid #c8d4f0;
+        }
+    </style>
 @endsection
 
 {!! $dataTable->table(['width' => '100%', 'class' => 'table table-striped table-bordered'], true) !!}

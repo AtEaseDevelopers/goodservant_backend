@@ -52,7 +52,8 @@ class InventoryBalanceDataTable extends DataTable
                 'stateSave' => true,
                 'stateDuration' => 0,
                 'processing' => false,
-                'order'     => [[0, 'desc']],
+                'order'     => [[0, 'asc']],
+                'rowGroup'  => ['dataSrc' => 'lorry.lorryno'],
                 'lengthMenu' => [[ 10, 50, 100, 300 ],[ '10 rows', '50 rows', '100 rows', '300 rows' ]],
                 'buttons' => [
                     // ['extend' => 'create', 'className' => 'btn btn-default btn-sm no-corner', 'text' => trans('table_buttons.create')],
