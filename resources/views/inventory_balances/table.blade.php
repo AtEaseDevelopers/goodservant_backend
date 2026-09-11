@@ -15,13 +15,16 @@
         tr.dtrg-start td {
             font-weight: bold;
             font-size: 14px;
-            border-top: 2px solid #cccccc;
+            border-top: 2px solid #999999;
         }
         tr.dtrg-start.lorry-group-odd td {
             background-color: #f5f5f5 !important;
         }
         tr.dtrg-start.lorry-group-even td {
             background-color: #dcdcdc !important;
+        }
+        tr.lorry-group-end td {
+            border-bottom: 2px solid #999999;
         }
     </style>
 @endpush
@@ -49,12 +52,21 @@
                 // the 'drawCallback' init option, which fires before RowGroup has
                 // inserted/updated the .dtrg-start header rows for this draw.
                 var toggle = 0;
-                $(table.table().body()).find('tr').each(function(){
+                var rows = $(table.table().body()).find('tr');
+                rows.each(function(){
                     if($(this).hasClass('dtrg-start')){
                         toggle = 1 - toggle;
                     }
                     $(this).toggleClass('lorry-group-even', toggle === 1);
                     $(this).toggleClass('lorry-group-odd', toggle === 0);
+                });
+                // Mark the last row of each group (the row right before the next
+                // group's header, or the final row) so it can get a bottom border,
+                // boxing each lorry's block off from the next.
+                rows.each(function(index){
+                    var next = rows.eq(index + 1);
+                    var isLastOfGroup = (index === rows.length - 1) || next.hasClass('dtrg-start');
+                    $(this).toggleClass('lorry-group-end', isLastOfGroup);
                 });
             });
             table.on( 'preDraw', function () {
