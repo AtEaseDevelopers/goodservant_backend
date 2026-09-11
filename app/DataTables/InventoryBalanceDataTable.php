@@ -63,7 +63,10 @@ class InventoryBalanceDataTable extends DataTable
                     [
                         'extend' => 'excelHtml5',
                         'text' => '<i class="fa fa-file-excel-o"></i> ' . trans('table_buttons.excel'),
-                        'exportOptions' => ['columns' => ':visible:not(:last-child)'],
+                        // orthogonal:'export' makes the Lorry column's render() return the
+                        // real value here (only "display" type is blanked, for the on-screen
+                        // grouped view) - otherwise the export would inherit the blank cells too.
+                        'exportOptions' => ['columns' => ':visible:not(:last-child)', 'orthogonal' => 'export'],
                         'className' => 'btn btn-default btn-sm no-corner',
                         'title' => null,
                         'filename' => 'invoice' . date('dmYHis')
@@ -73,7 +76,7 @@ class InventoryBalanceDataTable extends DataTable
                         'orientation' => 'landscape',
                         'pageSize' => 'LEGAL',
                         'text' => '<i class="fa fa-file-pdf-o"></i> ' . trans('table_buttons.pdf'),
-                        'exportOptions' => ['columns' => ':visible:not(:last-child)'],
+                        'exportOptions' => ['columns' => ':visible:not(:last-child)', 'orthogonal' => 'export'],
                         'className' => 'btn btn-default btn-sm no-corner',
                         'title' => null,
                         'filename' => 'invoice' . date('dmYHis')
@@ -123,7 +126,14 @@ class InventoryBalanceDataTable extends DataTable
         return [
             'lorry_id'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('inventory_balances.lorry'),
             'data' => 'lorry.lorryno',
-            'name' => 'lorry.lorryno']),
+            'name' => 'lorry.lorryno',
+            // The RowGroup header already shows the lorry number once per group,
+            // so blank it out of every data row on-screen to avoid repeating it -
+            // but only for on-screen display: sort/search/export all request a
+            // different "type" here and still get the real value. Yajra wraps
+            // this string as the body of a `return` statement (data/type/full/meta
+            // already in scope), so it must be a bare expression, not a function.
+            'render' => '(type === "display") ? "" : data']),
 
             'product_id'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('inventory_balances.product'),
             'data' => 'product.name',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\InventoryBalanceDataTable;
 use App\Http\Requests;
 use App\Http\Requests\CreateInventoryBalanceRequest;
 use App\Http\Requests\UpdateInventoryBalanceRequest;
@@ -26,20 +27,15 @@ class InventoryBalanceController extends AppBaseController
     }
 
     /**
-     * Display a listing of the InventoryBalance, one card per lorry.
+     * Display a listing of the InventoryBalance, grouped by lorry.
+     *
+     * @param InventoryBalanceDataTable $inventoryBalanceDataTable
      *
      * @return Response
      */
-    public function index()
+    public function index(InventoryBalanceDataTable $inventoryBalanceDataTable)
     {
-        $lorryGroups = InventoryBalance::with('lorry:id,lorryno', 'product:id,name')
-            ->where('quantity', '<>', 0)
-            ->get()
-            ->filter(fn ($balance) => $balance->lorry !== null)
-            ->groupBy(fn ($balance) => $balance->lorry->lorryno)
-            ->sortKeys();
-
-        return view('inventory_balances.index', compact('lorryGroups'));
+        return $inventoryBalanceDataTable->render('inventory_balances.index');
     }
 	public function stockin(Request $request)
 	{

@@ -17,7 +17,9 @@
                             <button class="border-0 bg-transparent pull-right text-success pr-2" data-toggle="modal" data-target="#stockin"><i class="fa fa-cart-plus fa-lg"></i></button>
                         </div>
                         <div class="card-body">
-                            @include('inventory_balances.cards')
+                            @include('inventory_balances.table')
+                            <div class="pull-right mr-3">
+                            </div>
                         </div>
                     </div>
                 </div>
