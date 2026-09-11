@@ -1,11 +1,25 @@
 @section('css')
     @include('layouts.datatables_css')
     <style>
+        /* Alternate a background per lorry group (not per row) - overrides
+           table-striped's own odd/even row coloring, which doesn't line up
+           with group boundaries since lorries have varying product counts. */
+        tr.lorry-group-odd td {
+            background-color: #ffffff !important;
+        }
+        tr.lorry-group-even td {
+            background-color: #eef3ff !important;
+        }
         tr.dtrg-start td {
-            background-color: #f0f4ff;
             font-weight: bold;
             font-size: 14px;
             border-top: 2px solid #c8d4f0;
+        }
+        tr.dtrg-start.lorry-group-odd td {
+            background-color: #e2e2e2 !important;
+        }
+        tr.dtrg-start.lorry-group-even td {
+            background-color: #c9d8f7 !important;
         }
     </style>
 @endsection
