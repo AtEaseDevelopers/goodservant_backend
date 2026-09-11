@@ -10,18 +10,18 @@
             background-color: #ffffff !important;
         }
         tr.lorry-group-even td {
-            background-color: #eef3ff !important;
+            background-color: #eeeeee !important;
         }
         tr.dtrg-start td {
             font-weight: bold;
             font-size: 14px;
-            border-top: 2px solid #c8d4f0;
+            border-top: 2px solid #cccccc;
         }
         tr.dtrg-start.lorry-group-odd td {
-            background-color: #e2e2e2 !important;
+            background-color: #f5f5f5 !important;
         }
         tr.dtrg-start.lorry-group-even td {
-            background-color: #c9d8f7 !important;
+            background-color: #dcdcdc !important;
         }
     </style>
 @endpush
