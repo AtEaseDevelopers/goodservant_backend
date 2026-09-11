@@ -74,11 +74,9 @@ class InvoiceController extends AppBaseController
         $input['date'] = date_create($input['date']);
         if($input['invoiceno'] == null){
             if ($input['paymentterm'] == 2) {
-                Code::where('code','invoicerunningnumber')->first()->increment('value');
-                $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+                $input['invoiceno'] = Code::nextRunningNumber('invoicerunningnumber', 'IV');
             } else {
-                Code::where('code','cashsalesrunningnumber')->first()->increment('value');
-                $input['invoiceno'] = 'CS'.sprintf('%07d',Code::where('code','cashsalesrunningnumber')->first()->value);
+                $input['invoiceno'] = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
             }
         }
 
@@ -191,11 +189,9 @@ class InvoiceController extends AppBaseController
         $input['date'] = date_create($input['date']);
         if($input['invoiceno'] == null){
             if ($input['paymentterm'] == 2) {
-                Code::where('code','invoicerunningnumber')->first()->increment('value');
-                $input['invoiceno'] = 'INV'.sprintf('%07d',Code::where('code','invoicerunningnumber')->first()->value);
+                $input['invoiceno'] = Code::nextRunningNumber('invoicerunningnumber', 'IV');
             } else {
-                Code::where('code','cashsalesrunningnumber')->first()->increment('value');
-                $input['invoiceno'] = 'CS'.sprintf('%07d',Code::where('code','cashsalesrunningnumber')->first()->value);
+                $input['invoiceno'] = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
             }
         }
 

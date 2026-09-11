@@ -49,8 +49,7 @@ class DeliveryOrderController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if (empty($input['dono'])) {
-            Code::where('code', 'dorunningnumber')->first()->increment('value');
-            $input['dono'] = 'DO' . sprintf('%07d', Code::where('code', 'dorunningnumber')->first()->value);
+            $input['dono'] = Code::nextRunningNumber('dorunningnumber', 'DO');
         }
 
         $deliveryOrder = $this->deliveryOrderRepository->create($input);
@@ -288,8 +287,7 @@ class DeliveryOrderController extends AppBaseController
         try {
             $first = $deliveryOrders->first();
 
-            Code::where('code', 'invoicerunningnumber')->first()->increment('value');
-            $invoiceno = 'INV' . sprintf('%07d', Code::where('code', 'invoicerunningnumber')->first()->value);
+            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
 
             $invoice = new Invoice();
             $invoice->invoiceno = $invoiceno;

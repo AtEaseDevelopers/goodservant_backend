@@ -56,8 +56,7 @@ class SalesOrderController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if (empty($input['sono'])) {
-            Code::where('code', 'sorunningnumber')->first()->increment('value');
-            $input['sono'] = 'SO' . sprintf('%07d', Code::where('code', 'sorunningnumber')->first()->value);
+            $input['sono'] = Code::nextRunningNumber('sorunningnumber', 'SO');
         }
 
         $salesOrder = $this->salesOrderRepository->create($input);
@@ -320,8 +319,7 @@ class SalesOrderController extends AppBaseController
 
     private function convertToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno)
     {
-        Code::where('code', 'dorunningnumber')->first()->increment('value');
-        $dono = 'DO' . sprintf('%07d', Code::where('code', 'dorunningnumber')->first()->value);
+        $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
         $deliveryOrder = new DeliveryOrder();
         $deliveryOrder->dono = $dono;
@@ -358,11 +356,9 @@ class SalesOrderController extends AppBaseController
     private function convertToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno)
     {
         if ($paymentterm == self::PAYMENTTERM_CREDIT) {
-            Code::where('code', 'invoicerunningnumber')->first()->increment('value');
-            $invoiceno = 'INV' . sprintf('%07d', Code::where('code', 'invoicerunningnumber')->first()->value);
+            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
         } else {
-            Code::where('code', 'cashsalesrunningnumber')->first()->increment('value');
-            $invoiceno = 'CS' . sprintf('%07d', Code::where('code', 'cashsalesrunningnumber')->first()->value);
+            $invoiceno = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
         }
 
         $invoice = new Invoice();

@@ -1750,9 +1750,6 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            $runningno = Code::where('code','invoicerunningnumber')->first();
-            $runningno->value = intval($runningno->value) + 1;
-            $runningno->save();
             DB::beginTransaction();
             $extinvoice = Invoice::where('id',$data['invoice_id'])->where('status',0)->first();
             $invoiceno = null;
@@ -1775,7 +1772,7 @@ class DriverController extends Controller
                     }
 
                 }else{
-                    $invoiceno = "INV".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+                    $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
                 }
             }
             $invoice = new Invoice();
@@ -3640,10 +3637,7 @@ class DriverController extends Controller
                 $id = $extsalesorder->id;
                 SalesOrderDetail::where('sales_order_id',$extsalesorder->id)->delete();
             }else{
-                $runningno = Code::where('code','sorunningnumber')->first();
-                $runningno->value = intval($runningno->value) + 1;
-                $runningno->save();
-                $sono = "SO".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+                $sono = Code::nextRunningNumber('sorunningnumber', 'SO');
             }
             $salesOrder = new SalesOrder();
             if($id != null){
@@ -3858,10 +3852,7 @@ class DriverController extends Controller
     }
 
     private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno){
-        $runningno = Code::where('code','dorunningnumber')->first();
-        $runningno->value = intval($runningno->value) + 1;
-        $runningno->save();
-        $dono = "DO".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+        $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
         $deliveryOrder = new DeliveryOrder();
         $deliveryOrder->dono = $dono;
@@ -3897,15 +3888,9 @@ class DriverController extends Controller
 
     private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno){
         if($paymentterm == 2){
-            $runningno = Code::where('code','invoicerunningnumber')->first();
-            $runningno->value = intval($runningno->value) + 1;
-            $runningno->save();
-            $invoiceno = "INV".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
         }else{
-            $runningno = Code::where('code','cashsalesrunningnumber')->first();
-            $runningno->value = intval($runningno->value) + 1;
-            $runningno->save();
-            $invoiceno = "CS".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+            $invoiceno = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
         }
 
         $invoice = new Invoice();
@@ -4110,10 +4095,7 @@ class DriverController extends Controller
             }
             DB::beginTransaction();
             $first = $deliveryOrders->first();
-            $runningno = Code::where('code','invoicerunningnumber')->first();
-            $runningno->value = intval($runningno->value) + 1;
-            $runningno->save();
-            $invoiceno = "INV".str_pad($runningno->value, 7, '0', STR_PAD_LEFT);
+            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
 
             $invoice = new Invoice();
             $invoice->invoiceno = $invoiceno;

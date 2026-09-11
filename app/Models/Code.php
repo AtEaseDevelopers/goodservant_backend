@@ -79,5 +79,28 @@ class Code extends Model
         'sequence' => 'required'
     ];
 
-    
+    /**
+     * Generate the next running number for a document type, formatted as
+     * {prefix}{yymm}/{0001}, resetting to 0001 whenever the calendar month
+     * changes. STR_UDF1 (an unused generic extension column on this table)
+     * stores which yymm period the current `value` belongs to, so a month
+     * change can be detected without a schema migration.
+     */
+    public static function nextRunningNumber(string $code, string $prefix): string
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($code, $prefix) {
+            $row = static::where('code', $code)->lockForUpdate()->firstOrFail();
+            $period = date('ym');
+
+            if ($row->STR_UDF1 !== $period) {
+                $row->value = 1;
+                $row->STR_UDF1 = $period;
+            } else {
+                $row->value = ((int) $row->value) + 1;
+            }
+            $row->save();
+
+            return $prefix . $period . '/' . sprintf('%04d', $row->value);
+        });
+    }
 }
