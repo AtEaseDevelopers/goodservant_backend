@@ -42,6 +42,20 @@
                 setcheckbox(window.checkboxid);
                 checkcheckbox();
                 HideLoad();
+
+                // Alternate a background color per lorry group (not per row). Bound
+                // here (after RowGroup's own 'draw' listener, since it registers
+                // during table init before this handler is attached) rather than via
+                // the 'drawCallback' init option, which fires before RowGroup has
+                // inserted/updated the .dtrg-start header rows for this draw.
+                var toggle = 0;
+                $(table.table().body()).find('tr').each(function(){
+                    if($(this).hasClass('dtrg-start')){
+                        toggle = 1 - toggle;
+                    }
+                    $(this).toggleClass('lorry-group-even', toggle === 1);
+                    $(this).toggleClass('lorry-group-odd', toggle === 0);
+                });
             });
             table.on( 'preDraw', function () {
                 ShowLoad();

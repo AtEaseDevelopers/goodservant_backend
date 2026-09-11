@@ -54,20 +54,6 @@ class InventoryBalanceDataTable extends DataTable
                 'processing' => false,
                 'order'     => [[0, 'asc']],
                 'rowGroup'  => ['dataSrc' => 'lorry.lorryno'],
-                // Alternate a background color per lorry group (not per row) so each
-                // lorry's block of rows is visually distinct at a glance, regardless
-                // of how many products it has. Runs after every draw/redraw since the
-                // toggle is a local var, not shared state.
-                'drawCallback' => 'function(){
-                    var toggle = 0;
-                    $(this.api().table().body()).find("tr").each(function(){
-                        if($(this).hasClass("dtrg-start")){
-                            toggle = 1 - toggle;
-                        }
-                        $(this).toggleClass("lorry-group-even", toggle === 1);
-                        $(this).toggleClass("lorry-group-odd", toggle === 0);
-                    });
-                }',
                 'lengthMenu' => [[ 10, 50, 100, 300 ],[ '10 rows', '50 rows', '100 rows', '300 rows' ]],
                 'buttons' => [
                     // ['extend' => 'create', 'className' => 'btn btn-default btn-sm no-corner', 'text' => trans('table_buttons.create')],
