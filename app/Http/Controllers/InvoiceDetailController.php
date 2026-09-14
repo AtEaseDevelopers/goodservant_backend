@@ -95,69 +95,14 @@ class InvoiceDetailController extends AppBaseController
             $invoiceDetail = $this->invoiceDetailRepository->update($input, $input['edit_id']);
         }
 
-        // Create credit note in Xero if payment term is credit
-        $xero_has_err = false;
-        if ($invoice != null && $invoice->paymentterm == 2) {
-            try {
-                $redirect_uri = config('app.url') . '/invoiceDetails';
-                $xero = new XeroController($redirect_uri);
-    
-                // Get Xero's access token
-                if ($req->has('code')) {
-                    $res = $xero->getToken($req->code);
-                    if (!$res->ok()) {
-                        throw new Exception('Failed to get xero access token.');
-                    }
-                }
-                // Xero auth
-                $res = $xero->auth();
-                if ($res !== true) {
-                    return $res;
-                }
-                // Get contact
-                $customer_name = Customer::where('id', $invoice->customer_id)->value('company');
-                
-                $res = $xero->getContact($customer_name); // Get contact
-                $payload = $res->object();
+        if ($is_store == true) {
+            Flash::success(__('invoices_details.invoice_detail_saved_successfully'));
+        } else {
+            Flash::success(__('invoices_details.invoice_detail_updated_successfully'));
+        }
 
-                if (!$res->ok()) {
-                    throw new Exception('Failed to get xero contact.');
-                } elseif ($res->ok() && isset($payload->Contacts) && count($payload->Contacts) <= 0) { // Create contact in Xero
-                    $res = $xero->createContact($customer_name);
-                    if (!$res->ok()) {
-                        throw new Exception('Failed to create contact for ' . $customer_name);
-                    }
-                    $payload = $res->object();
-                }
-                // Create credit note
-                $items = [
-                    'Quantity' => $input['quantity'],
-                    'UnitAmount' => $input['price'], 
-                    'Description' => $input['remark'] ?? $invoice->invoiceno
-                ];
-                $res = $xero->createCreditNote(true, $payload->Contacts[0], $items, 'ID' . ($is_store == true ? $invoiceDetail->id : $input['edit_id']));
-                if (!$res->ok()) {
-                    throw new Exception('Failed to create credit note.');
-                }
-            } catch (\Throwable $th) {
-                DB::rollback();
-                report($th);
-                
-                $xero_has_err = true;
-                Flash::error(__('invoices_details.something_went_wrong'));
-            }
-        }
-        
-        if (!$xero_has_err) {
-            if ($is_store == true) {
-                Flash::success(__('invoices_details.invoice_detail_saved_successfully'));
-            } else {
-                Flash::success(__('invoices_details.invoice_detail_updated_successfully'));
-            }
-            
-            DB::commit();
-        }
-        
+        DB::commit();
+
         Session::forget('invoice_detail_data');
     }
 
