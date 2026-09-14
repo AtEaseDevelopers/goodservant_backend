@@ -96,9 +96,9 @@ class InvoiceDetailController extends AppBaseController
         }
 
         if ($is_store == true) {
-            Flash::success(__('invoices_details.invoice_detail_saved_successfully'));
+            Flash::success(__('invoice_details.invoice_detail_saved_successfully'));
         } else {
-            Flash::success(__('invoices_details.invoice_detail_updated_successfully'));
+            Flash::success(__('invoice_details.invoice_detail_updated_successfully'));
         }
 
         DB::commit();
@@ -119,7 +119,7 @@ class InvoiceDetailController extends AppBaseController
         $invoiceDetail = $this->invoiceDetailRepository->find($id);
 
         if (empty($invoiceDetail)) {
-            Flash::error(__('invoices_details.invoice_detail_not_found'));
+            Flash::error(__('invoice_details.invoice_detail_not_found'));
 
             return redirect(route('invoiceDetails.index'));
         }
@@ -140,7 +140,7 @@ class InvoiceDetailController extends AppBaseController
         $invoiceDetail = $this->invoiceDetailRepository->find($id);
 
         if (empty($invoiceDetail)) {
-            Flash::error(__('invoices_details.invoice_detail_not_found'));
+            Flash::error(__('invoice_details.invoice_detail_not_found'));
 
             return redirect(route('invoiceDetails.index'));
         }
@@ -162,7 +162,7 @@ class InvoiceDetailController extends AppBaseController
         $invoiceDetail = $this->invoiceDetailRepository->find($id);
 
         if (empty($invoiceDetail)) {
-            Flash::error(__('invoices_details.invoice_detail_not_found'));
+            Flash::error(__('invoice_details.invoice_detail_not_found'));
 
             return redirect(route('invoiceDetails.index'));
         }
@@ -194,13 +194,13 @@ class InvoiceDetailController extends AppBaseController
         $invoiceDetail = $this->invoiceDetailRepository->find($id);
 
         if (empty($invoiceDetail)) {
-            Flash::error(__('invoices_details.invoice_detail_not_found'));
+            Flash::error(__('invoice_details.invoice_detail_not_found'));
 
             return redirect(route('invoiceDetails.index'));
         }
 
         $this->invoiceDetailRepository->delete($id);
-        Flash::success(__('invoices_details.invoice_detail_deleted_successfully'));
+        Flash::success(__('invoice_details.invoice_detail_deleted_successfully'));
 
         return redirect(route('invoiceDetails.index'));
     }
