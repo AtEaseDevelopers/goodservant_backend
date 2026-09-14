@@ -110,28 +110,38 @@ class InventoryBalanceController extends AppBaseController
     public function stockout(Request $request)
     {
         $data = $request->all();
-        $activeDriver = Driver::where('lorry_id', $data['lorry_id'])->whereNotNull('trip_id')->first();
-        $tripId = $activeDriver->trip_id ?? null;
-        $inventoryBalance = InventoryBalance::where('product_id',$data['product_id'])->where('lorry_id',$data['lorry_id'])->first();
-        if(!empty($inventoryBalance)){
-            if($inventoryBalance->quantity >= $data['quantity']){
-                $inventoryBalance->quantity = $inventoryBalance->quantity - $data['quantity'];
-                $inventoryBalance->save();
-                $inventorytransaction = new InventoryTransaction();
-                $inventorytransaction->type = 2;
-                $inventorytransaction->lorry_id = $data['lorry_id'];
-                $inventorytransaction->product_id = $data['product_id'];
-                $inventorytransaction->quantity = $data['quantity'] * -1;
-                $inventorytransaction->date = date("Y-m-d H:i:s");
-                $inventorytransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
-                $inventorytransaction->trip_id = $tripId;
-                $inventorytransaction->save();
-                Flash::success('Inventory Balance had been updated successfully.');
-            }else{
-                Flash::error('Transfer quantity cannot more than inventory balance quantity.');
+        $lorryIds = $data['lorry_id']; // This will be an array of selected lorry IDs
+
+        foreach ($lorryIds as $lorryId) {
+            $activeDriver = Driver::where('lorry_id', $lorryId)->whereNotNull('trip_id')->first();
+            $tripId = $activeDriver->trip_id ?? null;
+
+            $inventoryBalance = InventoryBalance::where('product_id', $data['product_id'])
+                ->where('lorry_id', $lorryId)
+                ->first();
+
+            if (!empty($inventoryBalance)) {
+                if ($inventoryBalance->quantity >= $data['quantity']) {
+                    $inventoryBalance->quantity = $inventoryBalance->quantity - $data['quantity'];
+                    $inventoryBalance->save();
+
+                    $inventorytransaction = new InventoryTransaction();
+                    $inventorytransaction->type = 2;
+                    $inventorytransaction->lorry_id = $lorryId;
+                    $inventorytransaction->product_id = $data['product_id'];
+                    $inventorytransaction->quantity = $data['quantity'] * -1;
+                    $inventorytransaction->date = date("Y-m-d H:i:s");
+                    $inventorytransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
+                    $inventorytransaction->trip_id = $tripId;
+                    $inventorytransaction->save();
+
+                    Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
+                } else {
+                    Flash::error('Transfer quantity cannot more than inventory balance quantity for lorry ID ' . $lorryId . '.');
+                }
+            } else {
+                Flash::error('Inventory Balance not found for lorry ID ' . $lorryId . '.');
             }
-        }else{
-            Flash::error('Inventory Balance not found.');
         }
 
         return redirect(route('inventoryBalances.index'));
