@@ -205,7 +205,7 @@
                         @endphp
                         <tr>
                             <td>
-                                <p style="font-size:16px;">{{ $invoicedetail['product']['name'] }}</p>
+                                <p style="font-size:16px;">{{ $invoicedetail['product']['name'] ?? '-' }}</p>
                             </td>
                             <td>
                                 <p class="ta-r" style="font-size:16px;">{{ number_format($invoicedetail['price'],2) }}</p>

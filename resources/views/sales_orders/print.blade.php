@@ -172,7 +172,7 @@
                         @endphp
                         <tr>
                             <td>
-                                <p style="font-size:16px;">{{ $salesorderdetail['product']['name'] }}</p>
+                                <p style="font-size:16px;">{{ $salesorderdetail['product']['name'] ?? '-' }}</p>
                             </td>
                             <td>
                                 <p class="ta-r" style="font-size:16px;">{{ number_format($salesorderdetail['price'],2) }}</p>

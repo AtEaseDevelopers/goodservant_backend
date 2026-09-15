@@ -211,7 +211,7 @@
                                 <p  align="center">{{ $invoicedetail['quantity'] }}</p>
                             </td>
                             <td>
-                                <p >{{ $invoicedetail['product']['name'] }}</p>
+                                <p >{{ $invoicedetail['product']['name'] ?? '-' }}</p>
                             </td>
                             <td>
                                 <p class="ta-r" style="">{{ number_format($invoicedetail['price'],2) }}</p>

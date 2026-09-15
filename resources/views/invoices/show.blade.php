@@ -53,7 +53,7 @@
                                             @if( ($i+1) % 2 == 0 )
 
                                                 <tr class="even">
-                                                    <td>{{ $invoicedetail['product']['name'] }}</td>
+                                                    <td>{{ $invoicedetail['product']['name'] ?? '-' }}</td>
                                                     <td>{{ $invoicedetail['quantity'] }}</td>
                                                     <td>{{ $invoicedetail['price'] }}</td>
                                                     <td>{{ $invoicedetail['totalprice'] }}</td>
@@ -72,7 +72,7 @@
                                                 </tr>
                                             @else
                                                 <tr class="odd">
-                                                    <td>{{ $invoicedetail['product']['name'] }}</td>
+                                                    <td>{{ $invoicedetail['product']['name'] ?? '-' }}</td>
                                                     <td>{{ $invoicedetail['quantity'] }}</td>
                                                     <td>{{ $invoicedetail['price'] }}</td>
                                                     <td>{{ $invoicedetail['totalprice'] }}</td>

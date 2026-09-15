@@ -138,7 +138,7 @@
                                             {{-- second for each --}}
                                             <tr class="border-bottom-5">
                                                 <td class="ta-l">{{ sprintf('%03d',$i) }}</td>
-                                                <td class="ta-l">{{ $id['product']['name'] }}</td>
+                                                <td class="ta-l">{{ $id['product']['name'] ?? '-' }}</td>
                                                 <td class="ta-r">{{ number_format($id['quantity'],2) }}</td>
                                                 <td class="ta-l">BAG</td>
                                                 <td class="ta-r">{{ number_format($id['price'],4) }}</td>

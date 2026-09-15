@@ -50,46 +50,24 @@
                                             </tr>
                                         @endif
                                         @foreach($assign as $i=>$ass)
-                                            @if( ($i+1) % 2 == 0 )
-
-                                                <tr class="even">
-                                                    <td>{{ $ass['customer']['code'] }}</td>
-                                                    <td>{{ $ass['customer']['company'] }}</td>
-                                                    <td>{{ $ass['customer']['phone'] }}</td>
-                                                    <td class=" truncate">{{ $ass['customer']['address'] }}</td>
-                                                    <td>{{ $ass['sequence'] }}</td>
-                                                    <td>
-                                                    {!! Form::open(['route' => ['drivers.deleteassign', Crypt::encrypt($ass['id'])], 'method' => 'delete']) !!}
-                                                        <div class='btn-group'>
-                                                            {!! Form::button('<i class="fa fa-trash"></i>', [
-                                                                'type' => 'submit',
-                                                                'class' => 'btn btn-ghost-danger',
-                                                                'onclick' => "return confirm('Are you sure to delete the Assign?')"
-                                                            ]) !!}
-                                                        </div>
-                                                    {!! Form::close() !!}
-                                                    </td>
-                                                </tr>
-                                            @else
-                                                <tr class="odd">
-                                                    <td>{{ $ass['customer']['code'] }}</td>
-                                                    <td>{{ $ass['customer']['company'] }}</td>
-                                                    <td>{{ $ass['customer']['phone'] }}</td>
-                                                    <td class=" truncate">{{ $ass['customer']['address'] }}</td>
-                                                    <td>{{ $ass['sequence'] }}</td>
-                                                    <td>
-                                                    {!! Form::open(['route' => ['drivers.deleteassign', Crypt::encrypt($ass['id'])], 'method' => 'delete']) !!}
-                                                        <div class='btn-group'>
-                                                            {!! Form::button('<i class="fa fa-trash"></i>', [
-                                                                'type' => 'submit',
-                                                                'class' => 'btn btn-ghost-danger',
-                                                                'onclick' => "return confirm('Are you sure to delete the Assign?')"
-                                                            ]) !!}
-                                                        </div>
-                                                    {!! Form::close() !!}
-                                                    </td>
-                                                </tr>
-                                            @endif
+                                            <tr class="{{ ($i+1) % 2 == 0 ? 'even' : 'odd' }}">
+                                                <td>{{ $ass['customer']['code'] ?? '-' }}</td>
+                                                <td>{{ $ass['customer']['company'] ?? '-' }}</td>
+                                                <td>{{ $ass['customer']['phone'] ?? '-' }}</td>
+                                                <td class=" truncate">{{ $ass['customer']['address'] ?? '-' }}</td>
+                                                <td>{{ $ass['sequence'] }}</td>
+                                                <td>
+                                                {!! Form::open(['route' => ['drivers.deleteassign', Crypt::encrypt($ass['id'])], 'method' => 'delete']) !!}
+                                                    <div class='btn-group'>
+                                                        {!! Form::button('<i class="fa fa-trash"></i>', [
+                                                            'type' => 'submit',
+                                                            'class' => 'btn btn-ghost-danger',
+                                                            'onclick' => "return confirm('Are you sure to delete the Assign?')"
+                                                        ]) !!}
+                                                    </div>
+                                                {!! Form::close() !!}
+                                                </td>
+                                            </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
