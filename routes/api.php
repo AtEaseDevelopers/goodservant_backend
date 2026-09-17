@@ -68,6 +68,10 @@ Route::group(['prefix' => 'v1'], function () {
     //Packing List
     Route::post('/driver/packing-list/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'packinglistpdf']);
 
+    //Customer Group order (drag-and-drop reorder for next trip's task sequence)
+    Route::post('/driver/customerGroup', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomergroup']);
+    Route::post('/driver/customerGroup/reorder', [App\Http\Controllers\Api\V1\DriverController::class, 'updatecustomergroup']);
+
      //Invoice Payment
     Route::post('/driver/invoicepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'addpayment']);
     Route::post('/driver/invoicepayment/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'paymentpdf']);

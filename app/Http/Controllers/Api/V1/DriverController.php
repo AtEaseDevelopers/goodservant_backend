@@ -4259,4 +4259,159 @@ class DriverController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Return a customer group's customers, in this driver's current visit
+     * order (Assign.sequence), for the mobile drag-and-drop reorder screen.
+     * Mirrors the admin web AssignController::customerfindgroup(), scoped to
+     * the authenticated driver instead of an arbitrary driver_id/lorry_id.
+     */
+    public function getcustomergroup(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'group_id' => 'required|numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $groupId = $request->input('group_id');
+
+            $customers = Customer::whereRaw('FIND_IN_SET(?, `group`)', [$groupId])
+                ->get(['id', 'company']);
+
+            $existingAssignments = Assign::where('driver_id', $driver->id)
+                ->whereIn('customer_id', $customers->pluck('id'))
+                ->orderBy('sequence', 'asc')
+                ->get()
+                ->keyBy('customer_id');
+
+            $result = [];
+            foreach ($existingAssignments as $assignment) {
+                $customer = $customers->firstWhere('id', $assignment->customer_id);
+                if ($customer) {
+                    $result[] = [
+                        'customer_id' => $customer->id,
+                        'company' => $customer->company,
+                        'sequence' => $assignment->sequence,
+                    ];
+                }
+            }
+            $maxSequence = $existingAssignments->max('sequence') ?: 0;
+            $remainingCustomers = $customers->whereNotIn('id', $existingAssignments->pluck('customer_id'))->values();
+            foreach ($remainingCustomers as $index => $customer) {
+                $result[] = [
+                    'customer_id' => $customer->id,
+                    'company' => $customer->company,
+                    'sequence' => $maxSequence + $index + 1,
+                ];
+            }
+            usort($result, function($a, $b) {
+                return $a['sequence'] - $b['sequence'];
+            });
+
+            return response()->json([
+                'result' => true,
+                'message' => 'OK',
+                'data' => [
+                    'group_id' => (int) $groupId,
+                    'customers' => $result,
+                ]
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Accept a driver-reordered customer group from the mobile app and
+     * persist the new visit order into Assign.sequence for this driver.
+     * Takes effect the next time the driver starts a trip - starttrip()
+     * already builds that trip's Tasks from
+     * Assign::where('driver_id', ...)->orderBy('sequence') (unchanged here),
+     * so no separate task-generation logic is needed. Does not touch any
+     * trip/Task rows already in progress.
+     */
+    public function updatecustomergroup(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'group_id' => 'required|numeric',
+                'customers' => 'required|array|min:1',
+                'customers.*' => 'required|numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $groupId = $request->input('group_id');
+            $customerIds = $request->input('customers');
+
+            $validCustomerIds = Customer::whereRaw('FIND_IN_SET(?, `group`)', [$groupId])
+                ->pluck('id')
+                ->all();
+            $invalidIds = array_diff($customerIds, $validCustomerIds);
+            if (!empty($invalidIds)) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                    'data' => null
+                ], 400);
+            }
+
+            DB::beginTransaction();
+            foreach ($customerIds as $index => $customerId) {
+                Assign::updateOrCreate(
+                    ['driver_id' => $driver->id, 'customer_id' => $customerId],
+                    ['sequence' => $index + 1]
+                );
+            }
+            DB::commit();
+
+            return response()->json([
+                'result' => true,
+                'message' => 'OK',
+                'data' => [
+                    'group_id' => (int) $groupId,
+                    'customers' => collect($customerIds)->values()->map(function($customerId, $index) {
+                        return ['customer_id' => (int) $customerId, 'sequence' => $index + 1];
+                    }),
+                ]
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
 }
