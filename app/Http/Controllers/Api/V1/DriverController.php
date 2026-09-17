@@ -596,34 +596,26 @@ class DriverController extends Controller
                     foreach($data["wastage"] as $wastage) {
                         $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)->where('product_id',$wastage['product_id'])->first();
                         if(empty($inventorybalance)){
-                            DB::rollback();
-                            return response()->json([
-                                'result' => false,
-                                'message' => __LINE__.$this->message_separator.'Wastage quantity more than available quantity',
-                                'data' => null
-                            ], 400);
+                            // No record yet — create with negative quantity (negative stock allowed)
+                            $inventorybalance = new InventoryBalance();
+                            $inventorybalance->lorry_id = $trip->lorry_id;
+                            $inventorybalance->product_id = $wastage['product_id'];
+                            $inventorybalance->quantity = 0 - $wastage["quantity"];
+                            $inventorybalance->save();
                         }else{
-                            if($inventorybalance->quantity < $wastage["quantity"]){
-                                DB::rollback();
-                                return response()->json([
-                                    'result' => false,
-                                    'message' => __LINE__.$this->message_separator.'Wastage quantity more than available quantity',
-                                    'data' => null
-                                ], 400);
-                            }else{
-                                $inventorybalance->quantity = $inventorybalance->quantity - $wastage["quantity"];
-                                $inventorybalance->save();
-                                $inventorytransaction = New InventoryTransaction();
-                                $inventorytransaction->lorry_id = $trip->lorry_id;
-                                $inventorytransaction->product_id = $wastage["product_id"];
-                                $inventorytransaction->quantity = $wastage["quantity"] * -1;
-                                $inventorytransaction->type = 5;
-                                $inventorytransaction->date = date('Y-m-d H:i:s');
-                                $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
-                                $inventorytransaction->trip_id = $driver->trip_id;
-                                $inventorytransaction->save();
-                            }
+                            // Decrement regardless — negative balance is allowed
+                            $inventorybalance->quantity = $inventorybalance->quantity - $wastage["quantity"];
+                            $inventorybalance->save();
                         }
+                        $inventorytransaction = New InventoryTransaction();
+                        $inventorytransaction->lorry_id = $trip->lorry_id;
+                        $inventorytransaction->product_id = $wastage["product_id"];
+                        $inventorytransaction->quantity = $wastage["quantity"] * -1;
+                        $inventorytransaction->type = 5;
+                        $inventorytransaction->date = date('Y-m-d H:i:s');
+                        $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
+                        $inventorytransaction->trip_id = $driver->trip_id;
+                        $inventorytransaction->save();
                     }
                     //snapshot lorry stock at end of trip, then clear driver's active trip
                     $endbalances = InventoryBalance::where('lorry_id', $trip->lorry_id)->get();

@@ -120,27 +120,32 @@ class InventoryBalanceController extends AppBaseController
                 ->where('lorry_id', $lorryId)
                 ->first();
 
-            if (!empty($inventoryBalance)) {
-                if ($inventoryBalance->quantity >= $data['quantity']) {
-                    $inventoryBalance->quantity = $inventoryBalance->quantity - $data['quantity'];
-                    $inventoryBalance->save();
+            if (empty($inventoryBalance)) {
+                // No record yet — create with negative quantity (negative stock allowed)
+                $inventoryBalance = new InventoryBalance();
+                $inventoryBalance->product_id = $data['product_id'];
+                $inventoryBalance->lorry_id = $lorryId;
+                $inventoryBalance->quantity = 0;
+            }
 
-                    $inventorytransaction = new InventoryTransaction();
-                    $inventorytransaction->type = 2;
-                    $inventorytransaction->lorry_id = $lorryId;
-                    $inventorytransaction->product_id = $data['product_id'];
-                    $inventorytransaction->quantity = $data['quantity'] * -1;
-                    $inventorytransaction->date = date("Y-m-d H:i:s");
-                    $inventorytransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
-                    $inventorytransaction->trip_id = $tripId;
-                    $inventorytransaction->save();
+            $newQty = $inventoryBalance->quantity - $data['quantity'];
+            $inventoryBalance->quantity = $newQty;
+            $inventoryBalance->save();
 
-                    Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
-                } else {
-                    Flash::error('Transfer quantity cannot more than inventory balance quantity for lorry ID ' . $lorryId . '.');
-                }
+            $inventorytransaction = new InventoryTransaction();
+            $inventorytransaction->type = 2;
+            $inventorytransaction->lorry_id = $lorryId;
+            $inventorytransaction->product_id = $data['product_id'];
+            $inventorytransaction->quantity = $data['quantity'] * -1;
+            $inventorytransaction->date = date("Y-m-d H:i:s");
+            $inventorytransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
+            $inventorytransaction->trip_id = $tripId;
+            $inventorytransaction->save();
+
+            if ($newQty < 0) {
+                Flash::warning('Stock Out recorded. Lorry ' . $lorryId . ' now has negative balance (' . $newQty . ').');
             } else {
-                Flash::error('Inventory Balance not found for lorry ID ' . $lorryId . '.');
+                Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
             }
         }
 
