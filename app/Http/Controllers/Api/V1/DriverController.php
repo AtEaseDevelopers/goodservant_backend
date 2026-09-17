@@ -4198,6 +4198,13 @@ class DriverController extends Controller
 
     // ── Packing List ─────────────────────────────────────────────────────────
 
+    /**
+     * Build the driver's packing list from their Sales Orders for the day.
+     * Sourced from SalesOrder/SalesOrderDetail (what's planned to be loaded/
+     * delivered), not Invoice (which may not exist yet at packing time).
+     * Pass customer_group_id to scope it to one customer group; omit it to
+     * get every one of the driver's Sales Orders for the day.
+     */
     public function packinglistpdf(Request $request){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
@@ -4209,30 +4216,50 @@ class DriverController extends Controller
                 ], 401);
             }
             $date = $request->input('date', date('Y-m-d'));
+            $groupId = $request->input('customer_group_id');
 
-            $tasks = Task::where('driver_id', $driver->id)
+            $salesOrdersQuery = SalesOrder::where('driver_id', $driver->id)
+                ->whereDate('date', $date)
+                ->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
+
+            if (!empty($groupId)) {
+                $salesOrdersQuery->whereHas('customer', function($q) use ($groupId) {
+                    $q->whereRaw('FIND_IN_SET(?, `group`)', [$groupId]);
+                });
+            }
+
+            $salesOrders = $salesOrdersQuery->get();
+
+            // Preserve today's planned visit order where available, so the
+            // packing list still lines up with the driver's route sequence.
+            $taskSequences = Task::where('driver_id', $driver->id)
                 ->where('date', $date)
-                ->orderBy('sequence')
-                ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
-                ->get();
+                ->pluck('sequence', 'customer_id');
 
             $products = Product::orderBy('id')->get(['id', 'code', 'name']);
 
-            $rows = $tasks->map(function ($task) use ($products) {
-                $quantities = array_fill_keys($products->pluck('id')->all(), 0);
-                if ($task->invoice) {
-                    foreach ($task->invoice->invoicedetail as $detail) {
-                        if (isset($quantities[$detail->product_id])) {
-                            $quantities[$detail->product_id] += $detail->quantity;
+            $rows = $salesOrders
+                ->groupBy('customer_id')
+                ->map(function ($orders) use ($products) {
+                    $quantities = array_fill_keys($products->pluck('id')->all(), 0);
+                    foreach ($orders as $order) {
+                        foreach ($order->salesorderdetail as $detail) {
+                            if (isset($quantities[$detail->product_id])) {
+                                $quantities[$detail->product_id] += $detail->quantity;
+                            }
                         }
                     }
-                }
-                return [
-                    'customer_id' => $task->customer_id,
-                    'customer_name' => $task->customer?->company ?? '-',
-                    'quantities' => $quantities,
-                ];
-            });
+                    $first = $orders->first();
+                    return [
+                        'customer_id' => $first->customer_id,
+                        'customer_name' => $first->customer?->company ?? '-',
+                        'quantities' => $quantities,
+                    ];
+                })
+                ->sortBy(function ($row) use ($taskSequences) {
+                    return $taskSequences[$row['customer_id']] ?? PHP_INT_MAX;
+                })
+                ->values();
 
             $totals = array_fill_keys($products->pluck('id')->all(), 0);
             foreach ($rows as $row) {
