@@ -571,15 +571,49 @@ return [
         'method' => 'POST',
         'path' => '/driver/packing-list/pdf',
         'methodName' => 'packinglistpdf',
-        'description' => "Builds a matrix of quantities (per product) invoiced to each of a date's task customers, rendered to PDF (A4 landscape) and streamed directly. JSON-only variant was removed - PDF is the only response this endpoint returns.",
+        'description' => "Builds a matrix of quantities (per product) across the driver's Sales Orders for a date - not Invoice, so it reflects what's planned to be loaded even before any invoice exists - rendered to PDF (A4 landscape) and streamed directly. Rows are sorted by that date's Task.sequence (planned visit order) where available, otherwise appended after. Pass customer_group_id to scope it to one customer group; omit it to get every Sales Order the driver has for that date. JSON-only variant was removed - PDF is the only response this endpoint returns.",
         'auth' => ['session' => true, 'trip' => false],
         'params' => [
             ['name' => 'date', 'in' => 'body', 'type' => 'date (Y-m-d)', 'required' => false, 'note' => 'defaults to today'],
+            ['name' => 'customer_group_id', 'in' => 'body', 'type' => 'numeric', 'required' => false, 'note' => 'omit for all of the driver\'s Sales Orders that date; pass to scope to one customer group'],
         ],
-        'exampleRequest' => ['date' => date('Y-m-d')],
+        'exampleRequest' => ['date' => date('Y-m-d'), 'customer_group_id' => null],
         'exampleResponse' => 'Binary PDF stream',
         'errors' => "401 invalid_session (standard JSON envelope, checked before PDF generation)\n500 falls back to JSON envelope with exception message",
         'responseType' => 'pdf',
+    ],
+
+    // ── Customer Group ───────────────────────────────────────────────────
+    [
+        'category' => 'Customer Group',
+        'method' => 'POST',
+        'path' => '/driver/customerGroup',
+        'methodName' => 'getcustomergroup',
+        'description' => "Returns a customer group's customers in this driver's current visit order (Assign.sequence), for populating a mobile drag-and-drop reorder screen. Customers with no Assign row yet get a placeholder sequence appended after the assigned ones (max sequence + position), so every group member is always returned.",
+        'auth' => ['session' => true, 'trip' => false],
+        'params' => [
+            ['name' => 'group_id', 'in' => 'body', 'type' => 'numeric', 'required' => true, 'note' => 'codes.value id for the customer_group code'],
+        ],
+        'exampleRequest' => ['group_id' => 13],
+        'exampleResponse' => ['result' => true, 'message' => 'OK', 'data' => ['group_id' => 13, 'customers' => [['customer_id' => 2299, 'company' => 'Level 1 Walk In Customer', 'sequence' => 1], ['customer_id' => 2099, 'company' => '3 SAMBAL', 'sequence' => 2]]]],
+        'errors' => "401 invalid_session\n400 validation failure (group_id missing/non-numeric)",
+        'responseType' => 'json',
+    ],
+    [
+        'category' => 'Customer Group',
+        'method' => 'POST',
+        'path' => '/driver/customerGroup/reorder',
+        'methodName' => 'updatecustomergroup',
+        'description' => "Submits the driver's reordered customer group (the whole group, with each customer and its new position) and upserts Assign.sequence for this driver accordingly. Takes effect on the driver's NEXT trip - starttrip() builds that trip's Tasks from Assign ordered by sequence, so no separate task-generation step is needed here. Does not touch any trip/Task rows already in progress.",
+        'auth' => ['session' => true, 'trip' => false],
+        'params' => [
+            ['name' => 'group_id', 'in' => 'body', 'type' => 'numeric', 'required' => true, 'note' => 'used only to validate every submitted customer belongs to this group'],
+            ['name' => 'customers', 'in' => 'body', 'type' => 'array of numeric customer_id', 'required' => true, 'note' => 'ordered array - array position becomes the new sequence (1-based)'],
+        ],
+        'exampleRequest' => ['group_id' => 13, 'customers' => [2299, 2099, 2066]],
+        'exampleResponse' => ['result' => true, 'message' => 'OK', 'data' => ['group_id' => 13, 'customers' => [['customer_id' => 2299, 'sequence' => 1], ['customer_id' => 2099, 'sequence' => 2], ['customer_id' => 2066, 'sequence' => 3]]]],
+        'errors' => "401 invalid_session\n400 validation failure (group_id/customers missing or malformed)\n400 invalid_customer if any submitted customer_id doesn't belong to group_id\n500 on exception (transaction rolled back)",
+        'responseType' => 'json',
     ],
 
     // ── Invoice Payment ──────────────────────────────────────────────────
