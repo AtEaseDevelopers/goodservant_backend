@@ -616,6 +616,47 @@ return [
         'responseType' => 'json',
     ],
 
+    // ── Stock Count ──────────────────────────────────────────────────────
+    [
+        'category' => 'Stock Count',
+        'method' => 'POST',
+        'path' => '/driver/stockCount',
+        'methodName' => 'StockCount',
+        'description' => "Driver requests a stock count for their current trip. Pulls the lorry's current InventoryBalance as the 'current_quantity' baseline for every product with stock > 0; an office admin fills in 'counted_quantity' per item and approves/rejects via the web admin (Setup > Inventory > Stock Count). Once APPROVED, addinvoice()/convertsalesorder()/combineconvertdeliveryorder() all reject further sales for this trip - the driver must start a new trip to continue. Blocks if a non-rejected (pending or approved) count already exists for this trip.",
+        'auth' => ['session' => true, 'trip' => true],
+        'params' => [],
+        'exampleRequest' => [],
+        'exampleResponse' => ['result' => true, 'message' => '..|Stock Count Request successfully.', 'data' => ['id' => 2, 'driver_id' => 1, 'trip_id' => 1, 'status' => 'pending', 'items' => [['product_id' => 1, 'current_quantity' => 209, 'counted_quantity' => '']]]],
+        'errors' => "401 invalid_session\n200 result:false if trip not started\n200 result:false if a pending/approved count already exists for this trip ('...please Contact your Stock Manager to approved.')\n500 on exception",
+        'responseType' => 'json',
+    ],
+    [
+        'category' => 'Stock Count',
+        'method' => 'POST',
+        'path' => '/driver/stockCount/list',
+        'methodName' => 'getStockCountList',
+        'description' => "Driver's own stock counts from the last 7 days, most recent first, with each item's current/counted quantity and product name/code resolved.",
+        'auth' => ['session' => true, 'trip' => false],
+        'params' => [],
+        'exampleRequest' => [],
+        'exampleResponse' => ['result' => true, 'message' => '..|Stock Count list retrieved successfully', 'data' => [['id' => 2, 'status' => 'approved', 'approved_by' => 'Admin', 'items' => [['product_id' => 1, 'product_name' => 'Tube', 'product_code' => 'Ice01', 'current_quantity' => 209, 'counted_quantity' => 209]]]]],
+        'errors' => "401 invalid_session\n500 on exception",
+        'responseType' => 'json',
+    ],
+    [
+        'category' => 'Stock Count',
+        'method' => 'POST',
+        'path' => '/driver/stockCount/status',
+        'methodName' => 'StockCountStatus',
+        'description' => "Polling endpoint: is there an APPROVED stock count for the driver's current trip yet? Intended to be checked before showing sales screens - once isDone is true, addinvoice/convertsalesorder/combineconvertdeliveryorder will all reject further action for this trip.",
+        'auth' => ['session' => true, 'trip' => true],
+        'params' => [],
+        'exampleRequest' => [],
+        'exampleResponse' => ['result' => true, 'message' => '..|Stock Count Completed', 'data' => ['isDone' => true]],
+        'errors' => "401 invalid_session\n200 result:false if trip not started\n500 on exception",
+        'responseType' => 'json',
+    ],
+
     // ── Invoice Payment ──────────────────────────────────────────────────
     [
         'category' => 'Invoice Payment',

@@ -193,7 +193,7 @@
 @endcanany
 
 @canany(['inventorybalance','inventorytransaction'])
-<li class="nav-item nav-dropdown {{ Request::is('inventoryBalances*','inventoryTransactions*') ? 'open' : '' }}">
+<li class="nav-item nav-dropdown {{ Request::is('inventoryBalances*','inventoryCounts*','inventoryTransactions*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
         <i class="nav-icon icon-drawer"></i>
         <span>{{ trans('side_menu.inventory') }}</span>
@@ -204,6 +204,11 @@
             <li class="nav-item {{ Request::is('inventoryBalances*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('inventoryBalances*') ? 'active' : '' }}" href="{{ route('inventoryBalances.index') }}">
                     <span>{{ trans('side_menu.balances') }}</span>
+                </a>
+            </li>
+            <li class="nav-item {{ Request::is('inventoryCounts*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('inventoryCounts*') ? 'active' : '' }}" href="{{ route('inventoryCounts.index') }}">
+                    <span>Stock Count</span>
                 </a>
             </li>
         </ul>

@@ -18,7 +18,7 @@
                               <strong>{{ __('products.edit_products')}}</strong>
                           </div>
                           <div class="card-body">
-                              {!! Form::model($product, ['route' => ['products.update', encrypt($product->id)], 'method' => 'patch']) !!}
+                              {!! Form::model($product, ['route' => ['products.update', encrypt($product->id)], 'method' => 'patch', 'enctype' => 'multipart/form-data']) !!}
 
                               @include('products.fields')
 

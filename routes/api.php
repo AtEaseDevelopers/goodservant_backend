@@ -72,6 +72,11 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('/driver/customerGroup', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomergroup']);
     Route::post('/driver/customerGroup/reorder', [App\Http\Controllers\Api\V1\DriverController::class, 'updatecustomergroup']);
 
+    //Stock Count
+    Route::post('/driver/stockCount', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCount']);
+    Route::post('/driver/stockCount/list', [App\Http\Controllers\Api\V1\DriverController::class, 'getStockCountList']);
+    Route::post('/driver/stockCount/status', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCountStatus']);
+
      //Invoice Payment
     Route::post('/driver/invoicepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'addpayment']);
     Route::post('/driver/invoicepayment/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'paymentpdf']);

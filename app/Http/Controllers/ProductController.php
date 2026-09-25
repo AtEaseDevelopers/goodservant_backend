@@ -21,6 +21,8 @@ use App\Models\InvoiceDetail;
 use App\Models\SpecialPrice;
 use App\Models\foc;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Exception;
 use App\Services\EInvoiceService;
 
@@ -83,6 +85,13 @@ class ProductController extends AppBaseController
 
         if(str_contains($input['name'],'\'')){
             return Redirect::back()->withInput($input)->withErrors('The name cannot contain single quote');
+        }
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imageName = time() . '_' . Str::slug($input['code']) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('product-images', $imageName, 'public');
+            $input['image_path'] = '/storage/' . $imagePath;
         }
 
         $product = $this->productRepository->create($input);
@@ -181,6 +190,16 @@ class ProductController extends AppBaseController
             return Redirect::back()->withInput($input)->withErrors('The name cannot contain single quote');
         }
 
+        if ($request->hasFile('image')) {
+            if ($product->image_path) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $product->image_path));
+            }
+            $image = $request->file('image');
+            $imageName = time() . '_' . Str::slug($input['code']) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('product-images', $imageName, 'public');
+            $input['image_path'] = '/storage/' . $imagePath;
+        }
+
         $product = $this->productRepository->update($input, $id);
 
         Flash::success($product->code.__('products.updated_successfully'));
@@ -218,6 +237,10 @@ class ProductController extends AppBaseController
             Flash::error('Unable to delete '.$product->name.', '.$product->name.' is being used in Foc');
 
             return redirect(route('products.index'));
+        }
+
+        if ($product->image_path) {
+            Storage::disk('public')->delete(str_replace('/storage/', '', $product->image_path));
         }
 
         $this->productRepository->delete($id);

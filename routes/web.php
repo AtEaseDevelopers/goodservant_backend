@@ -481,6 +481,16 @@ Route::group(['middleware' => ['auth']], function() {
     Route::group(['middleware' => ['permission:inventorytransaction']], function() {
         Route::get('/inventoryTransactions', [App\Http\Controllers\InventoryTransactionController::class, 'index'])->name('inventoryTransactions.index');
     });
+    Route::group(['middleware' => ['permission:inventorybalance']], function() {
+        Route::get('/inventoryCounts', [App\Http\Controllers\InventoryCountController::class, 'index'])->name('inventoryCounts.index');
+        Route::post('/inventoryCounts/store', [App\Http\Controllers\InventoryCountController::class, 'store'])->name('inventoryCounts.store');
+        Route::get('/inventoryCounts/show/{id}', [App\Http\Controllers\InventoryCountController::class, 'show'])->name('inventoryCounts.show');
+        Route::put('/inventoryCounts/update/{id}', [App\Http\Controllers\InventoryCountController::class, 'update'])->name('inventoryCounts.update');
+        Route::post('/inventoryCounts/update/{id}', [App\Http\Controllers\InventoryCountController::class, 'update']);
+        Route::delete('/inventoryCounts/delete/{id}', [App\Http\Controllers\InventoryCountController::class, 'destroy'])->name('inventoryCounts.destroy');
+        Route::post('/inventoryCounts/approve/{id}', [App\Http\Controllers\InventoryCountController::class, 'approve'])->name('inventoryCounts.approve');
+        Route::post('/inventoryCounts/reject/{id}', [App\Http\Controllers\InventoryCountController::class, 'reject'])->name('inventoryCounts.reject');
+    });
     Route::group(['middleware' => ['permission:inventorytransfer']], function() {
         Route::get('/inventoryTransfers', [App\Http\Controllers\InventoryTransferController::class, 'index'])->name('inventoryTransfers.index');
     });

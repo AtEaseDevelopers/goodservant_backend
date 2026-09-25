@@ -36,6 +36,8 @@ use App\Models\DriverLocation;
 use App\Models\Language;
 use App\Models\MobileTranslationVersion;
 use App\Models\MobileTranslation;
+use App\Models\InventoryCount;
+use Carbon\Carbon;
 
 class DriverController extends Controller
 {
@@ -1350,8 +1352,12 @@ class DriverController extends Controller
                         $join->on('special_prices.status', '=', DB::raw("'1'"));
                     })
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
-                ->get();
+                ->select('products.id','products.code','products.name','products.image_path',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                ->get()
+                ->map(function($item){
+                    $item->image_url = $item->image_path ? url($item->image_path) : null;
+                    return $item;
+                });
                 return response()->json([
                     'result' => true,
                     'message' => __LINE__.$this->message_separator.'api.message.product_found',
@@ -1360,8 +1366,12 @@ class DriverController extends Controller
             }else{
                 $product = DB::table('products')
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name',DB::raw('products.price as "price"'))
-                ->get();
+                ->select('products.id','products.code','products.name','products.image_path',DB::raw('products.price as "price"'))
+                ->get()
+                ->map(function($item){
+                    $item->image_url = $item->image_path ? url($item->image_path) : null;
+                    return $item;
+                });
                 return response()->json([
                     'result' => true,
                     'message' => __LINE__.$this->message_separator.'api.message.product_found',
@@ -1712,6 +1722,17 @@ class DriverController extends Controller
                     'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
                     'data' => null
                 ], 401);
+            }
+            $inventoryCountRecord = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', InventoryCount::STATUS_APPROVED)
+                ->first();
+            if($inventoryCountRecord){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have completed inventory count, cannot add new invoice, You may continue in next new trip.',
+                    'data' => null
+                ], 200);
             }
             $validator = Validator::make($request->all(), [
                 'date' => 'date_format:Y-m-d H:i:s',
@@ -3769,6 +3790,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
+            $inventoryCountRecord = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', InventoryCount::STATUS_APPROVED)
+                ->first();
+            if($inventoryCountRecord){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have completed inventory count, cannot convert sales order, You may continue in next new trip.',
+                    'data' => null
+                ], 200);
+            }
             $validator = Validator::make($request->all(), [
                 'sales_order_id' => 'required|numeric',
                 'paymentterm' => 'required|numeric|gt:0|lt:6',
@@ -4057,6 +4089,17 @@ class DriverController extends Controller
                     'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
                     'data' => null
                 ], 401);
+            }
+            $inventoryCountRecord = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', InventoryCount::STATUS_APPROVED)
+                ->first();
+            if($inventoryCountRecord){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have completed inventory count, cannot convert delivery order, You may continue in next new trip.',
+                    'data' => null
+                ], 200);
             }
             $validator = Validator::make($request->all(), [
                 'ids' => 'required|array|min:1',
@@ -4434,6 +4477,203 @@ class DriverController extends Controller
         }
         catch(Exception $e){
             DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Driver requests a stock count for their current trip. Pulls the
+     * lorry's current InventoryBalance as the "current_quantity" baseline;
+     * an admin fills in "counted_quantity" and approves/rejects via the web
+     * admin (InventoryCountController). Blocks if a non-rejected count
+     * already exists for this trip.
+     */
+    public function StockCount(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            if($driver->trip_id == NULL){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have to start trip before perform any Action',
+                    'data' => null
+                ], 200);
+            }
+
+            $existingCount = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', '!=', InventoryCount::STATUS_REJECTED)
+                ->first();
+
+            if($existingCount){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'You have request for Stock Count, please Contact your Stock Manager to approved.',
+                    'data' => null
+                ], 200);
+            }
+
+            $trip = Trip::find($driver->trip_id);
+
+            $inventoryBalances = InventoryBalance::where('lorry_id', $trip->lorry_id)
+                ->where('quantity', '>', 0)
+                ->get();
+
+            $items = [];
+            foreach ($inventoryBalances as $balance) {
+                $items[] = [
+                    'product_id' => $balance->product_id,
+                    'current_quantity' => $balance->quantity,
+                    'counted_quantity' => "",
+                ];
+            }
+
+            $inventoryCount = InventoryCount::create([
+                'driver_id' => $driver->id,
+                'items' => $items,
+                'status' => InventoryCount::STATUS_PENDING,
+                'trip_id' => $driver->trip_id,
+            ]);
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'Stock Count Request successfully.',
+                'data' => $inventoryCount
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Driver's own stock counts from the last 7 days, most recent first.
+     */
+    public function getStockCountList(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            $inventoryCounts = InventoryCount::where('created_at', '>=', Carbon::now()->subDays(7))
+                ->where('driver_id', $driver->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $allProductIds = [];
+            foreach ($inventoryCounts as $count) {
+                foreach (($count->items ?? []) as $item) {
+                    if (isset($item['product_id'])) {
+                        $allProductIds[] = $item['product_id'];
+                    }
+                }
+            }
+            $products = Product::whereIn('id', array_unique($allProductIds))->get()->keyBy('id');
+
+            $formattedCounts = $inventoryCounts->map(function ($count) use ($products) {
+                $items = $count->items ?? [];
+                $formattedItems = array_map(function ($item) use ($products) {
+                    $product = $products[$item['product_id']] ?? null;
+                    return [
+                        'product_id' => $item['product_id'],
+                        'product_name' => $product ? $product->name : null,
+                        'product_code' => $product ? $product->code : null,
+                        'counted_quantity' => $item['counted_quantity'] ?? '',
+                        'current_quantity' => $item['current_quantity'] ?? 0,
+                    ];
+                }, $items);
+
+                return [
+                    'id' => $count->id,
+                    'driver_id' => $count->driver_id,
+                    'items' => $formattedItems,
+                    'status' => $count->status,
+                    'remarks' => $count->remarks,
+                    'rejection_reason' => $count->rejection_reason,
+                    'approved_by' => optional(\App\Models\User::find($count->approved_by))->name,
+                    'trip_id' => $count->trip_id,
+                    'rejected_by' => optional(\App\Models\User::find($count->rejected_by))->name,
+                    'approved_at' => optional($count->approved_at)->toDateTimeString(),
+                    'rejected_at' => optional($count->rejected_at)->toDateTimeString(),
+                    'created_at' => optional($count->created_at)->toDateTimeString(),
+                    'updated_at' => optional($count->updated_at)->toDateTimeString(),
+                ];
+            });
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'Stock Count list retrieved successfully',
+                'data' => $formattedCounts
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Polling endpoint: is there an APPROVED stock count for the driver's
+     * current trip? Other actions (addinvoice, convertSalesOrderToInvoice,
+     * combineconvertdeliveryorder) check the same condition to block new
+     * sales once the trip's stock has been counted and approved.
+     */
+    public function StockCountStatus(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            if($driver->trip_id == NULL){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have to start trip before perform any Action',
+                    'data' => null
+                ], 200);
+            }
+
+            $inventoryCount = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', InventoryCount::STATUS_APPROVED)
+                ->first();
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.($inventoryCount ? 'Stock Count Completed' : 'Stock Count Not Complete yet.'),
+                'data' => [
+                    'isDone' => (bool) $inventoryCount
+                ]
+            ], 200);
+        }
+        catch(Exception $e){
             return response()->json([
                 'result' => false,
                 'message' => __LINE__.$this->message_separator.$e->getMessage(),

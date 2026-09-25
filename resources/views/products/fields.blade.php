@@ -10,6 +10,18 @@
     {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 255]) !!} <!-- Removed duplicate maxlength -->
 </div>
 
+<!-- Image Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('image', 'Image') !!}
+    @if(!empty($product) && $product->image_path)
+        <div class="mb-2">
+            <img src="{{ $product->image_path }}" alt="{{ $product->name }}" style="max-height: 100px; max-width: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+    @endif
+    {!! Form::file('image', ['class' => 'form-control-file']) !!}
+    <small class="form-text text-muted">JPEG, PNG or GIF, max 2MB.</small>
+</div>
+
 <!-- Price Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('price', __('products.price')) !!}<span class="asterisk"> *</span>

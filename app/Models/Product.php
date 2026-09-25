@@ -35,6 +35,7 @@ class Product extends Model
     public $fillable = [
         'code',
         'name',
+        'image_path',
         'price',
         'status',
         'type',
@@ -51,6 +52,7 @@ class Product extends Model
         'id' => 'integer',
         'code' => 'string',
         'name' => 'string',
+        'image_path' => 'string',
         'price' => 'float',
         'status' => 'integer',
         'type' => 'integer',
@@ -66,6 +68,7 @@ class Product extends Model
     public static $rules = [
         'code' => 'required|string|max:255|unique:products,code',
         'name' => 'required|string|max:255|string|max:255',
+        'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
         'price' => 'required|numeric|numeric',
         'status' => 'required',
         'type' => 'required',
