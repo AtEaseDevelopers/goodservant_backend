@@ -18,6 +18,7 @@
     </div>
     {!! Form::file('image', ['class' => 'form-control-file', 'id' => 'imageInput']) !!}
     <small class="form-text text-muted">JPEG, PNG or GIF, max 2MB.</small>
+    <div class="text-danger small" id="imageTypeError"></div>
 </div>
 
 <!-- Price Field -->
@@ -90,7 +91,15 @@
         document.getElementById('imageInput').addEventListener('change', function(e) {
             var file = e.target.files[0];
             var preview = document.getElementById('imagePreview');
+            var errorEl = document.getElementById('imageTypeError');
+            errorEl.textContent = '';
             if (file) {
+                if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+                    errorEl.textContent = file.name + ' is not a JPEG, PNG or GIF - please pick an image file.';
+                    preview.style.display = 'none';
+                    e.target.value = '';
+                    return;
+                }
                 var reader = new FileReader();
                 reader.onload = function(event) {
                     preview.src = event.target.result;
