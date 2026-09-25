@@ -1986,6 +1986,88 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * Cancel (delete) one of this driver's own Invoices, scoped to the
+     * driver's current trip (same reasoning as cancelsalesorder()). Unlike
+     * SO/DO, an Invoice already deducted lorry stock (addinvoice()/
+     * combineconvertdeliveryorder()), so cancelling reverses that deduction
+     * and removes any auto-created cash InvoicePayment - admin's own
+     * InvoiceController::destroy() does NOT do this reversal, but a mobile
+     * "cancel" is reachable moments after a driver's own mistake, so leaving
+     * stock permanently short would be worse than the admin page's behavior.
+     * FOC achievequantity counters are intentionally left as-is - reversing
+     * promo counters precisely is out of scope for a same-trip undo.
+     */
+    public function cancelinvoice($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $invoice = Invoice::where('id', $id)->where('driver_id', $driver->id)->with('invoicedetail')->first();
+            if(empty($invoice)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_not_found',
+                    'data' => null
+                ], 404);
+            }
+            if(!empty($invoice->trip_id) && $invoice->trip_id != $driver->trip_id){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Invoice belongs to a previous trip and can no longer be cancelled.',
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            if($driver->lorry_id){
+                foreach($invoice->invoicedetail as $line){
+                    $inventorybalance = InventoryBalance::where('lorry_id', $driver->lorry_id)->where('product_id', $line->product_id)->first();
+                    if(empty($inventorybalance)){
+                        $newinventorybalance = new InventoryBalance();
+                        $newinventorybalance->lorry_id = $driver->lorry_id;
+                        $newinventorybalance->product_id = $line->product_id;
+                        $newinventorybalance->quantity = $line->quantity;
+                        $newinventorybalance->save();
+                    }else{
+                        $inventorybalance->quantity = $inventorybalance->quantity + $line->quantity;
+                        $inventorybalance->save();
+                    }
+                    $inventorytransaction = new InventoryTransaction();
+                    $inventorytransaction->lorry_id = $driver->lorry_id;
+                    $inventorytransaction->product_id = $line->product_id;
+                    $inventorytransaction->quantity = $line->quantity;
+                    $inventorytransaction->type = 3;
+                    $inventorytransaction->user = $driver->employeeid . " (".$driver->name.") - invoice cancelled";
+                    $inventorytransaction->date = date('Y-m-d H:i:s');
+                    $inventorytransaction->trip_id = $invoice->trip_id;
+                    $inventorytransaction->save();
+                }
+            }
+            InvoicePayment::where('invoice_id', $invoice->id)->delete();
+            InvoiceDetail::where('invoice_id', $invoice->id)->delete();
+            $invoice->delete();
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.invoice_cancelled_successfully',
+                'data' => null
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
       public function invoicepdf(Request $request)
 	{
 	    try{
@@ -3806,6 +3888,65 @@ class DriverController extends Controller
     }
 
     /**
+     * Cancel (delete) one of this driver's own Sales Orders. Mirrors
+     * SalesOrderController::destroy() - blocked once converted - and, since
+     * a mobile "cancel" is far more reachable than the admin-only delete
+     * page, additionally scoped to the driver's CURRENT trip so a driver
+     * cannot reach back and delete an old SO from a previous, closed trip.
+     */
+    public function cancelsalesorder($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $salesOrder = SalesOrder::where('id', $id)->where('driver_id', $driver->id)->first();
+            if(empty($salesOrder)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_not_found',
+                    'data' => null
+                ], 404);
+            }
+            if(!empty($salesOrder->trip_id) && $salesOrder->trip_id != $driver->trip_id){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Sales Order belongs to a previous trip and can no longer be cancelled.',
+                    'data' => null
+                ], 400);
+            }
+            if(!empty($salesOrder->deliveryorder_id) || !empty($salesOrder->invoice_id)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_already_converted',
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            SalesOrderDetail::where('sales_order_id', $salesOrder->id)->delete();
+            $salesOrder->delete();
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_cancelled_successfully',
+                'data' => null
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
      * Convert a Sales Order into a Delivery Order (if customer.is_do_customer
      * and Credit is chosen) or straight into an Invoice - mirroring
      * SalesOrderController::convert(). The Invoice path additionally deducts
@@ -4099,6 +4240,63 @@ class DriverController extends Controller
             ], 200);
         }
         catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel (delete) one of this driver's own Delivery Orders. Mirrors
+     * DeliveryOrderController::destroy() - blocked once converted - and,
+     * like cancelsalesorder(), scoped to the driver's current trip.
+     */
+    public function canceldeliveryorder($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $deliveryOrder = DeliveryOrder::where('id', $id)->where('driver_id', $driver->id)->first();
+            if(empty($deliveryOrder)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_not_found',
+                    'data' => null
+                ], 404);
+            }
+            if(!empty($deliveryOrder->trip_id) && $deliveryOrder->trip_id != $driver->trip_id){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Delivery Order belongs to a previous trip and can no longer be cancelled.',
+                    'data' => null
+                ], 400);
+            }
+            if(!empty($deliveryOrder->invoice_id)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_already_converted',
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            DeliveryOrderDetail::where('deliveryorder_id', $deliveryOrder->id)->delete();
+            $deliveryOrder->delete();
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.delivery_order_cancelled_successfully',
+                'data' => null
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
             return response()->json([
                 'result' => false,
                 'message' => __LINE__.$this->message_separator.$e->getMessage(),
