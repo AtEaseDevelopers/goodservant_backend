@@ -31,6 +31,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/driver/trip', [App\Http\Controllers\Api\V1\DriverController::class, 'checktrip']);
     Route::post('/driver/trip/start', [App\Http\Controllers\Api\V1\DriverController::class, 'starttrip']);
     Route::post('/driver/trip/end', [App\Http\Controllers\Api\V1\DriverController::class, 'endtrip']);
+    Route::get('/driver/get-lasttrip-summary', [App\Http\Controllers\Api\V1\DriverController::class, 'getlasttripsummary']);
     Route::post('/driver/trip', [App\Http\Controllers\Api\V1\DriverController::class, 'trip']);
     //Kelindan
     Route::get('/driver/kelindan', [App\Http\Controllers\Api\V1\DriverController::class, 'getkelindan']);

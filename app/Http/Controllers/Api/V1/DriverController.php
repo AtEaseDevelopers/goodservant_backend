@@ -656,6 +656,117 @@ class DriverController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Summary of this driver's most recently ENDED trip (Daily Sales
+     * Summary, per the requirement doc: "accessible after performing an
+     * end trip"). Each end-trip() call writes a fresh type=2 Trip row; the
+     * type=1 row immediately before it is the trip that was actually
+     * driven, and its id is what Invoice.trip_id / TripInventoryBalance
+     * rows were tagged with while the trip was active.
+     */
+    public function getlasttripsummary(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            $endTrip = Trip::where('driver_id', $driver->id)->where('type', 2)->orderby('date','desc')->first();
+            if(empty($endTrip)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.no_trip_found',
+                    'data' => null
+                ], 200);
+            }
+
+            $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
+                ->where('date', '<=', $endTrip->getRawOriginal('date'))
+                ->orderby('date','desc')->first();
+            $tripId = $startTrip->id ?? null;
+
+            $invoices = Invoice::where('driver_id', $driver->id)
+                ->where('trip_id', $tripId)
+                ->with('invoicedetail.product', 'customer')
+                ->get();
+            $salesOrderCount = SalesOrder::where('driver_id', $driver->id)->where('trip_id', $tripId)->count();
+
+            $totalAmount = 0;
+            $totalCredit = 0;
+            $productsSold = [];
+            foreach($invoices as $invoice){
+                $invoiceTotal = 0;
+                foreach($invoice->invoicedetail as $line){
+                    $invoiceTotal += $line->totalprice;
+                    $productId = $line->product_id;
+                    if(!isset($productsSold[$productId])){
+                        $productsSold[$productId] = ['name' => $line->product?->name ?? 'Unknown', 'quantity' => 0];
+                    }
+                    $productsSold[$productId]['quantity'] += $line->quantity;
+                }
+                $totalAmount += $invoiceTotal;
+                if($invoice->paymentterm == 2){
+                    $totalCredit += $invoiceTotal;
+                }
+            }
+
+            $stockSummary = TripInventoryBalance::where('trip_id', $tripId)
+                ->where('type', TripInventoryBalance::TYPE_END)
+                ->with('product')
+                ->get()
+                ->map(function($row){
+                    return [
+                        'product_id' => $row->product_id,
+                        'product_code' => $row->product?->code,
+                        'product_name' => $row->product?->name,
+                        'quantity' => $row->quantity,
+                    ];
+                });
+
+            $duration = null;
+            if($startTrip){
+                $duration = $endTrip->getRawOriginal('date') && $startTrip->getRawOriginal('date')
+                    ? \Carbon\Carbon::parse($startTrip->getRawOriginal('date'))->diffForHumans(\Carbon\Carbon::parse($endTrip->getRawOriginal('date')), true)
+                    : null;
+            }
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.trip_summary_found',
+                'data' => [
+                    'trip_summary' => [
+                        'trip_id' => $tripId,
+                        'driver_name' => $driver->name,
+                        'start_time' => optional($startTrip)->getRawOriginal('date'),
+                        'end_time' => $endTrip->getRawOriginal('date'),
+                        'trip_duration' => $duration,
+                    ],
+                    'sales_summary' => [
+                        'total_invoices' => $invoices->count(),
+                        'total_sales_orders' => $salesOrderCount,
+                        'total_amount' => round($totalAmount, 2),
+                        'total_credit' => round($totalCredit, 2),
+                        'total_cash' => round($totalAmount - $totalCredit, 2),
+                    ],
+                    'stock_summary' => $stockSummary,
+                    'products_sold' => array_values($productsSold),
+                ]
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     public function trip(Request $request){
         $data = $request->all();
         //check session
