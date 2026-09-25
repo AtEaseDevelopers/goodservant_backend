@@ -24,7 +24,7 @@ return [
     'type' => 'Type',
     'type_cocoa' => 'cocoa',
     'type_coffee' => 'coffee',
-    'type_ice' => 'ice',
+    'type_ice' => 'Noodle',
     'type_other' => 'other',
     'type_tea' => 'tea',
     'unactive' => 'Unactive',

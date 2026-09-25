@@ -20,16 +20,7 @@
 <div class="form-group">
     {!! Form::label('type', __('products.type')) !!}:
     @switch($product->type)
-        @case(1)
-            <p>{{ __('products.type_coffee') }}</p>
-            @break
-        @case(2)
-            <p>{{ __('products.type_tea') }}</p>
-            @break
-        @case(3)
-            <p>{{ __('products.type_cocoa') }}</p>
-            @break
-        @case(4)
+        @case(0)
             <p>{{ __('products.type_ice') }}</p>
             @break
         @default

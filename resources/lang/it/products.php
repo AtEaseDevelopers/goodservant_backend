@@ -24,7 +24,7 @@ return [
     'type' => '类型',
     'type_cocoa' => '可可',
     'type_coffee' => '咖啡',
-    'type_ice' => '冰',
+    'type_ice' => 'Noodle',
     'type_other' => '其他',
     'type_tea' => '茶',
     'unactive' => '未激活',
