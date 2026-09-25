@@ -1917,6 +1917,39 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * List this driver's own Invoices (most recent first), for the mobile
+     * "My Invoices" screen. Mirrors getsalesorder()/getdeliveryorder().
+     */
+    public function getinvoicelist(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $invoices = Invoice::where('driver_id', $driver->id)
+                ->with('customer', 'invoicedetail.product')
+                ->orderby('date','desc')
+                ->get();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.invoice_list_successfully',
+                'data' => $invoices
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     public function getinvoicebyid($id, Request $request){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
@@ -4331,7 +4364,16 @@ class DriverController extends Controller
                 'totals' => $totals,
             ])->setPaper('a4', 'landscape');
 
-            return $pdf->stream('packing-list-' . $driver->name . '-' . $date . '.pdf');
+            $filename = 'packing-list-' . $driver->id . '-' . now()->format('YmdHis') . '.pdf';
+            $path = 'packing-list-pdf/' . $filename;
+            Storage::disk('public')->put($path, $pdf->output());
+            $url = url($path);
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.load_success',
+                'data' => $url
+            ], 200);
         }
         catch(Exception $e){
             return response()->json([
