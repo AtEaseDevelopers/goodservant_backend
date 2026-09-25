@@ -13,12 +13,10 @@
 <!-- Image Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('image', 'Image') !!}
-    @if(!empty($product) && $product->image_path)
-        <div class="mb-2">
-            <img src="{{ $product->image_path }}" alt="{{ $product->name }}" style="max-height: 100px; max-width: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px;">
-        </div>
-    @endif
-    {!! Form::file('image', ['class' => 'form-control-file']) !!}
+    <div class="mb-2">
+        <img id="imagePreview" src="{{ !empty($product) ? $product->image_path : '' }}" alt="Preview" style="max-height: 100px; max-width: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; {{ (!empty($product) && $product->image_path) ? '' : 'display: none;' }}">
+    </div>
+    {!! Form::file('image', ['class' => 'form-control-file', 'id' => 'imageInput']) !!}
     <small class="form-text text-muted">JPEG, PNG or GIF, max 2MB.</small>
 </div>
 
@@ -88,6 +86,18 @@
         });
         $(document).ready(function () {
             HideLoad();
+        });
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            var preview = document.getElementById('imagePreview');
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.src = event.target.result;
+                    preview.style.display = '';
+                };
+                reader.readAsDataURL(file);
+            }
         });
     </script>
 @endpush

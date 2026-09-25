@@ -91,7 +91,7 @@ class ProductController extends AppBaseController
             $image = $request->file('image');
             $imageName = time() . '_' . Str::slug($input['code']) . '.' . $image->getClientOriginalExtension();
             $imagePath = $image->storeAs('product-images', $imageName, 'public');
-            $input['image_path'] = '/storage/' . $imagePath;
+            $input['image_path'] = '/' . $imagePath;
         }
 
         $product = $this->productRepository->create($input);
@@ -192,12 +192,12 @@ class ProductController extends AppBaseController
 
         if ($request->hasFile('image')) {
             if ($product->image_path) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $product->image_path));
+                Storage::disk('public')->delete(ltrim($product->image_path, '/'));
             }
             $image = $request->file('image');
             $imageName = time() . '_' . Str::slug($input['code']) . '.' . $image->getClientOriginalExtension();
             $imagePath = $image->storeAs('product-images', $imageName, 'public');
-            $input['image_path'] = '/storage/' . $imagePath;
+            $input['image_path'] = '/' . $imagePath;
         }
 
         $product = $this->productRepository->update($input, $id);
@@ -240,7 +240,7 @@ class ProductController extends AppBaseController
         }
 
         if ($product->image_path) {
-            Storage::disk('public')->delete(str_replace('/storage/', '', $product->image_path));
+            Storage::disk('public')->delete(ltrim($product->image_path, '/'));
         }
 
         $this->productRepository->delete($id);
