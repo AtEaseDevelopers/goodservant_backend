@@ -4245,8 +4245,11 @@ class DriverController extends Controller
      * Build the driver's packing list from their Sales Orders for the day.
      * Sourced from SalesOrder/SalesOrderDetail (what's planned to be loaded/
      * delivered), not Invoice (which may not exist yet at packing time).
-     * Pass customer_group_id to scope it to one customer group; omit it to
-     * get every one of the driver's Sales Orders for the day.
+     * Pass sales_order_ids (array) to scope it to exactly those SOs (e.g.
+     * driver-checked items in a "select which SO to pack" modal) - takes
+     * priority over date/group filtering. Otherwise pass customer_group_id
+     * to scope to one customer group, or omit both to get every one of the
+     * driver's Sales Orders for the day.
      */
     public function packinglistpdf(Request $request){
         try{
@@ -4260,15 +4263,24 @@ class DriverController extends Controller
             }
             $date = $request->input('date', date('Y-m-d'));
             $groupId = $request->input('customer_group_id');
+            $salesOrderIds = $request->input('sales_order_ids');
 
             $salesOrdersQuery = SalesOrder::where('driver_id', $driver->id)
-                ->whereDate('date', $date)
                 ->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
 
-            if (!empty($groupId)) {
-                $salesOrdersQuery->whereHas('customer', function($q) use ($groupId) {
-                    $q->whereRaw('FIND_IN_SET(?, `group`)', [$groupId]);
-                });
+            if (!empty($salesOrderIds) && is_array($salesOrderIds)) {
+                // Driver picked specific SOs (e.g. from the packing list
+                // modal's checklist) - scope to exactly those, no date/group
+                // filtering.
+                $salesOrdersQuery->whereIn('id', $salesOrderIds);
+            } else {
+                $salesOrdersQuery->whereDate('date', $date);
+
+                if (!empty($groupId)) {
+                    $salesOrdersQuery->whereHas('customer', function($q) use ($groupId) {
+                        $q->whereRaw('FIND_IN_SET(?, `group`)', [$groupId]);
+                    });
+                }
             }
 
             $salesOrders = $salesOrdersQuery->get();

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['prefix' => 'v1'], function () {
+Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function () {
     Route::get('/testconnection', function (Request $request) {
         return 'OK';
     });

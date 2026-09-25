@@ -161,6 +161,7 @@
             <p><strong>Base URL:</strong> <code id="baseUrlText"></code></p>
             <p>Most endpoints require a <code>session</code> header, obtained from <code>POST /driver/login</code>. Paste it into the box at the top right — it's used automatically by every "Try it" panel below and remembered in this browser (not sent anywhere else).</p>
             <p>Every response follows the shape <code>{"result": true|false, "message": "&lt;line&gt;|&lt;key or text&gt;", "data": ...}</code>, except PDF-streaming endpoints (marked <span class="badge pdf">PDF</span>), which return a raw PDF file instead of JSON.</p>
+            <p><strong>App version check (optional, non-blocking):</strong> send an <code>App-Version</code> header (e.g. <code>1.0.10</code>) on every request. If it doesn't match the admin-configured latest version (Setup &gt; Codes, code <code>mobile_app_latest_version</code>), every JSON response gets an extra top-level key: <code>"app_update": {"available": true|false, "latest_version": "1.0.10"}</code>. This never blocks the request - show a dismissible "update available" prompt when <code>available</code> is true, or ignore it entirely. Omitting the header (current app behavior) skips this check - no <code>app_update</code> key is added.</p>
         </div>
         <div class="search-box">
             <input type="text" id="searchBox" placeholder="Filter endpoints by path, method name, or description...">
