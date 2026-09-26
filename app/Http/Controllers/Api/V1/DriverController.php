@@ -2491,7 +2491,12 @@ class DriverController extends Controller
             //process
             $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)
             ->leftjoin('products','products.id','=','inventory_balances.product_id')
-            ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name'])->toarray();
+            ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name','products.image_path'])
+            ->map(function($item){
+                $item->image_url = $item->image_path ? url($item->image_path) : null;
+                return $item;
+            })
+            ->toarray();
             if(count($inventorybalance) == 0){
                 return response()->json([
                     'result' => false,
