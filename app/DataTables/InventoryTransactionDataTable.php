@@ -124,6 +124,18 @@ class InventoryTransactionDataTable extends DataTable
                                                             }
                                                         }'
                     ],
+                    [
+                        'targets' => 4,
+                        'render' => 'function(data, type){
+                                                            if(type !== "display") return data;
+                                                            var num = parseFloat(data);
+                                                            if(isNaN(num)){
+                                                                return data;
+                                                            }
+                                                            var color = num < 0 ? "#dc3545" : (num > 0 ? "#28a745" : "");
+                                                            return "<span style=\"color:" + color + ";\">" + data + "</span>";
+                                                        }'
+                    ],
                 ],
                 'initComplete' => 'function(){
                     var columns = this.api().init().columns;
