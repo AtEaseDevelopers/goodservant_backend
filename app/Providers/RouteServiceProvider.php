@@ -57,7 +57,15 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+            // Keyed by the driver's own session header (falling back to IP
+            // only when it's absent) so drivers sharing an office/warehouse
+            // WiFi don't share one bucket, and raised well above the
+            // previous 60/min default - this is an internal fleet app, not
+            // a public API, and normal use (browsing products, submitting
+            // an order, checking status) easily bursts past 60 requests in
+            // under a minute.
+            $key = $request->header('session') ?: $request->ip();
+            return Limit::perMinute(300)->by($key);
         });
     }
 }
