@@ -61,38 +61,32 @@
                         </div>
                     </div>
 
-                    <!-- Product Single-Select Dropdown -->
-                    <div class="form-group">
-                        <label for="product_id" class="col-form-label">{{ __('inventory_balances.product') }}:</label>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-primary btn-block dropdown-toggle" type="button" id="dropdownProductStockIn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                {{ __('Select Product') }}
-                            </button>
-                            <div class="dropdown-menu p-3" aria-labelledby="dropdownProductStockIn" style="width: 100%; max-height: 300px; overflow-y: auto;">
-                                <input type="text" class="form-control mb-3" id="productSearchStockIn" placeholder="Search Products...">
-                                <div id="productListStockIn" class="list-group">
-                                    @foreach($productItems as $productId => $productName)
-                                        <a href="#" class="list-group-item list-group-item-action product-item" data-value="{{ $productId }}">
-                                            {{ $productName }}
-                                        </a>
-                                    @endforeach
+                    <!-- Products: pick as many as needed, each with its own quantity -->
+                    <div class="form-group text-left">
+                        <label class="col-form-label">{{ __('inventory_balances.product') }}:</label>
+                        <div id="stockInProductRows">
+                            <div class="row stock-in-product-row mx-0 mb-2">
+                                <div class="col-7 pl-0">
+                                    <select name="products[0][product_id]" class="form-control" required>
+                                        <option value="">{{ __('Select Product') }}</option>
+                                        @foreach($productItems as $productId => $productName)
+                                            <option value="{{ $productId }}">{{ $productName }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-4 px-0">
+                                    <input type="number" min="1" class="form-control" placeholder="{{ __('inventory_balances.transfer_quantity') }}" name="products[0][quantity]" required>
+                                </div>
+                                <div class="col-1 px-0 d-flex align-items-center justify-content-center">
+                                    <button type="button" class="btn btn-link text-danger remove-product-row p-0" style="display:none;">&times;</button>
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" name="product_id" id="selectedProductStockIn">
+                        <button type="button" id="addProductRowStockIn" class="btn btn-outline-primary btn-sm mt-2"><i class="fa fa-plus"></i> {{ __('Add Product') }}</button>
                     </div>
 
-                    <div class="form-group">
-                        <label for="quantity" class="col-form-label">{{ __('inventory_balances.transfer_quantity') }}:</label>
-                        <div class="input-group mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text" id="basic-addon1">+</span>
-                            </div>
-                            <input type="number" min="0" class="form-control" placeholder="Transfer Quantity" name="quantity">
-                        </div>
-                    </div>
                     <button type="button" class="btn btn-secondary rounded-0 mt-2" data-dismiss="modal">{{ __('inventory_balances.cancel') }}</button>
-                    <button type="submit" name="button" class="btn btn-primary rounded-0 mt-2">{{ __('inventory_balances.update') }}</button>
+                    <button type="submit" name="button" class="btn btn-primary rounded-0 mt-2">Add Stock</button>
                     {!! Form::close() !!}
                 </div>
             </div>
@@ -164,7 +158,7 @@
                         </div>
                     </div>
                     <button type="button" class="btn btn-secondary rounded-0 mt-2" data-dismiss="modal">{{ __('inventory_balances.cancel') }}</button>
-                    <button type="submit" name="button" class="btn btn-primary rounded-0 mt-2">{{ __('inventory_balances.update') }}</button>
+                    <button type="submit" name="button" class="btn btn-primary rounded-0 mt-2">Remove Stock</button>
                     {!! Form::close() !!}
                 </div>
             </div>
@@ -302,6 +296,33 @@
         $(document).keyup(function(e) {
             if(e.altKey && e.keyCode == 78){
                 $('.card .card-header a')[0].click();
+            }
+        });
+
+        // Stock In: let the admin pick multiple products (each with its own
+        // quantity) for the selected lorry/lorries in one submission,
+        // instead of repeating the whole modal per product.
+        $('#addProductRowStockIn').on('click', function () {
+            var rows = $('#stockInProductRows');
+            var index = rows.find('.stock-in-product-row').length;
+            var newRow = rows.find('.stock-in-product-row').first().clone();
+            newRow.find('select').attr('name', 'products[' + index + '][product_id]').val('');
+            newRow.find('input[type="number"]').attr('name', 'products[' + index + '][quantity]').val('');
+            newRow.find('.remove-product-row').show();
+            rows.append(newRow);
+            rows.find('.remove-product-row').show();
+        });
+
+        $(document).on('click', '.remove-product-row', function () {
+            var rows = $('#stockInProductRows');
+            $(this).closest('.stock-in-product-row').remove();
+            // Reindex remaining rows so the submitted array has no gaps.
+            rows.find('.stock-in-product-row').each(function (index) {
+                $(this).find('select').attr('name', 'products[' + index + '][product_id]');
+                $(this).find('input[type="number"]').attr('name', 'products[' + index + '][quantity]');
+            });
+            if (rows.find('.stock-in-product-row').length <= 1) {
+                rows.find('.remove-product-row').hide();
             }
         });
 

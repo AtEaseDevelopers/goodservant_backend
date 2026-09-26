@@ -30,7 +30,10 @@ class LorryDataTable extends DataTable
     public function query(Lorry $model)
     {
         return $model->newQuery()
-        ->select('lorrys.id', 'lorrys.lorryno', 'lorrys.status', 'lorrys.remark');
+        ->select('lorrys.id', 'lorrys.lorryno', 'lorrys.status', 'lorrys.remark')
+        // Read-only: the driver currently assigned to this lorry, i.e. the
+        // driver on its most recent started-but-not-ended (type=1) trip.
+        ->selectRaw('(select d.name from trips t inner join drivers d on d.id = t.driver_id where t.lorry_id = lorrys.id and t.type = 1 order by t.id desc limit 1) as current_driver');
     }
 
     /**
@@ -113,6 +116,10 @@ class LorryDataTable extends DataTable
                     ],
                     [
                         'targets' => 2,
+                        'render' => 'function(data, type){ if(type !== "display") return data; return data ? data : "-"; }'
+                    ],
+                    [
+                        'targets' => 3,
                         'render' => 'function(data, type){return data == 1 ? "Active" : "Inactive";}'
                     ],
                 ],
@@ -155,6 +162,12 @@ class LorryDataTable extends DataTable
             'lorryno'=> new \Yajra\DataTables\Html\Column(['title' => trans('lorries.lorry_no'),
             'data' => 'lorryno',
             'name' => 'lorryno']),
+
+            'current_driver'=> new \Yajra\DataTables\Html\Column(['title' => 'Driver',
+            'data' => 'current_driver',
+            'name' => 'current_driver',
+            'orderable' => false,
+            'searchable' => false]),
 
             'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('lorries.status'),
             'data' => 'status',

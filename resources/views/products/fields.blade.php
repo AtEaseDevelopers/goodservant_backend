@@ -29,10 +29,9 @@
 
 <!-- Type Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('type', __('products.type')) !!}
-    {{ Form::select('type', [
-        0 => __('products.type_ice'),
-    ], null, ['class' => 'form-control']) }}
+    {!! Form::label('type_id', __('products.type')) !!}
+    {{ Form::select('type_id', \App\Models\ProductType::where('status', 1)->orderBy('name')->pluck('name', 'id'), null, ['class' => 'form-control']) }}
+    <small class="form-text text-muted"><a href="{{ route('productTypes.index') }}">Manage product types</a></small>
 </div>
 
 <!-- Status Field -->

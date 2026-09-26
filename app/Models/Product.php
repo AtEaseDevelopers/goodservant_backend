@@ -39,6 +39,7 @@ class Product extends Model
         'price',
         'status',
         'type',
+        'type_id',
         'classification_code'
 
     ];
@@ -56,6 +57,7 @@ class Product extends Model
         'price' => 'float',
         'status' => 'integer',
         'type' => 'integer',
+        'type_id' => 'integer',
         'classification_code' => 'string',
 
     ];
@@ -71,10 +73,13 @@ class Product extends Model
         'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
         'price' => 'required|numeric|numeric',
         'status' => 'required',
-        'type' => 'required',
+        'type_id' => 'required',
         'created_at' => 'nullable|nullable',
         'updated_at' => 'nullable|nullable'
     ];
-    
-    
+
+    public function productType()
+    {
+        return $this->belongsTo(\App\Models\ProductType::class, 'type_id', 'id');
+    }
 }

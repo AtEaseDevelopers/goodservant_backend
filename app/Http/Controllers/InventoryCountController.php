@@ -6,8 +6,13 @@ use App\DataTables\InventoryCountDataTable;
 use App\Models\InventoryCount;
 use App\Models\Product;
 use App\Models\Driver;
+use App\Models\Trip;
+use App\Models\Task;
+use App\Models\InventoryBalance;
+use App\Models\TripInventoryBalance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Flash;
 
@@ -285,11 +290,64 @@ class InventoryCountController extends Controller
                 return redirect()->back();
             }
 
+            DB::beginTransaction();
+
             $inventoryCount->update([
                 'status' => InventoryCount::STATUS_APPROVED,
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
+
+            // Approving the stock count already blocks the driver from
+            // creating any new SO/Invoice (addinvoice()/addinvoicebulk()/
+            // addsalesorderbulk() all check for an approved count), so
+            // making them separately open the app and tap "Confirm End
+            // Trip" is a redundant extra step that only invites bugs (e.g.
+            // they can still browse into Create Invoice and fill it out
+            // before being rejected at submit, since checktrip() still
+            // reports the trip as active until they do that tap). Ending
+            // the trip here too closes that gap immediately - mirrors the
+            // zero-cash/zero-wastage path the app's own "Confirm End Trip"
+            // button already takes (DriverController::endtrip()).
+            $driver = Driver::find($inventoryCount->driver_id);
+            if ($driver) {
+                $activeTrip = Trip::where('driver_id', $driver->id)->orderby('date', 'desc')->first();
+                if ($activeTrip && $activeTrip->type != 2) {
+                    $endTrip = new Trip();
+                    $endTrip->driver_id = $driver->id;
+                    $endTrip->kelindan_id = $activeTrip->kelindan_id;
+                    $endTrip->lorry_id = $activeTrip->lorry_id;
+                    $endTrip->cash = 0;
+                    $endTrip->advance_amount = 0;
+                    $endTrip->type = 2;
+                    $endTrip->date = now();
+                    $endTrip->save();
+
+                    Task::where('driver_id', $driver->id)->where('date', now()->toDateString())
+                        ->whereIn('status', [0, 1])
+                        ->update(['trip_id' => $endTrip->id, 'status' => 9]);
+
+                    // Same linkage endtrip() uses: tagged to the trip that
+                    // was ending (driver's active trip id), not the new
+                    // type=2 row - getlasttripsummary() looks these up by
+                    // the start-trip's id.
+                    $endBalances = InventoryBalance::where('lorry_id', $activeTrip->lorry_id)->get();
+                    foreach ($endBalances as $endBalance) {
+                        TripInventoryBalance::create([
+                            'trip_id' => $driver->trip_id,
+                            'driver_id' => $driver->id,
+                            'lorry_id' => $activeTrip->lorry_id,
+                            'product_id' => $endBalance->product_id,
+                            'quantity' => $endBalance->quantity,
+                            'type' => TripInventoryBalance::TYPE_END,
+                        ]);
+                    }
+
+                    Driver::where('id', $driver->id)->update(['trip_id' => null, 'lorry_id' => null]);
+                }
+            }
+
+            DB::commit();
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -302,6 +360,7 @@ class InventoryCountController extends Controller
             Flash::success('Inventory count approved successfully.');
             return redirect()->back();
         } catch (\Exception $e) {
+            DB::rollback();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,

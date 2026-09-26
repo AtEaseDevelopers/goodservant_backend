@@ -321,6 +321,15 @@ Route::group(['middleware' => ['auth']], function() {
         Route::post('/drivers/massupdatestatus', [App\Http\Controllers\DriverController::class, 'massupdatestatus']);
         Route::get('/driverLocations/getDriverSummary', [App\Http\Controllers\DriverLocationController::class, 'getDriverSummary'])->name('driverLocations.getDriverSummary');
         Route::resource('driverLocations', App\Http\Controllers\DriverLocationController::class);
+        Route::delete('/mobileErrorLogs/clear', [App\Http\Controllers\MobileErrorLogController::class, 'clear'])->name('mobileErrorLogs.clear');
+        Route::get('/mobileErrorLogs', [App\Http\Controllers\MobileErrorLogController::class, 'index'])->name('mobileErrorLogs.index');
+        Route::get('/mobileErrorLogs/{id}', [App\Http\Controllers\MobileErrorLogController::class, 'show'])->name('mobileErrorLogs.show');
+        Route::delete('/mobileErrorLogs/{id}', [App\Http\Controllers\MobileErrorLogController::class, 'destroy'])->name('mobileErrorLogs.destroy');
+        // Not in the side menu on purpose - these two are for checking bugs, not a feature for regular admin users.
+        Route::delete('/apiLogs/clear', [App\Http\Controllers\ApiLogController::class, 'clear'])->name('apiLogs.clear');
+        Route::get('/apiLogs', [App\Http\Controllers\ApiLogController::class, 'index'])->name('apiLogs.index');
+        Route::get('/apiLogs/{id}', [App\Http\Controllers\ApiLogController::class, 'show'])->name('apiLogs.show');
+        Route::delete('/apiLogs/{id}', [App\Http\Controllers\ApiLogController::class, 'destroy'])->name('apiLogs.destroy');
     });
     Route::group(['middleware' => ['permission:kelindan']], function() {
         Route::resource('kelindans', App\Http\Controllers\KelindanController::class);
@@ -344,6 +353,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::resource('products', App\Http\Controllers\ProductController::class);
         Route::post('/products/massdestroy', [App\Http\Controllers\ProductController::class, 'massdestroy']);
         Route::post('/products/massupdatestatus', [App\Http\Controllers\ProductController::class, 'massupdatestatus']);
+        Route::resource('productTypes', App\Http\Controllers\ProductTypeController::class)->except(['show']);
     });
     Route::group(['middleware' => ['permission:customer']], function() {
         Route::get('/customers/sync-xero', [App\Http\Controllers\CustomerController::class, 'syncXero']);

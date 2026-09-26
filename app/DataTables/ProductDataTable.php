@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Models\Product;
+use App\Models\ProductType;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 
@@ -29,7 +30,10 @@ class ProductDataTable extends DataTable
      */
     public function query(Product $model)
     {
-        return $model->newQuery();
+        return $model->newQuery()
+            ->select('products.*')
+            ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
+            ->addSelect('product_types.name as type_name');
     }
 
     /**
@@ -112,17 +116,7 @@ class ProductDataTable extends DataTable
                     ],
                     [
                     'targets' => 4,
-                    'render' => 'function(data, type){
-                            if (data == 1) {
-                                return "Coffee";
-                            } else if (data == 2) {
-                                return "Tea";
-                            } else if (data == 3) {
-                                return "Cocoa";
-                            } else if (data == 0) {
-                                return "Ice";
-                            }
-                        }'
+                    'render' => 'function(data, type){ if(type !== "display") return data; return data ? data : "-"; }'
                     ],
                     [
                     'targets' => 5,
@@ -139,7 +133,7 @@ class ProductDataTable extends DataTable
                             if(columns[index].title == \'Status\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Unactive</option></select>\';
                             }else if(columns[index].title == \'Type\'){
-                                var input = \'<select class="border-0" style="width: 100%;"><option value="0">Ice</option></select>\';
+                                var input = \'<select class="border-0" style="width: 100%;"><option value="">'.__('All').'</option>' . $this->typeFilterOptions() . '</select>\';
                             }else if(columns[index].title == \'1st Vaccine Date\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else if(columns[index].title == \'2nd Vaccine Date\'){
@@ -155,6 +149,18 @@ class ProductDataTable extends DataTable
                     });
                 }'
             ]);
+    }
+
+    /**
+     * Builds the Type column's filter dropdown from whatever product types
+     * actually exist right now, so a newly-added type shows up here without
+     * any code change.
+     */
+    protected function typeFilterOptions()
+    {
+        return ProductType::orderBy('name')->pluck('name')->map(function ($name) {
+            return '<option value="' . e($name) . '">' . e($name) . '</option>';
+        })->implode('');
     }
 
     /**
@@ -174,7 +180,9 @@ class ProductDataTable extends DataTable
             'code',
             'name',
             'price',
-            'type',
+            'type_name'=> new \Yajra\DataTables\Html\Column(['title' => 'Type',
+            'data' => 'type_name',
+            'name' => 'type_name']),
             'status'
         ];
     }

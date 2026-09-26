@@ -187,52 +187,19 @@
                             <p class="ta-l">Product</p>
                         </th>
                         <th>
-                            <p class="ta-r">Price <br>(RM)</p>
-                        </th>
-                        <th>
                             <p class="ta-r">Qty</p>
                         </th>
-                        <th>
-                            <p class="ta-r">Subtotal</p>
-                        </th>
                     </tr>
-                    @php
-                            $totalamount = 0;
-                    @endphp
                     @foreach ($deliveryOrder['deliveryorderdetail'] as $deliveryorderdetail)
-                        @php
-                            $totalamount = ($totalamount ?? 0) + $deliveryorderdetail['totalprice'];
-                        @endphp
                         <tr>
                             <td>
                                 <p style="font-size:16px;">{{ $deliveryorderdetail['product']['name'] ?? '-' }}</p>
                             </td>
                             <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($deliveryorderdetail['price'],2) }}</p>
-                            </td>
-                            <td>
-                                <p class="ta-r" style="font-size:16px;">{{ $deliveryorderdetail['quantity'] }}</p>
-                            </td>
-                            <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($deliveryorderdetail['totalprice'],2) }}</p>
+                                <p class="ta-r" style="font-size:16px;">X {{ $deliveryorderdetail['quantity'] }}</p>
                             </td>
                         </tr>
                     @endforeach
-                </table>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <br>
-                <table id="total">
-                    <tr>
-                        <th>
-                            <p class="ta-l" style="font-size:18px;">Total</p>
-                        </th>
-                        <th>
-                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
-                        </td>
-                    </tr>
                 </table>
             </td>
         </tr>

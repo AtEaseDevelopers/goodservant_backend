@@ -363,7 +363,7 @@ class SalesOrderController extends AppBaseController
 
         $invoice = new Invoice();
         $invoice->invoiceno = $invoiceno;
-        $invoice->date = $salesOrder->getRawOriginal('date');
+        $invoice->date = date('Y-m-d H:i:s');
         $invoice->customer_id = $salesOrder->customer_id;
         $invoice->driver_id = $salesOrder->driver_id;
         $invoice->kelindan_id = $salesOrder->kelindan_id;

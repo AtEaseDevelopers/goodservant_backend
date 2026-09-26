@@ -40,54 +40,61 @@ class InventoryBalanceController extends AppBaseController
 	public function stockin(Request $request)
 	{
 		$data = $request->all();
-		$lorryIds = $data['lorry_id'];  // This will be an array of selected lorry IDs
+		$lorryIds = $data['lorry_id'] ?? [];  // This will be an array of selected lorry IDs
+		// One or more {product_id, quantity} rows, picked in the modal
+		// instead of repeating the whole form once per product.
+		$products = collect($data['products'] ?? [])->filter(function ($row) {
+			return !empty($row['product_id']) && $row['quantity'] !== null && $row['quantity'] !== '';
+		});
+
+		if (empty($lorryIds)) {
+			Flash::error('Please select at least one lorry.');
+			return redirect(route('inventoryBalances.index'));
+		}
+
+		if ($products->isEmpty()) {
+			Flash::error('Please select at least one product with a quantity.');
+			return redirect(route('inventoryBalances.index'));
+		}
 
 		foreach ($lorryIds as $lorryId) {
 			$activeDriver = Driver::where('lorry_id', $lorryId)->whereNotNull('trip_id')->first();
 			$tripId = $activeDriver->trip_id ?? null;
 
-			$inventoryBalance = InventoryBalance::where('product_id', $data['product_id'])
-				->where('lorry_id', $lorryId)
-				->first();
+			foreach ($products as $product) {
+				$productId = $product['product_id'];
+				$quantity = $product['quantity'];
 
-			if (!empty($inventoryBalance)) {
-				// Update the existing inventory balance
-				$inventoryBalance->quantity = $inventoryBalance->quantity + $data['quantity'];
-				$inventoryBalance->save();
+				$inventoryBalance = InventoryBalance::where('product_id', $productId)
+					->where('lorry_id', $lorryId)
+					->first();
 
-				// Create an inventory transaction record
-				$inventoryTransaction = new InventoryTransaction();
-				$inventoryTransaction->type = 1;
-				$inventoryTransaction->lorry_id = $lorryId;
-				$inventoryTransaction->product_id = $inventoryBalance->product_id;
-				$inventoryTransaction->quantity = $data['quantity'];
-				$inventoryTransaction->date = date("Y-m-d H:i:s");
-				$inventoryTransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
-				$inventoryTransaction->trip_id = $tripId;
-				$inventoryTransaction->save();
-
-				Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
-			} else {
-				// Insert a new inventory balance
-				$newInventoryBalance = new InventoryBalance();
-				$newInventoryBalance->product_id = $data['product_id'];
-				$newInventoryBalance->lorry_id = $lorryId;
-				$newInventoryBalance->quantity = $data['quantity'];
-				$newInventoryBalance->save();
+				if (!empty($inventoryBalance)) {
+					// Update the existing inventory balance
+					$inventoryBalance->quantity = $inventoryBalance->quantity + $quantity;
+					$inventoryBalance->save();
+				} else {
+					// Insert a new inventory balance
+					$inventoryBalance = new InventoryBalance();
+					$inventoryBalance->product_id = $productId;
+					$inventoryBalance->lorry_id = $lorryId;
+					$inventoryBalance->quantity = $quantity;
+					$inventoryBalance->save();
+				}
 
 				// Create an inventory transaction record
 				$inventoryTransaction = new InventoryTransaction();
 				$inventoryTransaction->type = 1;
 				$inventoryTransaction->lorry_id = $lorryId;
-				$inventoryTransaction->product_id = $data['product_id'];
-				$inventoryTransaction->quantity = $data['quantity'];
+				$inventoryTransaction->product_id = $productId;
+				$inventoryTransaction->quantity = $quantity;
 				$inventoryTransaction->date = date("Y-m-d H:i:s");
 				$inventoryTransaction->user = Auth::user()->email . ' (' . Auth::user()->name . ')';
 				$inventoryTransaction->trip_id = $tripId;
 				$inventoryTransaction->save();
-
-				Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been inserted successfully.');
 			}
+
+			Flash::success('Inventory Balance for lorry ID ' . $lorryId . ' has been updated successfully.');
 		}
 
 		return redirect(route('inventoryBalances.index'));
@@ -110,7 +117,12 @@ class InventoryBalanceController extends AppBaseController
     public function stockout(Request $request)
     {
         $data = $request->all();
-        $lorryIds = $data['lorry_id']; // This will be an array of selected lorry IDs
+        $lorryIds = $data['lorry_id'] ?? []; // This will be an array of selected lorry IDs
+
+        if (empty($lorryIds)) {
+            Flash::error('Please select at least one lorry.');
+            return redirect(route('inventoryBalances.index'));
+        }
 
         foreach ($lorryIds as $lorryId) {
             $activeDriver = Driver::where('lorry_id', $lorryId)->whereNotNull('trip_id')->first();

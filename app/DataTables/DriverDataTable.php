@@ -30,7 +30,10 @@ class DriverDataTable extends DataTable
      */
     public function query(Driver $model)
     {
-        return $model->newQuery();
+        return $model->newQuery()
+        // Read-only: whether this driver currently has an ongoing trip,
+        // i.e. their most recent trip is started-but-not-ended (type=1).
+        ->selectRaw('drivers.*, (select t.type from trips t where t.driver_id = drivers.id order by t.id desc limit 1) as latest_trip_type');
     }
 
     /**
@@ -114,6 +117,14 @@ class DriverDataTable extends DataTable
                     [
                     'targets' => 4,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
+                    [
+                    'targets' => 5,
+                    'render' => 'function(data, type){
+                        if(type !== "display") return data;
+                        return data == 1
+                            ? "<span style=\"color:#28a745;font-weight:bold;\">On Trip</span>"
+                            : "<span style=\"color:#6c757d;\">Not Started</span>";
+                    }'],
                 ],
                 'initComplete' => 'function(){
                     var columns = this.api().init().columns;
@@ -202,6 +213,12 @@ class DriverDataTable extends DataTable
             'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.status'),
             'data' => 'status',
             'name' => 'drivers.status']),
+
+            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => 'On Trip',
+            'data' => 'latest_trip_type',
+            'name' => 'latest_trip_type',
+            'orderable' => false,
+            'searchable' => false]),
 
             'remark'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('drivers.remark'),
             'data' => 'remark',

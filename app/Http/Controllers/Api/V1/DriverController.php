@@ -37,6 +37,7 @@ use App\Models\Language;
 use App\Models\MobileTranslationVersion;
 use App\Models\MobileTranslation;
 use App\Models\InventoryCount;
+use App\Models\MobileErrorLog;
 use Carbon\Carbon;
 
 class DriverController extends Controller
@@ -294,6 +295,41 @@ class DriverController extends Controller
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.driver_location_had_been_updated_successfully',
                 'data' => $DriverLocation
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Client-side crash/error reporting from the mobile app - lets the
+     * admin see mobile-only bugs (parsing crashes etc. that never touch a
+     * backend endpoint) the same way api_logs lets them see backend ones.
+     * Deliberately lenient: logs even without a valid session/driver rather
+     * than rejecting, since the whole point is to capture failures.
+     */
+    public function errorlog(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+
+            $data = $request->all();
+            $log = new MobileErrorLog();
+            $log->driver_id = $driver->id ?? null;
+            $log->app_version = $data['app_version'] ?? null;
+            $log->screen = $data['screen'] ?? null;
+            $log->message = $data['message'] ?? null;
+            $log->stack_trace = $data['stack_trace'] ?? null;
+            $log->save();
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.error_logged',
+                'data' => null
             ], 200);
         }
         catch(Exception $e){
@@ -1462,8 +1498,14 @@ class DriverController extends Controller
                         $join->on('special_prices.product_id', '=', 'products.id');
                         $join->on('special_prices.status', '=', DB::raw("'1'"));
                     })
+                ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
+                ->leftJoin('inventory_balances', function($join) use($driver)
+                    {
+                        $join->on('inventory_balances.product_id', '=', 'products.id');
+                        $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
+                    })
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name','products.image_path',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('coalesce(special_prices.price,products.price) as "price"'))
                 ->get()
                 ->map(function($item){
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
@@ -1476,8 +1518,14 @@ class DriverController extends Controller
                 ], 200);
             }else{
                 $product = DB::table('products')
+                ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
+                ->leftJoin('inventory_balances', function($join) use($driver)
+                    {
+                        $join->on('inventory_balances.product_id', '=', 'products.id');
+                        $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
+                    })
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name','products.image_path',DB::raw('products.price as "price"'))
+                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('products.price as "price"'))
                 ->get()
                 ->map(function($item){
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
@@ -2029,6 +2077,206 @@ class DriverController extends Controller
     }
 
     /**
+     * Bulk-create invoices that were queued on the device while offline
+     * (no/poor connectivity) and are now being synced back once the driver
+     * is online again. Each item is processed in its own DB transaction so
+     * one bad item doesn't fail the whole batch - the response reports
+     * which client_refs succeeded/failed so the mobile queue only keeps
+     * retrying the failed ones.
+     *
+     * Deliberately a SEPARATE, self-contained code path from addinvoice()
+     * rather than a shared refactor, so this new bulk/offline path can
+     * never regress the existing single-invoice online create path.
+     *
+     * Running numbers get an "A" prefix (AIV instead of IV) so anyone
+     * looking at an invoice can tell it was created while the driver had
+     * no signal at the time, same counter/sequence either way.
+     */
+    public function addinvoicebulk(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
+            if(empty($trip) || $trip->type == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                    'data' => null
+                ], 401);
+            }
+            $inventoryCountRecord = InventoryCount::where('driver_id', $driver->id)
+                ->where('trip_id', $driver->trip_id)
+                ->where('status', InventoryCount::STATUS_APPROVED)
+                ->first();
+            if($inventoryCountRecord){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'Driver have completed inventory count, cannot add new invoice, You may continue in next new trip.',
+                    'data' => null
+                ], 200);
+            }
+            $validator = Validator::make($request->all(), [
+                'invoices' => 'required|array|min:1',
+                'invoices.*.client_ref' => 'required|string',
+                'invoices.*.date' => 'nullable|date_format:Y-m-d H:i:s',
+                'invoices.*.customer_id' => 'required|numeric',
+                'invoices.*.type' => 'required|numeric|gt:0|lt:6',
+                'invoices.*.remark' => 'present|nullable|string',
+                'invoices.*.invoicedetail' => 'required|array',
+                'invoices.*.invoicedetail.*.product_id' => 'required',
+                'invoices.*.invoicedetail.*.quantity' => 'required',
+                'invoices.*.invoicedetail.*.price' => 'required',
+                'invoices.*.invoicedetail.*.foc' => 'required|boolean'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+
+            $created = [];
+            $failed = [];
+
+            foreach($request->input('invoices') as $item){
+                DB::beginTransaction();
+                try{
+                    $customer = Customer::where('id', $item['customer_id'])->first();
+                    if(empty($customer)){
+                        throw new \Exception('Invalid customer');
+                    }
+
+                    // Same counter/format as an online invoice (IV2609/0012),
+                    // just with an "A" right before the running number itself
+                    // (IV2609/A0012) to flag it as created while offline.
+                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('invoicerunningnumber', 'IV'));
+
+                    $invoice = new Invoice();
+                    $invoice->date = $item['date'] ?? date('Y-m-d H:i:s');
+                    $invoice->invoiceno = $invoiceno;
+                    $invoice->customer_id = $item['customer_id'];
+                    $invoice->driver_id = $trip->driver_id;
+                    $invoice->kelindan_id = $trip->kelindan_id;
+                    $invoice->agent_id = $customer->agent_id;
+                    $invoice->supervisor_id = $customer->supervisor_id;
+                    $invoice->paymentterm = $item['type'];
+                    $invoice->status = 1;
+                    $invoice->chequeno = $item['cheque_no'] ?? null;
+                    $invoice->remark = $item['remark'] ?? null;
+                    $invoice->trip_id = $driver->trip_id;
+                    $invoice->save();
+
+                    $totalprice = 0;
+                    foreach($item['invoicedetail'] as $line){
+                        $product = Product::where('id', $line['product_id'])->first();
+                        if(empty($product)){
+                            throw new \Exception('Invalid product');
+                        }
+                        $invoicedetail = new InvoiceDetail();
+                        $invoicedetail->invoice_id = $invoice->id;
+                        $invoicedetail->product_id = $line['product_id'];
+                        $invoicedetail->quantity = $line['quantity'];
+                        $invoicedetail->price = $line['price'];
+                        $invoicedetail->totalprice = $line['quantity'] * $line['price'];
+                        $totalprice = $totalprice + $invoicedetail->totalprice;
+                        if($line['foc']){
+                            $invoicedetail->remark = "FOC";
+                        } else {
+                            $foc = Foc::where('customer_id', $customer->id)
+                                ->where('product_id', $line['product_id'])
+                                ->where('startdate', '<=', date('Y-m-d H:i:s'))
+                                ->where('enddate', '>', date('Y-m-d H:i:s'))
+                                ->where('status', 1)
+                                ->first();
+                            if($foc){
+                                $newAchieveQuantity = $foc->achievequantity + $line['quantity'];
+                                $newStatus = ($newAchieveQuantity >= $foc->quantity) ? 0 : 1;
+                                $foc->update([
+                                    'achievequantity' => $newAchieveQuantity,
+                                    'status' => $newStatus
+                                ]);
+                            }
+                        }
+                        $invoicedetail->save();
+
+                        $inventorybalance = InventoryBalance::where('lorry_id', $trip->lorry_id)->where('product_id', $line['product_id'])->first();
+                        if(empty($inventorybalance)){
+                            $newinventorybalance = new InventoryBalance();
+                            $newinventorybalance->lorry_id = $trip->lorry_id;
+                            $newinventorybalance->product_id = $line['product_id'];
+                            $newinventorybalance->quantity = 0 - $line['quantity'];
+                            $newinventorybalance->save();
+                        } else {
+                            $inventorybalance->quantity = $inventorybalance->quantity - $line['quantity'];
+                            $inventorybalance->save();
+                        }
+
+                        $inventorytransaction = new InventoryTransaction();
+                        $inventorytransaction->lorry_id = $trip->lorry_id;
+                        $inventorytransaction->product_id = $line['product_id'];
+                        $inventorytransaction->quantity = $line['quantity'] * -1;
+                        $inventorytransaction->type = 3;
+                        $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
+                        $inventorytransaction->date = date('Y-m-d H:i:s');
+                        $inventorytransaction->trip_id = $driver->trip_id;
+                        $inventorytransaction->save();
+                    }
+
+                    if($item['type'] == 1){
+                        $invoicepayment = new InvoicePayment();
+                        $invoicepayment->invoice_id = $invoice->id;
+                        $invoicepayment->type = 1;
+                        $invoicepayment->customer_id = $invoice->customer_id;
+                        $invoicepayment->amount = $totalprice;
+                        $invoicepayment->status = 1;
+                        $invoicepayment->driver_id = $driver->id;
+                        $invoicepayment->approve_by = $driver->name;
+                        $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                        $invoicepayment->save();
+                    }
+
+                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+
+                    DB::commit();
+
+                    $created[] = [
+                        'client_ref' => $item['client_ref'],
+                        'invoice_id' => $invoice->id,
+                        'invoiceno' => $invoiceno,
+                    ];
+                }
+                catch(\Exception $e){
+                    DB::rollback();
+                    $failed[] = [
+                        'client_ref' => $item['client_ref'] ?? null,
+                        'message' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.bulk_invoice_processed',
+                'data' => ['created' => $created, 'failed' => $failed]
+            ], 200);
+        }
+        catch(\Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
      * List this driver's own Invoices (most recent first), for the mobile
      * "My Invoices" screen. Mirrors getsalesorder()/getdeliveryorder().
      */
@@ -2265,12 +2513,147 @@ class DriverController extends Controller
                 'data' => null
             ], 500);
         }
-        
-	  
+
+
 	}
-	
-	
-	
+
+    /**
+     * PDF for one of this driver's own Sales Orders, for the mobile "View
+     * Sales Order PDF" button. Mirrors invoicepdf()'s Storage+url() pattern.
+     * Uses sales_orders.print unchanged (same format as the admin print).
+     */
+    public function sopdf(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'sales_order_id' => 'required|numeric'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+
+            $salesOrder = SalesOrder::where('id', $request->sales_order_id)
+                ->where('driver_id', $driver->id)
+                ->with('customer')
+                ->with('driver')
+                ->with('salesorderdetail.product')
+                ->first();
+
+            if (empty($salesOrder)) {
+                abort('404');
+            }
+
+            $min = 450;
+            $each = 23;
+            $height = (count($salesOrder['salesorderdetail']) * $each) + $min;
+
+            $pdf = Pdf::loadView('sales_orders.print', ['salesOrder' => $salesOrder]);
+            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
+
+            // sono contains a "/" (e.g. "SO2609/0011") - sanitize so it
+            // doesn't get read as a subdirectory in the storage path/URL.
+            $filename = 'so-' . str_replace('/', '-', $salesOrder->sono) . '.pdf';
+            $path = 'salesorders-pdf/' . $filename;
+
+            Storage::disk('public')->put($path, $pdf->output());
+            $url = url($path);
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.load_success',
+                'data' => $url
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * PDF for one of this driver's own Delivery Orders, for the mobile
+     * "View Delivery Order PDF" button. Mirrors invoicepdf()'s Storage+
+     * url() pattern. Uses delivery_orders.print, which is a checklist-style
+     * layout (product + qty only, no price) - the packing/picking format
+     * requested for DO, distinct from sales_orders.print's priced layout.
+     */
+    public function dopdf(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'do_id' => 'required|numeric'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+
+            $deliveryOrder = DeliveryOrder::where('id', $request->do_id)
+                ->where('driver_id', $driver->id)
+                ->with('customer')
+                ->with('driver')
+                ->with('deliveryorderdetail.product')
+                ->first();
+
+            if (empty($deliveryOrder)) {
+                abort('404');
+            }
+
+            $min = 450;
+            $each = 23;
+            $height = (count($deliveryOrder['deliveryorderdetail']) * $each) + $min;
+
+            $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);
+            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
+
+            // dono contains a "/" (e.g. "DO2609/0008") - sanitize so it
+            // doesn't get read as a subdirectory in the storage path/URL.
+            $filename = 'do-' . str_replace('/', '-', $deliveryOrder->dono) . '.pdf';
+            $path = 'deliveryorders-pdf/' . $filename;
+
+            Storage::disk('public')->put($path, $pdf->output());
+            $url = url($path);
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.load_success',
+                'data' => $url
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+
      public function addpayment(Request $request){
         try{
             $data = $request->all();
@@ -2491,7 +2874,8 @@ class DriverController extends Controller
             //process
             $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)
             ->leftjoin('products','products.id','=','inventory_balances.product_id')
-            ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name','products.image_path'])
+            ->leftjoin('product_types','product_types.id','=','products.type_id')
+            ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name','products.image_path','products.type_id','product_types.name as type_name'])
             ->map(function($item){
                 $item->image_url = $item->image_path ? url($item->image_path) : null;
                 return $item;
@@ -3936,6 +4320,128 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * Bulk-create sales orders queued on the device while offline - see
+     * addinvoicebulk() for the full rationale (same design, no inventory/
+     * FOC/payment side effects here since SO doesn't touch stock).
+     * Running numbers get an "A" prefix (ASO instead of SO).
+     */
+    public function addsalesorderbulk(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
+            if(empty($trip) || $trip->type == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'salesorders' => 'required|array|min:1',
+                'salesorders.*.client_ref' => 'required|string',
+                'salesorders.*.date' => 'nullable|date_format:Y-m-d H:i:s',
+                'salesorders.*.customer_id' => 'required|numeric',
+                'salesorders.*.remark' => 'present|nullable|string',
+                'salesorders.*.salesorderdetail' => 'required|array',
+                'salesorders.*.salesorderdetail.*.product_id' => 'required',
+                'salesorders.*.salesorderdetail.*.quantity' => 'required',
+                'salesorders.*.salesorderdetail.*.price' => 'required',
+                'salesorders.*.salesorderdetail.*.foc' => 'required|boolean'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+
+            $created = [];
+            $failed = [];
+
+            foreach($request->input('salesorders') as $item){
+                DB::beginTransaction();
+                try{
+                    $customer = Customer::where('id', $item['customer_id'])->first();
+                    if(empty($customer)){
+                        throw new \Exception('Invalid customer');
+                    }
+
+                    // Same counter/format as an online SO (SO2609/0012),
+                    // just with an "A" right before the running number
+                    // itself (SO2609/A0012) to flag it as created offline.
+                    $sono = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('sorunningnumber', 'SO'));
+
+                    $salesOrder = new SalesOrder();
+                    $salesOrder->sono = $sono;
+                    $salesOrder->date = $item['date'] ?? date('Y-m-d H:i:s');
+                    $salesOrder->customer_id = $item['customer_id'];
+                    $salesOrder->driver_id = $trip->driver_id;
+                    $salesOrder->kelindan_id = $trip->kelindan_id;
+                    $salesOrder->agent_id = $customer->agent_id;
+                    $salesOrder->supervisor_id = $customer->supervisor_id;
+                    $salesOrder->status = 0;
+                    $salesOrder->remark = $item['remark'] ?? null;
+                    $salesOrder->trip_id = $driver->trip_id;
+                    $salesOrder->save();
+
+                    foreach($item['salesorderdetail'] as $line){
+                        $product = Product::where('id', $line['product_id'])->first();
+                        if(empty($product)){
+                            throw new \Exception('Invalid product');
+                        }
+                        $detail = new SalesOrderDetail();
+                        $detail->sales_order_id = $salesOrder->id;
+                        $detail->product_id = $line['product_id'];
+                        $detail->quantity = $line['quantity'];
+                        $detail->price = $line['price'];
+                        $detail->totalprice = $line['quantity'] * $line['price'];
+                        $detail->remark = $line['foc'] ? 'FOC' : null;
+                        $detail->save();
+                    }
+
+                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+
+                    DB::commit();
+
+                    $created[] = [
+                        'client_ref' => $item['client_ref'],
+                        'sales_order_id' => $salesOrder->id,
+                        'sono' => $sono,
+                    ];
+                }
+                catch(\Exception $e){
+                    DB::rollback();
+                    $failed[] = [
+                        'client_ref' => $item['client_ref'] ?? null,
+                        'message' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.bulk_sales_order_processed',
+                'data' => ['created' => $created, 'failed' => $failed]
+            ], 200);
+        }
+        catch(\Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     public function getsalesorder(Request $request){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
@@ -4209,7 +4715,7 @@ class DriverController extends Controller
 
         $invoice = new Invoice();
         $invoice->invoiceno = $invoiceno;
-        $invoice->date = $salesOrder->getRawOriginal('date');
+        $invoice->date = date('Y-m-d H:i:s');
         $invoice->customer_id = $salesOrder->customer_id;
         $invoice->driver_id = $salesOrder->driver_id;
         $invoice->kelindan_id = $salesOrder->kelindan_id;
@@ -4481,7 +4987,7 @@ class DriverController extends Controller
 
             $invoice = new Invoice();
             $invoice->invoiceno = $invoiceno;
-            $invoice->date = $first->getRawOriginal('date');
+            $invoice->date = date('Y-m-d H:i:s');
             $invoice->customer_id = $first->customer_id;
             $invoice->driver_id = $first->driver_id;
             $invoice->kelindan_id = $first->kelindan_id;
@@ -4992,6 +5498,71 @@ class DriverController extends Controller
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'Stock Count list retrieved successfully',
                 'data' => $formattedCounts
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * PDF for one of this driver's own past stock count submissions (any
+     * status - pending/approved/rejected), for the mobile "Stock Count
+     * Report" history screen. Mirrors packinglistpdf()'s Storage+url()
+     * pattern rather than returning base64.
+     */
+    public function stockcountreportpdf($id, Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            $count = InventoryCount::where('id', $id)->where('driver_id', $driver->id)->first();
+            if(empty($count)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.no_record_found',
+                    'data' => null
+                ], 200);
+            }
+
+            $productIds = collect($count->items ?? [])->pluck('product_id')->filter()->unique();
+            $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
+            $items = collect($count->items ?? [])->map(function($item) use ($products){
+                $product = $products[$item['product_id']] ?? null;
+                return [
+                    'product_name' => $product->name ?? 'Unknown',
+                    'product_code' => $product->code ?? '-',
+                    'current_quantity' => $item['current_quantity'] ?? 0,
+                    'counted_quantity' => $item['counted_quantity'] ?? 0,
+                ];
+            });
+
+            $pdf = Pdf::loadView('reports.stock_count_pdf', [
+                'driver' => $driver,
+                'count' => $count,
+                'items' => $items,
+            ])->setPaper('a4', 'portrait');
+
+            $filename = 'stock-count-' . $count->id . '-' . now()->format('YmdHis') . '.pdf';
+            $path = 'stock-count-pdf/' . $filename;
+            Storage::disk('public')->put($path, $pdf->output());
+            $url = url($path);
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.load_success',
+                'data' => $url
             ], 200);
         }
         catch(Exception $e){

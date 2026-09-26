@@ -19,14 +19,7 @@
 <!-- Type Field -->
 <div class="form-group">
     {!! Form::label('type', __('products.type')) !!}:
-    @switch($product->type)
-        @case(0)
-            <p>{{ __('products.type_ice') }}</p>
-            @break
-        @default
-            <p>{{ __('products.type_other') }}</p>
-    @endswitch
-    <!--<p>{{ $product->status == 1 ? "Ice" : "Other" }}</p>-->
+    <p>{{ optional($product->productType)->name ?? '-' }}</p>
 </div>
 
 

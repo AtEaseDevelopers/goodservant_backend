@@ -209,6 +209,10 @@
             <li class="nav-item {{ Request::is('inventoryCounts*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('inventoryCounts*') ? 'active' : '' }}" href="{{ route('inventoryCounts.index') }}">
                     <span>Stock Count</span>
+                    @php $pendingStockCountCount = \App\Models\InventoryCount::where('status', \App\Models\InventoryCount::STATUS_PENDING)->count(); @endphp
+                    @if($pendingStockCountCount > 0)
+                        <span class="badge badge-danger" style="margin-left: 6px;">{{ $pendingStockCountCount }}</span>
+                    @endif
                 </a>
             </li>
         </ul>
@@ -307,9 +311,16 @@
 
     @can('product')
         <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('products*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('products*') ? 'active' : '' }}" href="{{ route('products.index') }}">
+            <li class="nav-item {{ Request::is('products*') && !Request::is('productTypes*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('products*') && !Request::is('productTypes*') ? 'active' : '' }}" href="{{ route('products.index') }}">
                     <span>{{ trans('side_menu.products') }}</span>
+                </a>
+            </li>
+        </ul>
+        <ul class="nav-dropdown-items">
+            <li class="nav-item {{ Request::is('productTypes*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('productTypes*') ? 'active' : '' }}" href="{{ route('productTypes.index') }}">
+                    <span>Product Types</span>
                 </a>
             </li>
         </ul>

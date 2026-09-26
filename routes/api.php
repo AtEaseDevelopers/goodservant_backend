@@ -25,6 +25,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     //Auth
     Route::post('/driver/login', [App\Http\Controllers\Api\V1\DriverController::class, 'login']);
     Route::post('/driver/location', [App\Http\Controllers\Api\V1\DriverController::class, 'location']);
+    Route::post('/driver/error-log', [App\Http\Controllers\Api\V1\DriverController::class, 'errorlog']);
     Route::post('/driver/logout', [App\Http\Controllers\Api\V1\DriverController::class, 'logout']);
     Route::post('/driver/session', [App\Http\Controllers\Api\V1\DriverController::class, 'session']);
     //Trip
@@ -54,6 +55,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/invoice', [App\Http\Controllers\Api\V1\DriverController::class, 'addinvoice']);
     Route::get('/driver/invoice', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicelist']);
     Route::post('/driver/invoice/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'invoicepdf']);
+    Route::post('/driver/invoice/bulk', [App\Http\Controllers\Api\V1\DriverController::class, 'addinvoicebulk']);
     Route::get('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicebyid']);
     Route::delete('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'cancelinvoice']);
 
@@ -63,12 +65,15 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/driver/salesOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getsalesorderbyid']);
     Route::delete('/driver/salesOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'cancelsalesorder']);
     Route::post('/driver/salesOrder/convert', [App\Http\Controllers\Api\V1\DriverController::class, 'convertsalesorder']);
+    Route::post('/driver/salesOrder/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'sopdf']);
+    Route::post('/driver/salesOrder/bulk', [App\Http\Controllers\Api\V1\DriverController::class, 'addsalesorderbulk']);
 
     //Delivery Order
     Route::get('/driver/deliveryOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorder']);
     Route::get('/driver/deliveryOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorderbyid']);
     Route::delete('/driver/deliveryOrder/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'canceldeliveryorder']);
     Route::post('/driver/deliveryOrder/combine-convert', [App\Http\Controllers\Api\V1\DriverController::class, 'combineconvertdeliveryorder']);
+    Route::post('/driver/do/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'dopdf']);
 
     //Packing List
     Route::post('/driver/packing-list/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'packinglistpdf']);
@@ -81,6 +86,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/stockCount', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCount']);
     Route::post('/driver/stockCount/list', [App\Http\Controllers\Api\V1\DriverController::class, 'getStockCountList']);
     Route::post('/driver/stockCount/status', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCountStatus']);
+    Route::get('/driver/stockCount/{id}/report', [App\Http\Controllers\Api\V1\DriverController::class, 'stockcountreportpdf']);
 
      //Invoice Payment
     Route::post('/driver/invoicepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'addpayment']);

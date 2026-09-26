@@ -291,7 +291,7 @@ class DeliveryOrderController extends AppBaseController
 
             $invoice = new Invoice();
             $invoice->invoiceno = $invoiceno;
-            $invoice->date = $first->getRawOriginal('date');
+            $invoice->date = date('Y-m-d H:i:s');
             $invoice->customer_id = $first->customer_id;
             $invoice->driver_id = $first->driver_id;
             $invoice->kelindan_id = $first->kelindan_id;
