@@ -2,10 +2,10 @@
 
 namespace App\DataTables;
 
-use App\Models\Einvoice;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\QueryDataTable;
+use App\Models\Invoice;
 use Yajra\DataTables\Services\DataTable;
+use Yajra\DataTables\EloquentDataTable;
+use App\Models\Code;
 
 class InvoiceDataTable extends DataTable
 {
@@ -17,29 +17,20 @@ class InvoiceDataTable extends DataTable
      */
     public function dataTable($query)
     {
-        $dataTable = new QueryDataTable($query);
+        $dataTable = new EloquentDataTable($query);
 
-        $dataTable->addColumn('row_key', function ($row) {
-            return $row->doc_type . ':' . $row->id;
-        });
-
-        // Add e-invoice column conditionally (Invoice rows only; Delivery
-        // Order rows never carry e-invoice data of their own).
+        // Add e-invoice column conditionally
         if (config('services.e_invoice.enabled', false)) {
-            $dataTable->addColumn('einvoice_submit_type', function ($row) {
-                if ($row->doc_type !== 'invoice') {
-                    return '';
-                }
-                $hasDirectSubmit = Einvoice::where('invoice_batch_id', $row->id)->whereNotNull('uuid')->exists();
-                if ($hasDirectSubmit) {
+            $dataTable->addColumn('einvoice_submit_type', function ($invoice) {
+                if ($invoice->einvoice && $invoice->einvoice->uuid) {
                     return 'E-Invoice';
+                } elseif ($invoice->consolidatedEinvoices) {
+                    $hasSubmitted = $invoice->consolidatedEinvoices->contains(function ($consolidated) {
+                        return $consolidated->uuid !== null;
+                    });
+                    return $hasSubmitted ? 'Consolidated E-Invoice' : '';
                 }
-                $hasConsolidated = DB::table('consolidated_einvoices')
-                    ->join('consolidated_einvoice_invoices', 'consolidated_einvoice_invoices.consolidated_einvoice_id', '=', 'consolidated_einvoices.id')
-                    ->where('consolidated_einvoice_invoices.invoice_id', $row->id)
-                    ->whereNotNull('consolidated_einvoices.uuid')
-                    ->exists();
-                return $hasConsolidated ? 'Consolidated E-Invoice' : '';
+                return '';
             });
         }
 
@@ -49,58 +40,19 @@ class InvoiceDataTable extends DataTable
     /**
      * Get query source of dataTable.
      *
-     * Unions Invoices and Delivery Orders into a single result set so the
-     * admin can view/filter both document types from one page (Delivery
-     * Orders no longer have their own top-level listing).
-     *
-     * @return \Illuminate\Database\Query\Builder
+     * @param \App\Models\Invoice $model
+     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function query()
+    public function query(Invoice $model)
     {
-        $invoices = DB::table('invoices')
-            ->leftJoin('customers', 'customers.id', '=', 'invoices.customer_id')
-            ->leftJoin('drivers', 'drivers.id', '=', 'invoices.driver_id')
-            ->leftJoin('kelindans', 'kelindans.id', '=', 'invoices.kelindan_id')
-            ->whereNull('invoices.deleted_at')
-            ->select([
-                'invoices.id',
-                DB::raw("'invoice' as doc_type"),
-                DB::raw("'Invoice' as doc_type_label"),
-                'invoices.invoiceno as doc_no',
-                'invoices.date',
-                DB::raw('customers.company as customer_name'),
-                DB::raw('drivers.name as driver_name'),
-                DB::raw('kelindans.name as kelindan_name'),
-                DB::raw('(select coalesce(sum(id.totalprice), 0) from invoice_details id where id.invoice_id = invoices.id) as total'),
-                'invoices.paymentterm',
-                'invoices.status',
-            ]);
-
-        $deliveryOrders = DB::table('deliveryorders')
-            ->leftJoin('customers', 'customers.id', '=', 'deliveryorders.customer_id')
-            ->leftJoin('drivers', 'drivers.id', '=', 'deliveryorders.driver_id')
-            ->leftJoin('kelindans', 'kelindans.id', '=', 'deliveryorders.kelindan_id')
-            ->whereNull('deliveryorders.deleted_at')
-            ->select([
-                'deliveryorders.id',
-                DB::raw("'do' as doc_type"),
-                DB::raw("'Delivery Order' as doc_type_label"),
-                'deliveryorders.dono as doc_no',
-                'deliveryorders.date',
-                DB::raw('customers.company as customer_name'),
-                DB::raw('drivers.name as driver_name'),
-                DB::raw('kelindans.name as kelindan_name'),
-                DB::raw('(select coalesce(sum(dd.totalprice), 0) from deliveryorder_details dd where dd.deliveryorder_id = deliveryorders.id) as total'),
-                'deliveryorders.paymentterm',
-                'deliveryorders.status',
-            ]);
-
-        // Wrapped as a subquery (rather than returning the union builder
-        // directly) so that Yajra's per-column/global search and ordering -
-        // which append where()/orderBy() calls on top of this builder - are
-        // applied to the combined result set, not just the first half of
-        // the union.
-        return DB::query()->fromSub($invoices->unionAll($deliveryOrders), 'combined_docs');
+        return $model->newQuery()
+        ->with('customer')
+        ->with('driver:id,name')
+        ->with('kelindan:id,name')
+        ->with('agent:id,name')
+        ->with('supervisor:id,name')
+        ->with('invoicedetail')
+        ->select('invoices.*');
     }
 
     /**
@@ -119,7 +71,7 @@ class InvoiceDataTable extends DataTable
                 'stateSave' => true,
                 'stateDuration' => 0,
                 'processing' => false,
-                'order'     => [[3, 'desc']],
+                'order'     => [[2, 'desc']],
                 'lengthMenu' => [[ 10, 50, 100, 300 ],[ '10 rows', '50 rows', '100 rows', '300 rows' ]],
                 'buttons' => [
                     [
@@ -182,22 +134,12 @@ class InvoiceDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 3,
+                        'targets' => 6,
                         'visible' => true,
-                        'render' => 'function(data, type){
-                                if(type === "display" && data){
-                                    return moment(data).format("DD-MM-YYYY");
-                                }
-                                return data;
-                            }'
+                        'render' => 'function(data, type){var totalprice = 0; $.each(data,function(index,value){ totalprice=totalprice+parseFloat(value.totalprice) }); return totalprice.toFixed(2);}'
                     ],
                     [
-                        'targets' => 7,
-                        'visible' => true,
-                        'render' => 'function(data, type){return parseFloat(data).toFixed(2);}'
-                    ],
-                    [
-                    'targets' => 8,
+                    'targets' => 7,
                     'render' => 'function(data, type, row){
                             var paymentTerms = {
                                 1: \'Cash\',
@@ -210,7 +152,7 @@ class InvoiceDataTable extends DataTable
                         }'
                     ],
                     [
-                    'targets' => 9,
+                    'targets' => 8,
                     'render' => 'function(data, type){return data == 1 ? "Completed" : "New";}'
                     ],
 
@@ -226,10 +168,10 @@ class InvoiceDataTable extends DataTable
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option></select>\';
                             }else if(columns[index].title == \'Payment Term\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value=""></option><option value="1">Cash</option><option value="2">Credit</option><option value="3">Online Banking (QR Code)</option><option value="4">E-wallet</option><option value="5">Cheque</option></select>\';
-                            }else if(columns[index].title == \'Type\'){
-                                var input = \'<select class="border-0" style="width: 100%;"><option value=""></option><option value="Invoice">Invoice</option><option value="Delivery Order">Delivery Order</option></select>\';
                             }else if(columns[index].title == \'Date\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
+                            }else if(columns[index].title == \'Group\'){
+                                var input = \'<select id="group" class="border-0" style="width: 100%;"><option value=""></option></select>\';
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
                             }
@@ -253,22 +195,16 @@ class InvoiceDataTable extends DataTable
     {
         $columns = [
             'checkbox'=> new \Yajra\DataTables\Html\Column(['title' => '<input type="checkbox" id="selectallcheckbox">',
-            'data' => 'row_key',
-            'name' => 'row_key',
+            'data' => 'id',
+            'name' => 'id',
             'orderable' => false,
             'searchable' => false
             ]),
 
-            'doc_type_label' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Type',
-                'data' => 'doc_type_label',
-                'name' => 'doc_type_label'
-            ]),
-
-            'doc_no' => new \Yajra\DataTables\Html\Column([
+            'invoiceno' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.invoice_no'),
-                'data' => 'doc_no',
-                'name' => 'doc_no'
+                'data' => 'invoiceno',
+                'name' => 'invoiceno'
             ]),
 
             'date' => new \Yajra\DataTables\Html\Column([
@@ -277,41 +213,53 @@ class InvoiceDataTable extends DataTable
                 'name' => 'date'
             ]),
 
-            'customer_name' => new \Yajra\DataTables\Html\Column([
+            'customer_id' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.customer'),
-                'data' => 'customer_name',
-                'name' => 'customer_name'
+                'data' => 'customer.company',
+                'name' => 'customer.company'
             ]),
 
-            'driver_name' => new \Yajra\DataTables\Html\Column([
+            'driver_id' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.driver'),
-                'data' => 'driver_name',
-                'name' => 'driver_name'
+                'data' => 'driver.name',
+                'name' => 'driver.name'
             ]),
 
-            'kelindan_name' => new \Yajra\DataTables\Html\Column([
+            'kelindan_id' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.kelindan'),
-                'data' => 'kelindan_name',
-                'name' => 'kelindan_name'
+                'data' => 'kelindan.name',
+                'name' => 'kelindan.name'
             ]),
+
+            // 'agent_id' => new \Yajra\DataTables\Html\Column([
+            //     'title' => trans('invoices.agent'),
+            //     'data' => 'agent.name',
+            //     'name' => 'agent.name'
+            // ]),
+
+            // 'supervisor_id' => new \Yajra\DataTables\Html\Column([
+            //     'title' => trans('invoices.supervisor'),
+            //     'data' => 'supervisor.name',
+            //     'name' => 'supervisor.name'
+            // ]),
 
             'total' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.total_price'),
-                'data' => 'total',
-                'name' => 'total',
+                'data' => 'invoicedetail',
+                'name' => 'invoicedetail',
                 'searchable' => false
             ]),
 
             'paymentterm' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.payment_term'),
                 'data' => 'paymentterm',
-                'name' => 'paymentterm'
+                'name' => 'invoices.paymentterm'
             ]),
 
             'status' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.status'),
                 'data' => 'status',
-                'name' => 'status'
+                'name' => 'invoices.status'
             ]),
         ];
 

@@ -101,7 +101,7 @@
 <li class="nav-item nav-dropdown {{ Request::is('invoices*','invoiceDetails*','invoicePayments','salesOrders*','deliveryOrders*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
         <i class="nav-icon icon-notebook"></i>
-        <span>{{ trans('side_menu.sales') }}</span>
+        <span>{{ trans('side_menu.invoices') }}</span>
     </a>
 
     @can('invoice')
@@ -113,8 +113,15 @@
             </li>
         </ul>
         <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('invoices*') || Request::is('deliveryOrders*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('invoices*') || Request::is('deliveryOrders*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">
+            <li class="nav-item {{ Request::is('deliveryOrders*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('deliveryOrders*') ? 'active' : '' }}" href="{{ route('deliveryOrders.index') }}">
+                    <span>{{ trans('side_menu.delivery_orders') }}</span>
+                </a>
+            </li>
+        </ul>
+        <ul class="nav-dropdown-items">
+            <li class="nav-item {{ Request::is('invoices*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('invoices*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">
                     <span>{{ trans('side_menu.invoices') }}</span>
                 </a>
             </li>
