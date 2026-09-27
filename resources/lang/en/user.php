@@ -23,6 +23,7 @@ return [
     'user_not_found' => 'User not found',
     'user_saved_successfully' => 'User saved successfully',
     'user_updated_successfully' => 'User updated successfully',
+    'user' => 'Users',
     'users' => 'Users',
     'you_have_exceeded_your_user_limit_please_contact_your_vendor' => 'You have exceeded your user limit, please contact your vendor',
 ];

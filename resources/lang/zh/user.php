@@ -23,6 +23,7 @@ return [
     'user_not_found' => '未找到用户',
     'user_saved_successfully' => '用户保存成功',
     'user_updated_successfully' => '用户更新成功',
+    'user' => '用户',
     'users' => '用户',
     'you_have_exceeded_your_user_limit_please_contact_your_vendor' => '您已超过用户限制，请联系您的供应商',
 ];

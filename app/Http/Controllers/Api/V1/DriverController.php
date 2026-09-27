@@ -2301,7 +2301,7 @@ class DriverController extends Controller
             }
             $invoice = Invoice::where('id', $id)
                 ->where('driver_id', $driver->id)
-                ->with('customer', 'driver', 'invoicedetail.product')
+                ->with('customer', 'driver', 'invoicedetail.product', 'paymentAttachments')
                 ->first();
             if(empty($invoice)){
                 return response()->json([
