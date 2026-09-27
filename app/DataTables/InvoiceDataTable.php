@@ -182,6 +182,16 @@ class InvoiceDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
+                        'targets' => 3,
+                        'visible' => true,
+                        'render' => 'function(data, type){
+                                if(type === "display" && data){
+                                    return moment(data).format("DD-MM-YYYY");
+                                }
+                                return data;
+                            }'
+                    ],
+                    [
                         'targets' => 7,
                         'visible' => true,
                         'render' => 'function(data, type){return parseFloat(data).toFixed(2);}'

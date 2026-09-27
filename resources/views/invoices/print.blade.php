@@ -113,7 +113,7 @@
                             <p>Invoice Date</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ date_format(date_create($invoice['date']),'d-m-Y H:i:s') ?? '-' }}</p>
+                            <p class="ta-r">{{ date_format(date_create($invoice['date']),'d-m-Y') ?? '-' }}</p>
                         </td>
                     </tr>
                     <tr>
