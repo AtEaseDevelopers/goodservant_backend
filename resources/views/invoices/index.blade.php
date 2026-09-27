@@ -14,6 +14,9 @@
                              <i class="fa fa-align-justify"></i>
                              {{ __('invoices.invoices') }}
                              <a class="pull-right" href="{{ route('invoices.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
+                             <button type="button" class="btn btn-info btn-sm pull-right mr-2" id="combineconvert" title="Combine the selected Delivery Orders (must all be from the same customer) into one invoice">
+                                <i class="fa fa-object-group"></i> Combine and Convert
+                             </button>
                             @noeinvoice
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
                             @endnoeinvoice
@@ -46,25 +49,79 @@
         $(document).keyup(function(e) {
             if(e.altKey && e.keyCode == 78){
                 $('.card .card-header a')[0].click();
-            } 
+            }
         });
-        
+
+        // window.checkboxid values are "invoice:<id>" or "do:<id>" since this
+        // table lists both document types. Actions that only apply to one
+        // type filter down to it and strip the prefix before hitting the API.
+        function idsByPrefix(prefix){
+            return window.checkboxid
+                .filter(function(id){ return id.indexOf(prefix + ':') === 0; })
+                .map(function(id){ return id.substring(prefix.length + 1); });
+        }
+
+        $(document).on("click", "#combineconvert", function(e){
+            var ids = idsByPrefix('do');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Delivery Order row');
+                return;
+            }
+            var m = ids.length == 1
+                ? "Confirm to convert 1 delivery order into an invoice?"
+                : "Confirm to combine " + ids.length + " delivery orders (must be from the same customer) into one invoice?";
+            $.confirm({
+                title: 'Combine and Convert',
+                content: m,
+                buttons: {
+                    Yes: function() {
+                        combineConvertDo(ids);
+                    },
+                    No: function() {
+                        return;
+                    }
+                }
+            });
+        });
+
+        function combineConvertDo(ids){
+            ShowLoad();
+            $.ajax({
+                url: "{{ url('/deliveryOrders/combine-convert') }}",
+                type:"POST",
+                data:{
+                    ids: ids,
+                    _token: "{{ csrf_token() }}"
+                },
+                success:function(response){
+                    window.checkboxid = [];
+                    $('.buttons-reload').click();
+                    noti('s','Converted', response.message);
+                },
+                error: function(error) {
+                    HideLoad();
+                    noti('e','Please contact your administrator', error.responseJSON?.message || 'Failed to convert Delivery Orders');
+                }
+            });
+        }
+
         $(document).on("click", "#masssave", function(e){
             var m = "";
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one row');
+            var ids = idsByPrefix('invoice');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Invoice row');
                 return;
-            }else if(window.checkboxid.length == 1){
+            }else if(ids.length == 1){
                 m = "Confirm to save 1 row"
             }else{
-                m = "Confirm to save " + window.checkboxid.length + " rows!"
+                m = "Confirm to save " + ids.length + " rows!"
             }
             $.confirm({
                 title: 'Save View',
                 content: m,
                 buttons: {
                     Yes: function() {
-                        masssave(window.checkboxid);
+                        masssave(ids);
                     },
                     No: function() {
                         return;
@@ -97,20 +154,21 @@
         
         $(document).on("click", "#massdelete", function(e){
             var m = "";
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one row');
+            var ids = idsByPrefix('invoice');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Invoice row');
                 return;
-            }else if(window.checkboxid.length == 1){
+            }else if(ids.length == 1){
                 m = "Confirm to delete 1 row!"
             }else{
-                m = "Confirm to delete " + window.checkboxid.length + " rows!"
+                m = "Confirm to delete " + ids.length + " rows!"
             }
             $.confirm({
                 title: 'Mass Delete',
                 content: m,
                 buttons: {
                     Yes: function() {
-                        massdelete(window.checkboxid);
+                        massdelete(ids);
                     },
                     No: function() {
                         return;
@@ -118,26 +176,27 @@
                 }
             });
         });
-        
+
         $(document).on("click", "#massactive", function(e){
             var m = "";
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one row');
+            var ids = idsByPrefix('invoice');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Invoice row');
                 return;
-            }else if(window.checkboxid.length == 1){
+            }else if(ids.length == 1){
                 m = "Confirm to update 1 row"
             }else{
-                m = "Confirm to update " + window.checkboxid.length + " rows!"
+                m = "Confirm to update " + ids.length + " rows!"
             }
             $.confirm({
                 title: 'Mass Update',
                 content: m,
                 buttons: {
                     Completed: function() {
-                        massupdatestatus(window.checkboxid,1);
+                        massupdatestatus(ids,1);
                     },
                     New: function() {
-                        massupdatestatus(window.checkboxid,0);
+                        massupdatestatus(ids,0);
                     },
                     somethingElse: {
                         text: 'Cancel',
@@ -191,28 +250,29 @@
         }
 
         function submitEinvoice(){
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one invoice');
+            var ids = idsByPrefix('invoice');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Invoice row');
                 return;
             }
-            
+
             var invoices = [];
             var currencyRate = null;
-            
+
             $.confirm({
                 title: 'Submit E-Invoice',
                 content: `
-                    <p>Selected invoices: ` + window.checkboxid.length + `</p>
+                    <p>Selected invoices: ` + ids.length + `</p>
                 `,
                 buttons: {
                     Submit: function() {
-                        window.checkboxid.forEach(function(id) {
+                        ids.forEach(function(id) {
                             invoices.push({
                                 id: parseInt(id),
                                 with_sg_gst: false
                             });
                         });
-                        
+
                         submitEinvoiceRequest(invoices, currencyRate);
                     },
                     Cancel: function() {
@@ -223,21 +283,22 @@
         }
 
         function submitConsolidatedEinvoice(){
-            if(window.checkboxid.length == 0){
-                noti('i','Info','Please select at least one invoice');
+            var ids = idsByPrefix('invoice');
+            if(ids.length == 0){
+                noti('i','Info','Please select at least one Invoice row');
                 return;
             }
-            
+
             $.confirm({
                 title: 'Submit Consolidated E-Invoice',
                 content: `
-                    <p>Selected invoices: ` + window.checkboxid.length + `</p>
+                    <p>Selected invoices: ` + ids.length + `</p>
                 `,
                 buttons: {
                     Submit: function() {
                         var currencyRate = null;
-                        
-                        submitConsolidatedEinvoiceRequest(window.checkboxid, currencyRate);
+
+                        submitConsolidatedEinvoiceRequest(ids, currencyRate);
                     },
                     Cancel: function() {
                         return;

@@ -656,6 +656,11 @@ class InvoiceController extends AppBaseController
         $min = 450;
         $each = 23;
         $height = (count($invoice['invoicedetail']) * $each) + $min;
+        if (!empty($invoice['remark'])) {
+            // Extra room for the "Remark : ..." line appended at the bottom
+            // of the narrow receipt layout (invoices.print).
+            $height += 40;
+        }
 
         $invoice->newcredit = round(DB::select('call ice_spGetCustomerCreditByDate("'.$invoice->updated_at.'",'.$invoice->customer_id.');')[0]->credit,2);
         $invoice->customer->groupcompany = DB::table('companies')

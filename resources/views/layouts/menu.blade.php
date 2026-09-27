@@ -113,15 +113,8 @@
             </li>
         </ul>
         <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('deliveryOrders*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('deliveryOrders*') ? 'active' : '' }}" href="{{ route('deliveryOrders.index') }}">
-                    <span>{{ trans('side_menu.delivery_orders') }}</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('invoices*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('invoices*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">
+            <li class="nav-item {{ Request::is('invoices*') || Request::is('deliveryOrders*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('invoices*') || Request::is('deliveryOrders*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">
                     <span>{{ trans('side_menu.invoices') }}</span>
                 </a>
             </li>
@@ -193,7 +186,7 @@
 @endcanany
 
 @canany(['inventorybalance','inventorytransaction'])
-<li class="nav-item nav-dropdown {{ Request::is('inventoryBalances*','inventoryCounts*','inventoryTransactions*') ? 'open' : '' }}">
+<li class="nav-item nav-dropdown {{ Request::is('inventoryBalances*','inventoryTransactions*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
         <i class="nav-icon icon-drawer"></i>
         <span>{{ trans('side_menu.inventory') }}</span>
@@ -204,15 +197,6 @@
             <li class="nav-item {{ Request::is('inventoryBalances*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('inventoryBalances*') ? 'active' : '' }}" href="{{ route('inventoryBalances.index') }}">
                     <span>{{ trans('side_menu.balances') }}</span>
-                </a>
-            </li>
-            <li class="nav-item {{ Request::is('inventoryCounts*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('inventoryCounts*') ? 'active' : '' }}" href="{{ route('inventoryCounts.index') }}">
-                    <span>Stock Count</span>
-                    @php $pendingStockCountCount = \App\Models\InventoryCount::where('status', \App\Models\InventoryCount::STATUS_PENDING)->count(); @endphp
-                    @if($pendingStockCountCount > 0)
-                        <span class="badge badge-danger" style="margin-left: 6px;">{{ $pendingStockCountCount }}</span>
-                    @endif
                 </a>
             </li>
         </ul>

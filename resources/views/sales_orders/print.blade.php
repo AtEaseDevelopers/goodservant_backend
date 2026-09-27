@@ -198,11 +198,18 @@
                         </th>
                         <th>
                             <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
-                        </td>
+                        </th>
                     </tr>
                 </table>
             </td>
         </tr>
+        @if(!empty($salesOrder['remark']))
+        <tr>
+            <td>
+                <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark : {{ $salesOrder['remark'] }}</p>
+            </td>
+        </tr>
+        @endif
     </table>
 </body>
 

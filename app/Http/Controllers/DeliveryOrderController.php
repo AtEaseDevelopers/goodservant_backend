@@ -377,6 +377,11 @@ class DeliveryOrderController extends AppBaseController
         $min = 450;
         $each = 23;
         $height = (count($deliveryOrder['deliveryorderdetail']) * $each) + $min;
+        if (!empty($deliveryOrder['remark'])) {
+            // Extra room for the "Remark : ..." line appended at the bottom
+            // of the print layout.
+            $height += 40;
+        }
 
         try {
             $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);

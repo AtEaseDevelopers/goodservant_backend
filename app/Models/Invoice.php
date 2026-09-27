@@ -132,6 +132,11 @@ class Invoice extends Model
         return $this->hasMany(\App\Models\DeliveryOrder::class, 'invoice_id');
     }
 
+    public function paymentAttachments()
+    {
+        return $this->morphMany(\App\Models\PaymentAttachment::class, 'attachable');
+    }
+
     public function getDateAttribute($value)
     {
         return Carbon::parse($value)->format('d-m-Y');

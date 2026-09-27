@@ -48,11 +48,11 @@
     @elseif($invoice->paymentterm == 2)
         <p>Credit</p>
     @elseif($invoice->paymentterm == 3)
-        <p>Online BankIn</p>
+        <p>Online Banking (QR Code)</p>
     @elseif($invoice->paymentterm == 4)
         <p>E-wallet</p>
     @elseif($invoice->paymentterm == 5)
-        <p>Cheque {{ '-' . $invoice->chequeno}}</p>
+        <p>Cheque</p>
     @else
         <p>Payment Term: Unknown</p>
     @endif
@@ -69,6 +69,20 @@
     {!! Form::label('remark', __('invoices.remark')) !!}:<span class="asterisk"> *</span>
     <p>{{ $invoice->remark }}</p>
 </div>
+
+@if($invoice->paymentAttachments->isNotEmpty())
+<!-- Payment Attachments -->
+<div class="form-group">
+    <label>Payment Attachments:</label>
+    <div>
+        @foreach($invoice->paymentAttachments as $attachment)
+            <a href="{{ $attachment->url }}" target="_blank" style="display:inline-block; margin: 0 10px 10px 0;">
+                <img src="{{ $attachment->url }}" style="width:100px; height:100px; object-fit:cover; border:1px solid #ddd; border-radius:4px;">
+            </a>
+        @endforeach
+    </div>
+</div>
+@endif
 
 @push('scripts')
     <script>

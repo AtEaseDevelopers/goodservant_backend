@@ -100,7 +100,7 @@
                 </td>
                 <td width="45%" class="meta-box">
                     @php
-                        $paymentTermLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online BankIn', 4 => 'E-wallet', 5 => 'Cheque'];
+                        $paymentTermLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
                     @endphp
                     <table>
                         <tr><td class="label">Our D/O No.</td><td class="colon">:</td><td>{{ $sourceDoNo ?? '-' }}</td></tr>
@@ -160,6 +160,10 @@
             <p>&nbsp;&nbsp;&nbsp;{{ $invoice['customer']['groupcompany']->name ?? config('invoice.name') }}</p>
             <p>2. Goods sold are neither returnable nor refundable. Otherwise a cancellation fee of 20% on purchase price will be imposed.</p>
         </div>
+
+        @if(!empty($invoice['remark']))
+        <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 10.5px;">Remark : {{ $invoice['remark'] }}</p>
+        @endif
 
         <div class="signature-line">Authorised Signature</div>
     </div>

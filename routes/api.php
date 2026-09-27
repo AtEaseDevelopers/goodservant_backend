@@ -83,10 +83,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/customerGroup/reorder', [App\Http\Controllers\Api\V1\DriverController::class, 'updatecustomergroup']);
 
     //Stock Count
-    Route::post('/driver/stockCount', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCount']);
-    Route::post('/driver/stockCount/list', [App\Http\Controllers\Api\V1\DriverController::class, 'getStockCountList']);
-    Route::post('/driver/stockCount/status', [App\Http\Controllers\Api\V1\DriverController::class, 'StockCountStatus']);
-    Route::get('/driver/stockCount/{id}/report', [App\Http\Controllers\Api\V1\DriverController::class, 'stockcountreportpdf']);
 
      //Invoice Payment
     Route::post('/driver/invoicepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'addpayment']);

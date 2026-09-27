@@ -88,7 +88,7 @@ class DeliveryOrderDataTable extends DataTable
                                 var paymentTerms = {
                                     1: \'Cash\',
                                     2: \'Credit\',
-                                    3: \'Online BankIn\',
+                                    3: \'Online Banking (QR Code)\',
                                     4: \'E-wallet\',
                                     5: \'Cheque\'
                                 };

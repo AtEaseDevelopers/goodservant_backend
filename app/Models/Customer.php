@@ -22,7 +22,7 @@ class Customer extends Model
     const PAYMENT_TERMS = [
         1 => 'Cash',
         2 => 'Credit',
-        3 => 'Online BankIn',
+        3 => 'Online Banking (QR Code)',
         4 => 'E-wallet',
         5 => 'Cheque',
     ];

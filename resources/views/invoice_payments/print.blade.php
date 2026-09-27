@@ -124,7 +124,7 @@
                             @elseif($invoice['type']==2)
                                 {{ 'Credit'}}
                             @elseif($invoice['type']==3)
-                                {{ 'Online BankIn'}}
+                                {{ 'Online Banking (QR Code)'}}
                             @elseif($invoice['type']==4)
                                 {{ 'E-wallet'}}
                             @elseif($invoice['type']==5)

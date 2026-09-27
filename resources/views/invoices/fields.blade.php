@@ -63,13 +63,7 @@
 <!-- Paymentterm Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('paymentterm',  __('invoices.payment_term'))  !!}
-    {{ Form::select('paymentterm', array(1 => 'Cash' , 2 => 'Credit',3 => 'Online BankIn' , 4 => 'E-wallet', 5 => 'Cheque'), null, ['class' => 'form-control']) }}
-</div>
-
-<!-- ChequeNo Field -->
-<div class="form-group col-sm-6" id='cheque-container' style='display:none;'>
-    {!! Form::label('chequeno', __('invoices.cheque_no')) !!}
-    {!! Form::text('chequeno', null, ['class' => 'form-control','maxlength' => 20,'maxlength' => 20]) !!}
+    {{ Form::select('paymentterm', array(1 => 'Cash' , 2 => 'Credit',3 => 'Online Banking (QR Code)' , 4 => 'E-wallet'), null, ['class' => 'form-control']) }}
 </div>
 
 <!-- Status Field -->
@@ -143,13 +137,6 @@
             $('form').submit();
         });
         
-        $('#paymentterm').change(function(){
-            if($(this).val() == "5") {
-                $('#cheque-container').show();
-            } else {
-                $('#cheque-container').hide();
-            }
-        });
     </script>
     <style>
         /* Select2 search field styling */

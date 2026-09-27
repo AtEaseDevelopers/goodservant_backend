@@ -112,6 +112,11 @@ class SalesOrder extends Model
         return $this->belongsTo(\App\Models\Invoice::class, 'invoice_id', 'id');
     }
 
+    public function paymentAttachments()
+    {
+        return $this->morphMany(\App\Models\PaymentAttachment::class, 'attachable');
+    }
+
     public function getDateAttribute($value)
     {
         return Carbon::parse($value)->format('d-m-Y H:i:s');

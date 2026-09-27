@@ -99,31 +99,15 @@
                         <select id="convert_paymentterm" class="form-control">
                             <option value="1">Cash</option>
                             <option value="2">Credit</option>
-                            <option value="3">Online BankIn</option>
+                            <option value="3">Online Banking (QR Code)</option>
                             <option value="4">E-wallet</option>
-                            <option value="5">Cheque</option>
                         </select>
                     </div>
-                    <div class="form-group" id="convert_cheque_container" style="display:none;">
-                        <label>Cheque No</label>
-                        <input type="text" id="convert_chequeno" class="form-control">
-                    </div>
                 `,
-                onContentReady: function () {
-                    var jc = this;
-                    jc.$content.find('#convert_paymentterm').on('change', function(){
-                        if($(this).val() == '5'){
-                            jc.$content.find('#convert_cheque_container').show();
-                        }else{
-                            jc.$content.find('#convert_cheque_container').hide();
-                        }
-                    });
-                },
                 buttons: {
                     Convert: function() {
                         var paymentterm = this.$content.find('#convert_paymentterm').val();
-                        var chequeno = this.$content.find('#convert_chequeno').val();
-                        convertSalesOrder(window.checkboxid[0], paymentterm, chequeno);
+                        convertSalesOrder(window.checkboxid[0], paymentterm, null);
                     },
                     Cancel: function() {
                         return;

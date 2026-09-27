@@ -48,11 +48,11 @@
     @elseif($salesOrder->paymentterm == 2)
         <p>Credit</p>
     @elseif($salesOrder->paymentterm == 3)
-        <p>Online BankIn</p>
+        <p>Online Banking (QR Code)</p>
     @elseif($salesOrder->paymentterm == 4)
         <p>E-wallet</p>
     @elseif($salesOrder->paymentterm == 5)
-        <p>Cheque {{ '-' . $salesOrder->chequeno}}</p>
+        <p>Cheque</p>
     @else
         <p>-</p>
     @endif
@@ -69,6 +69,20 @@
     {!! Form::label('remark', __('sales_orders.remark')) !!}:<span class="asterisk"> *</span>
     <p>{{ $salesOrder->remark }}</p>
 </div>
+
+@if($salesOrder->paymentAttachments->isNotEmpty())
+<!-- Payment Attachments -->
+<div class="form-group">
+    <label>Payment Attachments:</label>
+    <div>
+        @foreach($salesOrder->paymentAttachments as $attachment)
+            <a href="{{ $attachment->url }}" target="_blank" style="display:inline-block; margin: 0 10px 10px 0;">
+                <img src="{{ $attachment->url }}" style="width:100px; height:100px; object-fit:cover; border:1px solid #ddd; border-radius:4px;">
+            </a>
+        @endforeach
+    </div>
+</div>
+@endif
 
 @push('scripts')
     <script>

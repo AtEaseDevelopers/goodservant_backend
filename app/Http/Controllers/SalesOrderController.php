@@ -36,7 +36,7 @@ class SalesOrderController extends AppBaseController
     }
 
     /**
-     * Payment term codes shared with Invoice: 1=Cash, 2=Credit, 3=Online BankIn, 4=E-wallet, 5=Cheque
+     * Payment term codes shared with Invoice: 1=Cash, 2=Credit, 3=Online Banking (QR Code), 4=E-wallet, 5=Cheque (legacy, no longer selectable)
      */
     const PAYMENTTERM_CREDIT = 2;
 
@@ -433,6 +433,11 @@ class SalesOrderController extends AppBaseController
         $min = 450;
         $each = 23;
         $height = (count($salesOrder['salesorderdetail']) * $each) + $min;
+        if (!empty($salesOrder['remark'])) {
+            // Extra room for the "Remark : ..." line appended at the bottom
+            // of the print layout.
+            $height += 40;
+        }
 
         try {
             $pdf = Pdf::loadView('sales_orders.print', ['salesOrder' => $salesOrder]);

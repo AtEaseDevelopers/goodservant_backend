@@ -127,7 +127,7 @@
                             @elseif($deliveryOrder['paymentterm']==2)
                                 {{ 'Credit'}}
                             @elseif($deliveryOrder['paymentterm']==3)
-                                {{ 'Online BankIn'}}
+                                {{ 'Online Banking (QR Code)'}}
                             @elseif($deliveryOrder['paymentterm']==4)
                                 {{ 'E-wallet'}}
                             @elseif($deliveryOrder['paymentterm']==5)
@@ -203,6 +203,13 @@
                 </table>
             </td>
         </tr>
+        @if(!empty($deliveryOrder['remark']))
+        <tr>
+            <td>
+                <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark : {{ $deliveryOrder['remark'] }}</p>
+            </td>
+        </tr>
+        @endif
     </table>
 </body>
 

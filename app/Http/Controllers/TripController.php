@@ -292,7 +292,7 @@ class TripController extends AppBaseController
                 ->get();
         }
 
-        $paymentLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online BankIn', 4 => 'E-wallet', 5 => 'Cheque'];
+        $paymentLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
 
         // Aggregate payment breakdown
         $breakdown = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];

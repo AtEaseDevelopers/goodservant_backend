@@ -127,7 +127,7 @@
                             @elseif($invoice['paymentterm']==2)
                                 {{ 'Credit'}}
                             @elseif($invoice['paymentterm']==3)
-                                {{ 'Online BankIn'}}
+                                {{ 'Online Banking (QR Code)'}}
                             @elseif($invoice['paymentterm']==4)
                                 {{ 'E-wallet'}}
                             @elseif($invoice['paymentterm']==5)
@@ -231,7 +231,7 @@
                         </th>
                         <th>
                             <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
-                        </td>
+                        </th>
                     </tr>
                 </table>
                 <p class="paidsummary">Paid Summary</p>
@@ -255,6 +255,13 @@
                 </table>
             </td>
         </tr>
+        @if(!empty($invoice['remark']))
+        <tr>
+            <td>
+                <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark : {{ $invoice['remark'] }}</p>
+            </td>
+        </tr>
+        @endif
     </table>
 </body>
 

@@ -136,7 +136,7 @@ class InvoicePaymentDataTable extends DataTable
                         'render' => 'function(data, type, row){
                                 var paymentTerms = {
                                     1: \'Cash\',
-                                    3: \'Online BankIn\',
+                                    3: \'Online Banking (QR Code)\',
                                     4: \'E-wallet\',
                                     5: \'Cheque\'
                                 };
@@ -172,7 +172,7 @@ class InvoicePaymentDataTable extends DataTable
                             if(columns[index].title == \'Status\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Canceled</option></select>\';
                             }else if(columns[index].title == \'Type\'){
-                                var input = \'<select class="border-0" style="width: 100%;"><option value=""></option><option value="1">Cash</option><option value="3">Online BankIn</option><option value="4">E-wallet</option><option value="5">Cheque</option></select>\';
+                                var input = \'<select class="border-0" style="width: 100%;"><option value=""></option><option value="1">Cash</option><option value="3">Online Banking (QR Code)</option><option value="4">E-wallet</option><option value="5">Cheque</option></select>\';
                             }else if(columns[index].title == \'Approve At\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else if(columns[index].title == \'Date\'){
