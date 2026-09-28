@@ -3325,10 +3325,23 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * This driver's most recent trip's own inventory activity, scoped by
+     * lorry + the trip's own start/end timestamps (read from the `trips`
+     * table itself) rather than a calendar date range or the
+     * InventoryTransaction.trip_id / TripInventoryBalance.trip_id columns -
+     * those are written from Driver.trip_id (see starttrip()/endtrip()),
+     * which is not reliably populated across this dataset (confirmed empty
+     * for every existing driver/row), so trusting it here would silently
+     * show an empty screen. The `trips` table's own date-ordered rows are
+     * the one source that's actually kept correct (it's what the
+     * trip-already-started/not-started checks elsewhere rely on), so we
+     * derive the boundary from that directly. Always the latest trip
+     * regardless of whether it's still active or already ended, per
+     * product decision (no trip picker for now).
+     */
     public function getstocktransaction(Request $request){
         try{
-            $data = $request->all();
-            //check session
             $driver = Driver::where('session', $request->header('session'))->first();
             if(empty($driver)){
                 return response()->json([
@@ -3337,73 +3350,67 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
-            //validation
-            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            if(!empty($trip)){
-                if($trip->type == 2){
-                    return response()->json([
-                        'result' => false,
-                        'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                        'data' => null
-                    ], 400);
-                }
-            }else{
+            $latest = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
+            if(empty($latest)){
                 return response()->json([
                     'result' => false,
                     'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
                     'data' => null
                 ], 400);
             }
-            $validator = Validator::make($request->all(), [
-                'date' => 'required|date',
-            ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
-                    'data' => null
-                ], 400);
-            }
-            if($data['date'] > date('Y-m-d H:i:s')){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.date_cannot_be_future_date',
-                    'data' => null
-                ], 400);
-            }
-            //process
-            $inventorytransaction = InventoryTransaction::where('lorry_id',$trip->lorry_id)
-            ->leftjoin('products','products.id','=','inventory_transactions.product_id')
-            ->where('date','>=',$data['date'])
-            ->where('date','<',date('Y-m-d', strtotime("+1 day", strtotime($data['date']))))
-            ->orderby('date','desc')
-            // ->select('lorry_id','product_id','quantity','type','date');
-            ->select('inventory_transactions.id','inventory_transactions.quantity','inventory_transactions.type','inventory_transactions.date','products.name');
-
-            $finalinventorytransaction = InventoryTransaction::where('lorry_id',$trip->lorry_id)
-            ->leftjoin('products','products.id','=','inventory_transactions.product_id')
-            ->where('date','<',$data['date'])
-            ->groupby('inventory_transactions.product_id','products.id','products.name')
-            // ->select('lorry_id','product_id',DB::raw('sum(quantity) as quantity'),DB::raw('0 as type'),DB::raw('"'.$data['date'].'" as date'))
-            ->select(DB::raw('0 as id'),DB::raw('sum(inventory_transactions.quantity) as quantity'),DB::raw('0 as type'),DB::raw('"'.$data['date'].'" as date'),'products.name')
-            ->union($inventorytransaction)
-            ->orderby('date','desc')
-            ->get()
-            ->toarray();
-            if(count($finalinventorytransaction) == 0){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.transaction_not_found',
-                    'data' => null
-                ], 200);
+            if($latest->type == 1){
+                // Latest event is a start with no end after it - trip still active.
+                $startDate = $latest->getRawOriginal('date');
+                $endDate = date('Y-m-d H:i:s');
+                $lorryId = $latest->lorry_id;
             }else{
-                return response()->json([
-                    'result' => true,
-                    'message' => __LINE__.$this->message_separator.'api.message.transaction_found',
-                    'data' => $finalinventorytransaction
-                ], 200);
+                // Latest event is an end - find the start that preceded it.
+                $endDate = $latest->getRawOriginal('date');
+                $lorryId = $latest->lorry_id;
+                $start = Trip::where('driver_id', $driver->id)
+                    ->where('type', 1)
+                    ->where('date', '<=', $endDate)
+                    ->orderby('date','desc')
+                    ->first();
+                $startDate = $start ? $start->getRawOriginal('date') : $endDate;
             }
+
+            $opening = InventoryTransaction::where('lorry_id', $lorryId)
+                ->where('date', '<', $startDate)
+                ->leftjoin('products','products.id','=','inventory_transactions.product_id')
+                ->groupby('inventory_transactions.product_id','products.name')
+                ->havingRaw('sum(inventory_transactions.quantity) != 0')
+                ->select('inventory_transactions.product_id', 'products.name', DB::raw('sum(inventory_transactions.quantity) as quantity'))
+                ->get();
+
+            $transactions = InventoryTransaction::where('lorry_id', $lorryId)
+                ->where('date', '>=', $startDate)
+                ->where('date', '<=', $endDate)
+                ->with('product')
+                ->orderby('date','desc')
+                ->get()
+                ->map(function($row){
+                    return [
+                        'id' => $row->id,
+                        'product_id' => $row->product_id,
+                        'name' => optional($row->product)->name,
+                        'quantity' => $row->quantity,
+                        'type' => $row->type,
+                        'date' => $row->date,
+                    ];
+                });
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.transaction_found',
+                'data' => [
+                    'trip_date' => $startDate,
+                    'lorry_id' => $lorryId,
+                    'opening' => $opening,
+                    'transactions' => $transactions,
+                ]
+            ], 200);
         }
         catch(Exception $e){
             return response()->json([

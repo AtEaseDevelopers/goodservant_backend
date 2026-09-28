@@ -45,6 +45,19 @@ class Product extends Model
     ];
 
     /**
+     * Appended automatically so every JSON serialization of a Product (e.g.
+     * eager-loaded via SalesOrderDetail/InvoiceDetail.product, not just the
+     * product-listing endpoints that already built this manually per
+     * controller) carries a ready-to-use image URL.
+     */
+    protected $appends = ['image_url'];
+
+    public function getImageUrlAttribute()
+    {
+        return $this->image_path ? url($this->image_path) : null;
+    }
+
+    /**
      * The attributes that should be casted to native types.
      *
      * @var array
