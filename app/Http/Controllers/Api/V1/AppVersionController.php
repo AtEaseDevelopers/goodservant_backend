@@ -22,10 +22,16 @@ use Illuminate\Http\Request;
  */
 class AppVersionController extends Controller
 {
-    public function update(Request $request)
+    private function authorized(Request $request): bool
     {
         $token = config('services.deploy.version_token');
-        if (empty($token) || !hash_equals($token, (string) $request->header('X-Deploy-Token'))) {
+
+        return !empty($token) && hash_equals($token, (string) $request->header('X-Deploy-Token'));
+    }
+
+    public function update(Request $request)
+    {
+        if (!$this->authorized($request)) {
             return response()->json(['result' => false, 'message' => 'Unauthorized.'], 403);
         }
 
