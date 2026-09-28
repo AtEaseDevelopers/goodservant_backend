@@ -91,9 +91,46 @@
                 return;
             }
 
+            var soId = window.checkboxid[0];
+            ShowLoad();
+            $.ajax({
+                url: "{{ url('/salesOrders') }}/" + soId + "/convertitems",
+                type: "GET",
+                success: function(response){
+                    HideLoad();
+                    openConvertDialog(soId, response.items || []);
+                },
+                error: function(error) {
+                    HideLoad();
+                    noti('e','Please contact your administrator', error.responseJSON?.message || 'Failed to load Sales Order items');
+                }
+            });
+        });
+
+        function openConvertDialog(soId, items){
+            var rows = items.map(function(item){
+                var total = (parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2);
+                return `
+                    <tr data-detail-id="${item.sales_order_detail_id}" data-price="${item.price}">
+                        <td>${item.product_name || ''}</td>
+                        <td>${parseFloat(item.price).toFixed(2)}</td>
+                        <td><input type="number" min="0.01" step="0.01" class="form-control convert-qty" value="${item.quantity}"></td>
+                        <td class="convert-line-total">${total}</td>
+                    </tr>
+                `;
+            }).join('');
+
             $.confirm({
                 title: 'Convert Sales Order',
                 content: `
+                    <table class="table table-sm table-bordered mb-3">
+                        <thead>
+                            <tr><th>Product</th><th>Price</th><th>Quantity</th><th>Total</th></tr>
+                        </thead>
+                        <tbody id="convert_items_body">
+                            ${rows}
+                        </tbody>
+                    </table>
                     <div class="form-group">
                         <label>Payment Method</label>
                         <select id="convert_paymentterm" class="form-control">
@@ -104,19 +141,43 @@
                         </select>
                     </div>
                 `,
+                onContentReady: function() {
+                    this.$content.on('input', '.convert-qty', function(){
+                        var row = $(this).closest('tr');
+                        var price = parseFloat(row.data('price')) || 0;
+                        var qty = parseFloat($(this).val()) || 0;
+                        row.find('.convert-line-total').text((price * qty).toFixed(2));
+                    });
+                },
                 buttons: {
                     Convert: function() {
                         var paymentterm = this.$content.find('#convert_paymentterm').val();
-                        convertSalesOrder(window.checkboxid[0], paymentterm, null);
+                        var convertItems = [];
+                        var hasInvalidQty = false;
+                        this.$content.find('#convert_items_body tr').each(function(){
+                            var qty = parseFloat($(this).find('.convert-qty').val());
+                            if (!qty || qty <= 0) {
+                                hasInvalidQty = true;
+                            }
+                            convertItems.push({
+                                sales_order_detail_id: $(this).data('detail-id'),
+                                quantity: qty
+                            });
+                        });
+                        if (hasInvalidQty) {
+                            noti('i','Info','Every item quantity must be greater than 0');
+                            return false;
+                        }
+                        convertSalesOrder(soId, paymentterm, null, convertItems);
                     },
                     Cancel: function() {
                         return;
                     }
                 }
             });
-        });
+        }
 
-        function convertSalesOrder(id, paymentterm, chequeno){
+        function convertSalesOrder(id, paymentterm, chequeno, items){
             ShowLoad();
             $.ajax({
                 url: "{{ url('/salesOrders/convert') }}",
@@ -125,6 +186,7 @@
                     id: id,
                     paymentterm: paymentterm,
                     chequeno: chequeno,
+                    items: items,
                     _token: "{{ csrf_token() }}"
                 },
                 success:function(response){

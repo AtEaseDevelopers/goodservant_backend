@@ -215,6 +215,32 @@ class SalesOrderController extends AppBaseController
         return view('sales_orders.detail')->with('id', $id);
     }
 
+    /**
+     * Line items for the item-editing table in the "Convert" dialog on the
+     * Sales Orders index page. Plain-id lookup (not Crypt::decrypt), matching
+     * convert()'s own id handling since both are driven by the same raw
+     * checkboxid value from the DataTable row.
+     */
+    public function convertitems($id)
+    {
+        $salesOrder = SalesOrder::with('salesorderdetail.product')->find($id);
+
+        if (empty($salesOrder)) {
+            return response()->json(['message' => 'Sales Order not found.'], 422);
+        }
+
+        $items = $salesOrder->salesorderdetail->map(function ($line) {
+            return [
+                'sales_order_detail_id' => $line->id,
+                'product_name' => optional($line->product)->name,
+                'quantity' => $line->quantity,
+                'price' => $line->price,
+            ];
+        });
+
+        return response()->json(['items' => $items]);
+    }
+
     public function adddetail($id, Request $request)
     {
         $id = Crypt::decrypt($id);
@@ -264,13 +290,19 @@ class SalesOrderController extends AppBaseController
     /**
      * Convert one Sales Order into either a Delivery Order (if the customer is
      * DO-configured and Credit terms are chosen) or an Invoice (otherwise).
-     * Payment method is chosen here, at conversion time.
+     * Payment method is chosen here, at conversion time. An optional `items`
+     * array ([{sales_order_detail_id, quantity}, ...]) lets the user adjust
+     * quantities to reflect what was actually delivered - any line not
+     * present in `items` keeps its original SalesOrderDetail quantity. The
+     * original SalesOrder/SalesOrderDetail rows are never modified; only the
+     * new DO/Invoice detail rows reflect the (possibly edited) quantity.
      */
     public function convert(Request $request)
     {
         $id = $request->input('id');
         $paymentterm = (int) $request->input('paymentterm');
         $chequeno = $request->input('chequeno');
+        $items = $request->input('items');
 
         $salesOrder = SalesOrder::with('salesorderdetail')->find($id);
 
@@ -296,13 +328,26 @@ class SalesOrderController extends AppBaseController
             return response()->json(['message' => 'Customer not found.'], 422);
         }
 
+        $quantityOverrides = [];
+        if (!empty($items)) {
+            $detailIds = $salesOrder->salesorderdetail->pluck('id')->all();
+            foreach ($items as $item) {
+                $detailId = $item['sales_order_detail_id'] ?? null;
+                $quantity = $item['quantity'] ?? null;
+                if (!in_array($detailId, $detailIds) || !is_numeric($quantity) || $quantity <= 0) {
+                    return response()->json(['message' => 'Invalid item quantity.'], 422);
+                }
+                $quantityOverrides[$detailId] = $quantity;
+            }
+        }
+
         DB::beginTransaction();
         try {
             if ($customer->is_do_customer && $paymentterm == self::PAYMENTTERM_CREDIT) {
-                $result = $this->convertToDeliveryOrder($salesOrder, $paymentterm, $chequeno);
+                $result = $this->convertToDeliveryOrder($salesOrder, $paymentterm, $chequeno, $quantityOverrides);
                 $message = 'Sales Order converted to Delivery Order ' . $result->dono . '.';
             } else {
-                $result = $this->convertToInvoice($salesOrder, $paymentterm, $chequeno);
+                $result = $this->convertToInvoice($salesOrder, $paymentterm, $chequeno, $quantityOverrides);
                 $message = 'Sales Order converted to Invoice ' . $result->invoiceno . '.';
             }
 
@@ -317,7 +362,7 @@ class SalesOrderController extends AppBaseController
         }
     }
 
-    private function convertToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno)
+    private function convertToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [])
     {
         $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
@@ -337,12 +382,14 @@ class SalesOrderController extends AppBaseController
         $deliveryOrder->save();
 
         foreach ($salesOrder->salesorderdetail as $line) {
+            $quantity = $quantityOverrides[$line->id] ?? $line->quantity;
+
             $detail = new DeliveryOrderDetail();
             $detail->deliveryorder_id = $deliveryOrder->id;
             $detail->product_id = $line->product_id;
-            $detail->quantity = $line->quantity;
+            $detail->quantity = $quantity;
             $detail->price = $line->price;
-            $detail->totalprice = $line->totalprice;
+            $detail->totalprice = $quantity * $line->price;
             $detail->remark = $line->remark;
             $detail->save();
         }
@@ -353,7 +400,7 @@ class SalesOrderController extends AppBaseController
         return $deliveryOrder;
     }
 
-    private function convertToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno)
+    private function convertToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [])
     {
         if ($paymentterm == self::PAYMENTTERM_CREDIT) {
             $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
@@ -377,13 +424,15 @@ class SalesOrderController extends AppBaseController
         $invoice->save();
 
         foreach ($salesOrder->salesorderdetail as $line) {
+            $quantity = $quantityOverrides[$line->id] ?? $line->quantity;
+
             $detail = new InvoiceDetail();
             $detail->invoice_id = $invoice->id;
             $detail->product_id = $line->product_id;
             $detail->sales_order_id = $salesOrder->id;
-            $detail->quantity = $line->quantity;
+            $detail->quantity = $quantity;
             $detail->price = $line->price;
-            $detail->totalprice = $line->totalprice;
+            $detail->totalprice = $quantity * $line->price;
             $detail->remark = $line->remark;
             $detail->save();
         }

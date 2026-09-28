@@ -456,6 +456,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::delete('/salesOrders/{id}/deletedetail', [App\Http\Controllers\SalesOrderController::class, 'deletedetail'])->name('salesOrders.deletedetail');
         Route::get('/salesOrders/customer/{id}', [App\Http\Controllers\SalesOrderController::class, 'getcustomer']);
         Route::get('/salesOrders/getprice/{salesorder_id}/{product_id}', [App\Http\Controllers\SalesOrderController::class, 'getprice']);
+        Route::get('/salesOrders/{id}/convertitems', [App\Http\Controllers\SalesOrderController::class, 'convertitems'])->name('salesOrders.convertitems');
         Route::post('/salesOrders/convert', [App\Http\Controllers\SalesOrderController::class, 'convert'])->name('salesOrders.convert');
         Route::resource('salesOrders', App\Http\Controllers\SalesOrderController::class);
         Route::post('/salesOrders/massdestroy', [App\Http\Controllers\SalesOrderController::class, 'massdestroy']);

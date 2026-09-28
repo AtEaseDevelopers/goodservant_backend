@@ -79,6 +79,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/packing-list/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'packinglistpdf']);
 
     //Customer Group order (drag-and-drop reorder for next trip's task sequence)
+    Route::post('/driver/customerGroups', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomergroups']);
     Route::post('/driver/customerGroup', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomergroup']);
     Route::post('/driver/customerGroup/reorder', [App\Http\Controllers\Api\V1\DriverController::class, 'updatecustomergroup']);
 

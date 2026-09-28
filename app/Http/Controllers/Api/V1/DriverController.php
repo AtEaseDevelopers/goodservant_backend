@@ -4574,7 +4574,10 @@ class DriverController extends Controller
                 'sales_order_id' => 'required|numeric',
                 'paymentterm' => 'required|numeric|gt:0|lt:6',
                 'cheque_no' => 'present|nullable|string',
-                'attachments.*' => 'nullable|image|max:10240'
+                'attachments.*' => 'nullable|image|max:10240',
+                'items' => 'nullable|array',
+                'items.*.sales_order_detail_id' => 'required_with:items|numeric',
+                'items.*.quantity' => 'required_with:items|numeric|gt:0',
             ]);
             if ($validator->fails()) {
                 return response()->json([
@@ -4613,10 +4616,24 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            $quantityOverrides = [];
+            if(!empty($data['items'])){
+                $detailIds = $salesOrder->salesorderdetail->pluck('id')->all();
+                foreach($data['items'] as $item){
+                    if(!in_array($item['sales_order_detail_id'], $detailIds)){
+                        return response()->json([
+                            'result' => false,
+                            'message' => __LINE__.$this->message_separator.'api.message.invalid_sales_order_detail',
+                            'data' => null
+                        ], 400);
+                    }
+                    $quantityOverrides[$item['sales_order_detail_id']] = $item['quantity'];
+                }
+            }
             $paymentterm = (int) $data['paymentterm'];
             DB::beginTransaction();
             if($customer->is_do_customer && $paymentterm == 2){
-                $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null);
+                $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides);
                 DB::commit();
                 $result = DeliveryOrder::where('id',$deliveryOrder->id)->with('deliveryorderdetail.product')->first();
                 return response()->json([
@@ -4625,7 +4642,7 @@ class DriverController extends Controller
                     'data' => $result
                 ], 200);
             }else{
-                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null);
+                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides);
                 $this->storePaymentAttachments($request, $invoice);
                 DB::commit();
                 $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product', 'paymentAttachments')->first();
@@ -4646,7 +4663,7 @@ class DriverController extends Controller
         }
     }
 
-    private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno){
+    private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = []){
         $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
         $deliveryOrder = new DeliveryOrder();
@@ -4665,12 +4682,14 @@ class DriverController extends Controller
         $deliveryOrder->save();
 
         foreach($salesOrder->salesorderdetail as $line){
+            $quantity = $quantityOverrides[$line->id] ?? $line->quantity;
+
             $detail = new DeliveryOrderDetail();
             $detail->deliveryorder_id = $deliveryOrder->id;
             $detail->product_id = $line->product_id;
-            $detail->quantity = $line->quantity;
+            $detail->quantity = $quantity;
             $detail->price = $line->price;
-            $detail->totalprice = $line->totalprice;
+            $detail->totalprice = $quantity * $line->price;
             $detail->remark = $line->remark;
             $detail->save();
         }
@@ -4681,7 +4700,7 @@ class DriverController extends Controller
         return $deliveryOrder;
     }
 
-    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno){
+    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = []){
         if($paymentterm == 2){
             $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
         }else{
@@ -4706,13 +4725,15 @@ class DriverController extends Controller
         $lorryId = optional(Driver::find($salesOrder->driver_id))->lorry_id;
         $totalprice = 0;
         foreach($salesOrder->salesorderdetail as $line){
+            $qty = $quantityOverrides[$line->id] ?? $line->quantity;
+
             $detail = new InvoiceDetail();
             $detail->invoice_id = $invoice->id;
             $detail->product_id = $line->product_id;
             $detail->sales_order_id = $salesOrder->id;
-            $detail->quantity = $line->quantity;
+            $detail->quantity = $qty;
             $detail->price = $line->price;
-            $detail->totalprice = $line->totalprice;
+            $detail->totalprice = $qty * $line->price;
             $detail->remark = $line->remark;
             $detail->save();
             $totalprice = $totalprice + $detail->totalprice;
@@ -4725,7 +4746,7 @@ class DriverController extends Controller
                     ->where('status', 1)
                     ->first();
                 if($focrule){
-                    $newAchieveQuantity = $focrule->achievequantity + $line->quantity;
+                    $newAchieveQuantity = $focrule->achievequantity + $qty;
                     $newStatus = ($newAchieveQuantity >= $focrule->quantity) ? 0 : 1;
                     $focrule->update([
                         'achievequantity' => $newAchieveQuantity,
@@ -4740,16 +4761,16 @@ class DriverController extends Controller
                     $newinventorybalance = new InventoryBalance();
                     $newinventorybalance->lorry_id = $lorryId;
                     $newinventorybalance->product_id = $line->product_id;
-                    $newinventorybalance->quantity = 0 - $line->quantity;
+                    $newinventorybalance->quantity = 0 - $qty;
                     $newinventorybalance->save();
                 }else{
-                    $inventorybalance->quantity = $inventorybalance->quantity - $line->quantity;
+                    $inventorybalance->quantity = $inventorybalance->quantity - $qty;
                     $inventorybalance->save();
                 }
                 $inventorytransaction = new InventoryTransaction();
                 $inventorytransaction->lorry_id = $lorryId;
                 $inventorytransaction->product_id = $line->product_id;
-                $inventorytransaction->quantity = $line->quantity * -1;
+                $inventorytransaction->quantity = $qty * -1;
                 $inventorytransaction->type = 3;
                 $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
                 $inventorytransaction->date = date('Y-m-d H:i:s');
@@ -5180,6 +5201,58 @@ class DriverController extends Controller
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.load_success',
                 'data' => $url
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * List the customer group(s) this driver has customers assigned in
+     * (Assign.customer_id -> Customer.group), for the mobile group-picker
+     * shown before the drag-and-drop reorder screen. Returns an empty list
+     * until admin has assigned this driver at least one customer via the
+     * existing Assigns -> By customer group screen.
+     */
+    public function getcustomergroups(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            $customerIds = Assign::where('driver_id', $driver->id)->pluck('customer_id');
+            $groupIds = Customer::whereIn('id', $customerIds)
+                ->pluck('group')
+                ->flatMap(function($group) {
+                    return explode(',', (string) $group);
+                })
+                ->map(function($value) {
+                    return trim($value);
+                })
+                ->filter(function($value) {
+                    return $value !== '';
+                })
+                ->unique()
+                ->values();
+
+            $groups = Code::where('code', 'customer_group')
+                ->whereIn('value', $groupIds)
+                ->get(['value as id', 'description as name']);
+
+            return response()->json([
+                'result' => true,
+                'message' => 'OK',
+                'data' => $groups
             ], 200);
         }
         catch(Exception $e){
