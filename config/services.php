@@ -33,6 +33,10 @@ return [
         'enabled' => env('E_INVOICE_ENABLED', false),
         'required_fields' => ['customer_tin', 'customer_tax_address'],
     ],
+     'deploy' => [
+        // Shared secret for POST /api/v1/app/version (mobile release build hook).
+        'version_token' => env('DEPLOY_VERSION_TOKEN'),
+    ],
      'myinvois' => [
         'client_id' => env('MYINVOIS_CLIENT_ID'),
         'client_secret' => env('MYINVOIS_CLIENT_SECRET'),

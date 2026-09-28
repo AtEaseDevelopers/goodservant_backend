@@ -18,6 +18,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/testconnection', function (Request $request) {
         return 'OK';
     });
+
+    // Deploy hook: the mobile release build script announces the new app
+    // version here (X-Deploy-Token protected) so drivers get the update banner.
+    Route::post('/app/version', [App\Http\Controllers\Api\V1\AppVersionController::class, 'update']);
     //language
     Route::get('/supported-languages', [App\Http\Controllers\Api\V1\DriverController::class, 'getAllLanguages']);
     Route::post('/language', [App\Http\Controllers\Api\V1\DriverController::class, 'getTranslations']);
