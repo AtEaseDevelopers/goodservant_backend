@@ -4413,10 +4413,10 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
+            // Converted SOs are included (the app shows them as read-only history
+            // with the DO/invoice they became); convert/cancel still reject them.
             $salesOrders = SalesOrder::where('driver_id', $driver->id)
-                ->whereNull('deliveryorder_id')
-                ->whereNull('invoice_id')
-                ->with('customer', 'salesorderdetail.product')
+                ->with('customer', 'salesorderdetail.product', 'deliveryorder:id,dono', 'invoice:id,invoiceno')
                 ->orderby('date','desc')
                 ->get();
             return response()->json([
@@ -4446,7 +4446,7 @@ class DriverController extends Controller
             }
             $salesOrder = SalesOrder::where('id', $id)
                 ->where('driver_id', $driver->id)
-                ->with('customer', 'salesorderdetail.product')
+                ->with('customer', 'salesorderdetail.product', 'deliveryorder:id,dono', 'invoice:id,invoiceno')
                 ->first();
             if(empty($salesOrder)){
                 return response()->json([
@@ -4810,9 +4810,10 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
+            // Converted DOs are included (the app shows them as read-only history
+            // with the invoice they became); cancel/combine-convert still reject them.
             $deliveryOrders = DeliveryOrder::where('driver_id', $driver->id)
-                ->whereNull('invoice_id')
-                ->with('customer', 'deliveryorderdetail.product')
+                ->with('customer', 'deliveryorderdetail.product', 'invoice:id,invoiceno')
                 ->orderby('date','desc')
                 ->get();
             return response()->json([
@@ -4842,7 +4843,7 @@ class DriverController extends Controller
             }
             $deliveryOrder = DeliveryOrder::where('id', $id)
                 ->where('driver_id', $driver->id)
-                ->with('customer', 'deliveryorderdetail.product')
+                ->with('customer', 'deliveryorderdetail.product', 'invoice:id,invoiceno')
                 ->first();
             if(empty($deliveryOrder)){
                 return response()->json([
