@@ -23,6 +23,7 @@ use App\Models\Product;
 use App\Models\Task;
 use App\Models\Code;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\InvoicePdf;
 use Illuminate\Support\Facades\Session;
 use Exception;
 
@@ -642,75 +643,17 @@ class InvoiceController extends AppBaseController
     public function getInvoiceViewPDF($id,$function)
     {
         $id = Crypt::decrypt($id);
-        $invoice = Invoice::where('id',$id)
-        ->with('customer')
-        ->with('driver')
-        ->with('invoicedetail.product')
-        ->with('invoicedetail.deliveryorder')
-        ->first();
-
-        if (empty($invoice)) {
-            abort('404');
-        }
-
-        $min = 450;
-        $each = 23;
-        $height = (count($invoice['invoicedetail']) * $each) + $min;
-        if (!empty($invoice['remark'])) {
-            // Extra room for the "Remark : ..." line appended at the bottom
-            // of the narrow receipt layout (invoices.print).
-            $height += 40;
-        }
-
-        $invoice->newcredit = round(DB::select('call ice_spGetCustomerCreditByDate("'.$invoice->updated_at.'",'.$invoice->customer_id.');')[0]->credit,2);
-        $invoice->customer->groupcompany = DB::table('companies')
-        ->where('companies.group_id',explode(',',$invoice->customer->group)[0])
-        ->select('companies.*')
-        ->first() ?? null;
-
-        // Invoices produced via Delivery Order combine-and-convert show a full A4
-        // business-invoice layout referencing the source DO(s), instead of the
-        // narrow receipt-style layout used for direct/SO-converted invoices.
-        $isConvertedFromDo = InvoiceDetail::where('invoice_id', $id)->whereNotNull('deliveryorder_id')->exists();
-        $view = $isConvertedFromDo ? 'invoices.print_converted' : 'invoices.print';
-        $sourceDoNo = null;
-        $totalPages = 1;
-
-        if ($isConvertedFromDo) {
-            // "Our D/O No." only makes sense when every line traces back to the same
-            // source Delivery Order (a single-DO conversion) - a combined invoice has
-            // lines from multiple DOs, so it's left blank instead.
-            $sourceDoNumbers = $invoice->invoicedetail->pluck('deliveryorder.dono')->filter()->unique();
-            $sourceDoNo = $sourceDoNumbers->count() === 1 ? $sourceDoNumbers->first() : null;
-
-            $pageUsableHeightPt = 565;
-            $tableHeaderHeightPt = 20;
-            $rowHeightPt = 16;
-            $footerHeightPt = 140;
-            $rowCount = count($invoice['invoicedetail']);
-            $contentHeightPt = $tableHeaderHeightPt + ($rowCount * $rowHeightPt) + $footerHeightPt;
-            $totalPages = max(1, (int) ceil($contentHeightPt / $pageUsableHeightPt));
-        }
 
         try{
-            $pdf = Pdf::loadView($view, array(
-                'invoice' => $invoice,
-                'sourceDoNo' => $sourceDoNo,
-                'totalPages' => $totalPages
-            ));
-
-            if ($isConvertedFromDo) {
-                if($function == 'download'){
-                    return $pdf->setPaper('a4', 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');
-                }elseif($function == 'view'){
-                    return $pdf->setPaper('a4', 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->stream('view.pdf');
-                }
+            $pdf = InvoicePdf::render($id);
+            if (empty($pdf)) {
+                abort('404');
             }
 
             if($function == 'download'){
-                return $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');
+                return $pdf->download('download.pdf');
             }elseif($function == 'view'){
-                return $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->stream('view.pdf');
+                return $pdf->stream('view.pdf');
             }
         }
         catch(Exception $e){

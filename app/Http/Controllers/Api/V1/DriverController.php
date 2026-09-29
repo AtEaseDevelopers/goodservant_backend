@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\InvoicePdf;
 use Illuminate\Support\Facades\Storage;
 use Datetime;
 use App\Models\Driver;
@@ -2434,49 +2435,15 @@ class DriverController extends Controller
                 ], 400);
             }
             
-            $id = $data['invoice_id'];
-            
-            
-            $invoice = Invoice::where('id',$id)
-            ->with('customer')
-            ->with('driver')
-            ->with('invoicedetail.product')
-            ->first();
-    
+            $invoice = Invoice::where('id', $data['invoice_id'])->first();
             if (empty($invoice)) {
                 abort('404');
             }
-    
-            $min = 450;
-            $each = 23;
-            $height = (count($invoice['invoicedetail']) * $each) + $min;
-    
-            try
-            {
-                $credit = DB::select('call ice_spGetCustomerCreditByDate("'.$invoice->updated_at.'",'.$invoice->customer_id.');');
-                
-                if($credit)
-                {
-                    $invoice->newcredit = round($credit[0]->credit,2);
-    
-                }
-    
-            }
-            catch(Exception $ex)
-            {
-                 $invoice->newcredit  = 0;
-            }
-            $invoice->customer->groupcompany = DB::table('companies')
-            ->where('companies.group_id',explode(',',$invoice->customer->group)[0])
-            ->select('companies.*')
-            ->first() ?? null;
-            
-              $pdf = Pdf::loadView('invoices.print', array(
-                    'invoice' => $invoice
-                ));
-    
-            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
-    
+
+            // Same renderer as the admin panel, so a DO-converted invoice gets the
+            // A4 business layout here too instead of always the narrow receipt.
+            $pdf = InvoicePdf::render($invoice->id);
+
             $invoiceFilename = 'invoice-' . $invoice->invoiceno . '.pdf';
             $path = 'invoices-pdf/' . $invoiceFilename;
             
