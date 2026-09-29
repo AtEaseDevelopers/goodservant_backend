@@ -4959,6 +4959,15 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            // Reject rather than silently invoicing only part of the selection
+            // when some of the chosen DOs were already converted.
+            if($deliveryOrders->count() !== collect($data['ids'])->unique()->count()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_already_converted',
+                    'data' => null
+                ], 400);
+            }
             $customerIds = $deliveryOrders->pluck('customer_id')->unique();
             if($customerIds->count() > 1){
                 return response()->json([
