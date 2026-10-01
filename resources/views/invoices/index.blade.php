@@ -18,6 +18,7 @@
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
                             @endnoeinvoice
                              <a class="pull-right text-success pr-2" id="massactive" href="#" alt="Mass active"><i class="fa fa-check fa-lg"></i></a>
+                             <a class="pull-right text-info pr-2" id="markpendingsync" href="#" alt="Mark pending sync to AutoCount"><i class="fa fa-cloud-upload fa-lg"></i></a>
                              <!--<a class="pull-right pr-2" id="masssyncxero" href="#" alt="Mass Sync to Xero"><i class="fa fa-refresh fa-lg"></i></a>-->
                             @einvoice
                              <button type="button" class="btn btn-primary btn-sm pull-right mr-2" onclick="submitEinvoice()" title="Submit E-Invoice">
@@ -182,6 +183,49 @@
                     window.checkboxid = [];
                     $('.buttons-reload').click();
                     noti('s','Update Successfully',response+' row(s) had been updated.')
+                },
+                error: function(error) {
+                    noti('e','Please contact your administrator',error.responseJSON.message)
+                    HideLoad();
+                }
+            });
+        }
+
+        $(document).on("click", "#markpendingsync", function(e){
+            if(window.checkboxid.length == 0){
+                noti('i','Info','Please select at least one row');
+                return;
+            }
+            var m = "Mark " + window.checkboxid.length + " invoice(s) as pending sync to AutoCount?\n\n" +
+                    "The AutoCount plugin pulls pending invoices every 30 seconds and creates them as DRAFT. " +
+                    "Re-running is safe — invoices already synced will simply be re-queued.";
+            $.confirm({
+                title: 'Mark Pending Sync',
+                content: m,
+                buttons: {
+                    Yes: function() {
+                        markpendingsync(window.checkboxid);
+                    },
+                    No: function() {
+                        return;
+                    }
+                }
+            });
+        });
+
+        function markpendingsync(ids){
+            ShowLoad();
+            $.ajax({
+                url: "{{ url('/invoices/markpendingsync') }}",
+                type:"POST",
+                data:{
+                ids: ids
+                ,_token: "{{ csrf_token() }}"
+                },
+                success:function(response){
+                    window.checkboxid = [];
+                    $('.buttons-reload').click();
+                    noti('s','Marked Successfully',response+' invoice(s) queued for AutoCount sync.')
                 },
                 error: function(error) {
                     noti('e','Please contact your administrator',error.responseJSON.message)

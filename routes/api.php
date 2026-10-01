@@ -109,6 +109,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     //dashboard
     Route::post('/driver/dashboard', [App\Http\Controllers\Api\V1\DriverController::class, 'dashboard']);
 
+    //AutoCount plugin sync (X-AutoCount-Token protected; AutoCount -> OMS)
+    Route::post('/autocount/products', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncProducts']);
+    Route::post('/autocount/customers', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncCustomers']);
+    // Invoice sync (OMS -> AutoCount): plugin pulls pending, writes result back.
+    Route::post('/autocount/invoices/pending', [App\Http\Controllers\Api\V1\AutoCountController::class, 'pendingInvoices']);
+    Route::post('/autocount/invoices/result', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncInvoiceResults']);
 
 });
 

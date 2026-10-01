@@ -21,6 +21,13 @@ class Invoice extends Model
     public const STATUS_SYNCED_TO_XERO = 1;
     public const STATUS_VOIDED = 2;
 
+    // AutoCount sync lifecycle (sync_status column).
+    public const SYNC_NONE = 0;
+    public const SYNC_PENDING = 1;
+    public const SYNC_SYNCING = 2;
+    public const SYNC_SYNCED = 3;
+    public const SYNC_FAILED = 4;
+
     public $fillable = [
         'invoiceno',
         'date',
@@ -31,6 +38,10 @@ class Invoice extends Model
         'supervisor_id',
         'paymentterm',
         'status',
+        'sync_status',
+        'api_invoice_id',
+        'sync_error',
+        'synced_at',
         'remark',
         'chequeno',
         'trip_id'
@@ -52,6 +63,8 @@ class Invoice extends Model
         'supervisor_id' => 'integer',
         'paymentterm' => 'integer',
         'status' => 'integer',
+        'sync_status' => 'integer',
+        'api_invoice_id' => 'string',
         'remark' => 'string',
         'trip_id' => 'integer'
     ];

@@ -456,6 +456,30 @@ class InvoiceController extends AppBaseController
         return $count;
     }
 
+    /**
+     * Flag selected invoices for AutoCount sync. The AutoCount plugin polls for
+     * pending (sync_status = 1) invoices every 30s.
+     *
+     * Skipped:
+     *  - already synced (3): an invoice is created in AutoCount once and cannot
+     *    be re-synced (there is no upsert — a re-sync would be a duplicate).
+     *  - currently syncing (2): must not disturb an in-flight sync.
+     * Eligible: none (0), pending (1, harmless re-mark), failed (4, retry).
+     */
+    public function markpendingsync(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        $count = Invoice::whereIn('id', $ids)
+            ->whereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])
+            ->update([
+                'sync_status' => Invoice::SYNC_PENDING,
+                'sync_error' => null,
+            ]);
+
+        return $count;
+    }
+
     public function getcustomer($id)
     {
         $customer = Customer::where('id',$id)->first();

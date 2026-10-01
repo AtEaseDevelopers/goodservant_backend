@@ -17,7 +17,14 @@ class CreateProductTypesTable extends Migration
         });
 
         Schema::table('products', function (Blueprint $table) {
-            $table->unsignedBigInteger('type_id')->nullable()->after('type');
+            // `after('type')` only works where the legacy `type` column exists
+            // (production); a fresh DB built from migrations never had it, so
+            // fall back to appending the column (position is cosmetic).
+            if (Schema::hasColumn('products', 'type')) {
+                $table->unsignedBigInteger('type_id')->nullable()->after('type');
+            } else {
+                $table->unsignedBigInteger('type_id')->nullable();
+            }
         });
 
         // Seed the one type that already exists in practice (every product

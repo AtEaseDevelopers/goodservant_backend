@@ -155,6 +155,32 @@ class InvoiceDataTable extends DataTable
                     'targets' => 8,
                     'render' => 'function(data, type){return data == 1 ? "Completed" : "New";}'
                     ],
+                    [
+                    'targets' => 9,
+                    'render' => 'function(data, type, row){
+                            var map = {0:"—",1:"Pending",2:"Syncing",3:"Synced",4:"Failed"};
+                            var label = map[data] || "—";
+                            if(data == 3 && row.api_invoice_id){ return "Synced (" + row.api_invoice_id + ")"; }
+                            if(data == 4){
+                                var err = row.sync_error || "No error message recorded.";
+                                var fullEsc = $("<div>").text(err).html();
+                                var brief = err.length > 60 ? err.substring(0,60) + "…" : err;
+                                var briefEsc = $("<div>").text(brief).html();
+                                return "<span title=\"" + fullEsc + "\" style=\"cursor:help\">Failed: " + briefEsc + "</span>";
+                            }
+                            return label;
+                        }',
+                    'createdCell' => 'function(td, cellData){
+                            var bg = {0:"#f2f2f2",1:"#fff3cd",2:"#d1ecf1",3:"#d4edda",4:"#f8d7da"};
+                            var fg = {0:"#6c757d",1:"#856404",2:"#0c5460",3:"#155724",4:"#721c24"};
+                            $(td).css({
+                                "background-color": bg[cellData] || "#f2f2f2",
+                                "color": fg[cellData] || "#6c757d",
+                                "font-weight": "600",
+                                "text-align": "center"
+                            });
+                        }'
+                    ],
 
                 ],
                 'initComplete' => 'function(){
@@ -260,6 +286,12 @@ class InvoiceDataTable extends DataTable
                 'title' => trans('invoices.status'),
                 'data' => 'status',
                 'name' => 'invoices.status'
+            ]),
+
+            'sync_status' => new \Yajra\DataTables\Html\Column([
+                'title' => 'AutoCount Sync',
+                'data' => 'sync_status',
+                'name' => 'invoices.sync_status'
             ]),
         ];
 

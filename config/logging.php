@@ -67,6 +67,15 @@ return [
             'days' => 14,
         ],
 
+        // Send/receive trace for the AutoCount plugin sync
+        // (storage/logs/autocount-YYYY-MM-DD.log). Kept for one week.
+        'autocount' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/autocount.log'),
+            'level' => 'debug',
+            'days' => 7,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

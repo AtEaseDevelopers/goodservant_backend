@@ -16,7 +16,14 @@ class FixCustomerTypeDefaultOnCustomersTable extends Migration
     public function up()
     {
         Schema::table('customers', function (Blueprint $table) {
-            $table->string('customer_type', 255)->default('')->change();
+            // On the production DB the column already exists (NOT NULL, no
+            // default) — just give it a default. On a fresh DB built purely
+            // from migrations the column was never created, so add it instead.
+            if (Schema::hasColumn('customers', 'customer_type')) {
+                $table->string('customer_type', 255)->default('')->change();
+            } else {
+                $table->string('customer_type', 255)->default('');
+            }
         });
     }
 
