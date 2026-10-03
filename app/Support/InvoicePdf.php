@@ -25,6 +25,7 @@ class InvoicePdf
             ->with('driver')
             ->with('invoicedetail.product')
             ->with('invoicedetail.deliveryorder')
+            ->with('invoicepayment')
             ->first();
 
         if (empty($invoice)) {
@@ -71,6 +72,10 @@ class InvoicePdf
         if (!empty($invoice['remark'])) {
             // Room for the "Remark : ..." line at the bottom of the receipt.
             $height += 40;
+        }
+        if ($invoice->invoicepayment->where('type', 1)->whereNotNull('cash_received')->isNotEmpty()) {
+            // Room for the "Cash Received" + "Change" rows on cash sales.
+            $height += 50;
         }
 
         return Pdf::loadView('invoices.print', ['invoice' => $invoice])

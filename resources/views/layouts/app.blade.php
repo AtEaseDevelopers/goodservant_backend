@@ -556,8 +556,20 @@
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
+<script>
+    // The Maps API loads async, so DOM-ready can fire before it exists.
+    // Pages that need it set window.onGoogleMapsReady; the callback below
+    // runs it once the API is actually available.
+    window.googleMapsReady = false;
+    function initGoogleMaps() {
+        window.googleMapsReady = true;
+        if (typeof window.onGoogleMapsReady === 'function') {
+            window.onGoogleMapsReady();
+        }
+    }
+</script>
 <script async
-    src="https://maps.googleapis.com/maps/api/js?key={{ config('app.google_api') }}">
+    src="https://maps.googleapis.com/maps/api/js?key={{ config('app.google_api') }}&callback=initGoogleMaps">
 </script>
 
 <script>

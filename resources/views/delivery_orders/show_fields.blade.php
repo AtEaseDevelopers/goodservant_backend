@@ -61,7 +61,7 @@
 <!-- Status Field -->
 <div class="form-group">
     {!! Form::label('status', __('delivery_orders.status')) !!}:<span class="asterisk"> *</span>
-    <p>{{ $deliveryOrder->status == 1 ? "Completed" : "New" }}</p>
+    <p>{{ $deliveryOrder->status == 2 ? "Cancelled" : ($deliveryOrder->status == 1 ? "Completed" : "New") }}</p>
 </div>
 
 <!-- Remark Field -->

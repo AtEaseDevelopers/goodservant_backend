@@ -2028,6 +2028,11 @@ class DriverController extends Controller
                 $invoicepayment->driver_id = $driver->id;
                 $invoicepayment->approve_by = $driver->name;
                 $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                // Cash the customer handed over; the receipt prints the change
+                // (cash_received - total) when this is more than the total.
+                if(isset($data['cash_received']) && is_numeric($data['cash_received']) && $data['cash_received'] >= $totalprice){
+                    $invoicepayment->cash_received = $data['cash_received'];
+                }
                 $invoicepayment->save();
             }
             $task = Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
@@ -2223,6 +2228,10 @@ class DriverController extends Controller
                         $invoicepayment->driver_id = $driver->id;
                         $invoicepayment->approve_by = $driver->name;
                         $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                        // Same change-on-receipt support as the online addinvoice path.
+                        if(isset($item['cash_received']) && is_numeric($item['cash_received']) && $item['cash_received'] >= $totalprice){
+                            $invoicepayment->cash_received = $item['cash_received'];
+                        }
                         $invoicepayment->save();
                     }
 
@@ -2366,6 +2375,13 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($invoice->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
             if($driver->lorry_id){
                 foreach($invoice->invoicedetail as $line){
@@ -2392,8 +2408,9 @@ class DriverController extends Controller
                 }
             }
             InvoicePayment::where('invoice_id', $invoice->id)->delete();
-            InvoiceDetail::where('invoice_id', $invoice->id)->delete();
-            $invoice->delete();
+            // Keep the invoice and its lines for history; status 2 = Cancelled.
+            $invoice->status = 2;
+            $invoice->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -2643,9 +2660,16 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            
+            if(isset($data['invoice_id']) && Invoice::where('id', $data['invoice_id'])->where('status', 2)->exists()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_already_cancelled',
+                    'data' => null,
+                ], 400);
+            }
+
             DB::beginTransaction();
-            
+
             $invoicepayment = New InvoicePayment();
             if(isset($data['invoice_id'])){
                 $invoicepayment->invoice_id = $data['invoice_id'];
@@ -4173,22 +4197,11 @@ class DriverController extends Controller
                 ], 401);
             }
             //validation
+            // An active trip is NOT required: customers call in orders at night,
+            // before the driver starts the next trip. An SO created outside a
+            // trip simply has no trip/kelindan attached.
             $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            if(!empty($trip)){
-                if($trip->type == 2){
-                    return response()->json([
-                        'result' => false,
-                        'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                        'data' => null
-                    ], 401);
-                }
-            }else{
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                    'data' => null
-                ], 401);
-            }
+            $hasActiveTrip = !empty($trip) && $trip->type != 2;
             $validator = Validator::make($request->all(), [
                 'sales_order_id' => 'present|nullable|numeric',
                 'date' => 'date_format:Y-m-d H:i:s',
@@ -4217,7 +4230,7 @@ class DriverController extends Controller
             }
             //process
             DB::beginTransaction();
-            $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)
+            $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)->where('status','!=',2)
                 ->whereNull('deliveryorder_id')->whereNull('invoice_id')->first();
             $sono = null;
             $id = null;
@@ -4235,13 +4248,13 @@ class DriverController extends Controller
             $salesOrder->sono = $sono;
             $salesOrder->date = $data['date'] ?? date('Y-m-d H:i:s');
             $salesOrder->customer_id = $data['customer_id'];
-            $salesOrder->driver_id = $trip->driver_id;
-            $salesOrder->kelindan_id = $trip->kelindan_id;
+            $salesOrder->driver_id = $driver->id;
+            $salesOrder->kelindan_id = $hasActiveTrip ? $trip->kelindan_id : null;
             $salesOrder->agent_id = $customer->agent_id;
             $salesOrder->supervisor_id = $customer->supervisor_id;
             $salesOrder->status = 0;
             $salesOrder->remark = $data['remark'] ?? null;
-            $salesOrder->trip_id = $driver->trip_id;
+            $salesOrder->trip_id = $hasActiveTrip ? $driver->trip_id : null;
             $salesOrder->save();
             foreach($data['salesorderdetail'] as $line){
                 $product = Product::where('id',$line['product_id'])->first();
@@ -4509,9 +4522,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($salesOrder->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
-            SalesOrderDetail::where('sales_order_id', $salesOrder->id)->delete();
-            $salesOrder->delete();
+            // Keep the sales order and its lines for history; status 2 = Cancelled.
+            $salesOrder->status = 2;
+            $salesOrder->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -4563,7 +4584,7 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
-            $salesOrder = SalesOrder::with('salesorderdetail')->where('id',$data['sales_order_id'])->first();
+            $salesOrder = SalesOrder::with('salesorderdetail')->where('id',$data['sales_order_id'])->where('status','!=',2)->first();
             if(empty($salesOrder)){
                 return response()->json([
                     'result' => false,
@@ -4904,9 +4925,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($deliveryOrder->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
-            DeliveryOrderDetail::where('deliveryorder_id', $deliveryOrder->id)->delete();
-            $deliveryOrder->delete();
+            // Keep the delivery order and its lines for history; status 2 = Cancelled.
+            $deliveryOrder->status = 2;
+            $deliveryOrder->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -4951,7 +4980,7 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
-            $deliveryOrders = DeliveryOrder::with('deliveryorderdetail')->whereIn('id',$data['ids'])->whereNull('invoice_id')->get();
+            $deliveryOrders = DeliveryOrder::with('deliveryorderdetail')->whereIn('id',$data['ids'])->whereNull('invoice_id')->where('status','!=',2)->get();
             if($deliveryOrders->isEmpty()){
                 return response()->json([
                     'result' => false,

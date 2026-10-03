@@ -64,12 +64,12 @@
             const infoWindow = new google.maps.InfoWindow();
             const bounds = new google.maps.LatLngBounds(); // Create a bounds object
         
-            data.forEach(([position, driver_name, driver_employeeid, kelindan_employeeid, kelindan_name, lorryno, date]) => {
+            data.forEach(([position, driver_name, driver_employeeid, lorryno, date]) => {
                 const marker = new google.maps.Marker({
                     position,
                     map,
                     icon: 'http://maps.gstatic.com/mapfiles/ms2/micons/bus.png',
-                    title: `<b>${lorryno}</b><hr>Driver Employee ID: ${driver_employeeid}<br>Driver Name: ${driver_name}<hr>Kelindan Employee ID: ${kelindan_employeeid}<br>Kelindan Name: ${kelindan_name}<hr>Last Active: ${date}`,
+                    title: `<b>${lorryno}</b><hr>Driver Employee ID: ${driver_employeeid}<br>Driver Name: ${driver_name}<hr>Last Active: ${date}`,
                     label: {
                         text: `${driver_name}`,
                         color: 'black',
@@ -92,7 +92,9 @@
             });
         
             // Adjust the map to fit all markers
-            map.fitBounds(bounds);
+            if (data.length > 0) {
+                map.fitBounds(bounds);
+            }
         }
         
         // Function to add markers based on checkbox data
@@ -114,8 +116,6 @@
                         { lat: parseFloat(lat), lng: parseFloat(lng) }, // position
                         driverName,
                         driverEmployeeId,
-                        kelindanEmployeeId,
-                        kelindanName,
                         lorryno,
                         date
                     ]);
@@ -139,10 +139,7 @@
                 data: { drivers: selectedDrivers },
                 success: function(data) {
                     clearMarkers();
-                    addMarkers(data);
-                    if (data.length > 0 && selectedDrivers.length === 0) {
-                        map.setCenter({ lat: data[0][0]['lat'], lng: data[0][0]['lng'] });
-                    }
+                    addMarkers(data); // fitBounds inside already frames all markers
                 },
                 error: function(jqXHR, status, error) {
                     console.error('AJAX error:', status, error);
@@ -169,8 +166,20 @@
             $('.checkbox-select').prop('checked', isChecked);
         });
         
-        // Initialize the map on page load
-        initMap();
+        // The Maps API loads async: it may or may not be ready by DOM-ready.
+        // Run initMap now if it is, otherwise let the layout's callback run it.
+        if (window.googleMapsReady) {
+            initMap();
+        } else {
+            window.onGoogleMapsReady = initMap;
+        }
+
+        // Keep the map current while the page is open.
+        setInterval(function() {
+            if (map && $('.checkbox-select:checked').length === 0) {
+                loadDriverLocations();
+            }
+        }, 30000);
     });
     </script>
 
