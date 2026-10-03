@@ -1622,7 +1622,7 @@ class DriverController extends Controller
             //process
             // status != 2: cancelled invoices stay out of the ledger (and out
             // of the app's pay-credit invoice picker, which reads this list).
-            $customer->customerdetail = DB::select("select i.date,i.id,'Invoice' as type, i.invoiceno as name, sum(COALESCE(id.totalprice,0)) as amount from invoices i left join invoice_details id on i.id = id.invoice_id where i.customer_id = ".$customer->id." and i.status != 2 group by i.date, i.id, i.invoiceno, i.customer_id union select ip.created_at as date,ip.id, 'Payment' as type, '' as name, ip.amount as amount from invoice_payments ip where ip.customer_id = ".$customer->id.";");
+            $customer->customerdetail = DB::select("select i.date,i.id,'Invoice' as type, i.invoiceno as name, sum(COALESCE(id.totalprice,0)) as amount from invoices i left join invoice_details id on i.id = id.invoice_id where i.customer_id = ".$customer->id." and i.status != 2 group by i.date, i.id, i.invoiceno, i.customer_id union select ip.created_at as date,ip.id, 'Payment' as type, '' as name, ip.amount as amount from invoice_payments ip where ip.customer_id = ".$customer->id." and ip.status != 2;");
             return response()->json([
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.customer_found',
@@ -2409,7 +2409,10 @@ class DriverController extends Controller
                     $inventorytransaction->save();
                 }
             }
-            InvoicePayment::where('invoice_id', $invoice->id)->delete();
+            // Keep the payments for history too - status 2 (Canceled, same
+            // convention as the admin panel) takes them out of the credit
+            // math, which only counts status-1 payments.
+            InvoicePayment::where('invoice_id', $invoice->id)->update(['status' => 2]);
             // Keep the invoice and its lines for history; status 2 = Cancelled.
             $invoice->status = 2;
             $invoice->save();
