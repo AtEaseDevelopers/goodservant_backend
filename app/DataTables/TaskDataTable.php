@@ -18,7 +18,15 @@ class TaskDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'tasks.datatables_actions');
+        $dataTable->editColumn('invoice_id', function ($task) {
+            if (empty($task->invoice)) {
+                return '-';
+            }
+            return '<a href="' . route('invoices.show', encrypt($task->invoice->id)) . '">' . e($task->invoice->invoiceno) . '</a>';
+        });
+
+        return $dataTable->addColumn('action', 'tasks.datatables_actions')
+            ->rawColumns(['invoice_id', 'action']);
     }
 
     /**
