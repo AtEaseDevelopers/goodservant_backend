@@ -3,6 +3,7 @@
 return [
     'action' => 'Action',
     'agent' => 'Agent',
+    'locked_by_autocount' => 'Invoice is locked after syncing to AutoCount and can no longer be edited or deleted',
     'are_you_sure_to_delete_the_invoice' => 'Are you sure to delete the Invoice ?',
     'cancel' => 'Cancel',
     'cheque_no' => 'Cheque No',

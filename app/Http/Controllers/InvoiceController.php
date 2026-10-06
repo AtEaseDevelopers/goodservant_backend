@@ -150,6 +150,15 @@ class InvoiceController extends AppBaseController
      *
      * @return Response
      */
+    /**
+     * Invoices that are syncing or already synced to AutoCount are locked:
+     * editing/deleting them here would silently diverge from AutoCount.
+     */
+    private function lockedByAutoCount($invoice)
+    {
+        return in_array($invoice->sync_status, [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED]);
+    }
+
     public function edit($id)
     {
         $id = Crypt::decrypt($id);
@@ -157,6 +166,12 @@ class InvoiceController extends AppBaseController
 
         if (empty($invoice)) {
             Flash::error('Invoice not found');
+
+            return redirect(route('invoices.index'));
+        }
+
+        if ($this->lockedByAutoCount($invoice)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
 
             return redirect(route('invoices.index'));
         }
@@ -179,6 +194,12 @@ class InvoiceController extends AppBaseController
 
         if (empty($invoice)) {
             Flash::error('Invoice not found');
+
+            return redirect(route('invoices.index'));
+        }
+
+        if ($this->lockedByAutoCount($invoice)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
 
             return redirect(route('invoices.index'));
         }
@@ -399,6 +420,12 @@ class InvoiceController extends AppBaseController
             return redirect(route('invoices.index'));
         }
 
+        if ($this->lockedByAutoCount($invoice)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
+
+            return redirect(route('invoices.index'));
+        }
+
         $task = Task::where('invoice_id',$invoice->id)->first();
         if(!empty($task)){
             if ($task->status != 0) {
@@ -429,6 +456,10 @@ class InvoiceController extends AppBaseController
 
             $invoice = $this->invoiceRepository->find($id);
 
+            if (empty($invoice) || $this->lockedByAutoCount($invoice)) {
+                continue;
+            }
+
             $task = Task::where('invoice_id',$invoice->id)->first();
             if(!empty($task)){
                 if ($task->status != 0) {
@@ -451,7 +482,9 @@ class InvoiceController extends AppBaseController
         $ids = $data['ids'];
         $status = $data['status'];
 
-        $count = invoice::whereIn('id',$ids)->update(['status'=>$status]);
+        $count = invoice::whereIn('id',$ids)
+            ->whereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])
+            ->update(['status'=>$status]);
 
         return $count;
     }
@@ -517,6 +550,12 @@ class InvoiceController extends AppBaseController
             Flash::error('Invoice not found');
 
             return redirect(route('invoices.index'));
+        }
+
+        if ($this->lockedByAutoCount($driver)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
+
+            return redirect()->back();
         }
         
         $input['invoice_id'] = $id;
@@ -648,6 +687,13 @@ class InvoiceController extends AppBaseController
 
         if (empty($invoicedetail)) {
             Flash::error('Invoice Detail not found');
+
+            return redirect()->back();
+        }
+
+        $parentInvoice = Invoice::find($invoicedetail->invoice_id);
+        if (!empty($parentInvoice) && $this->lockedByAutoCount($parentInvoice)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
 
             return redirect()->back();
         }

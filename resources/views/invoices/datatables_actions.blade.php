@@ -6,6 +6,7 @@
     <a href="{{ route('invoices.show', encrypt($id)) }}" class='btn btn-ghost-success'>
        <i class="fa fa-eye"></i>
     </a>
+    @if(!in_array($sync_status ?? 0, [\App\Models\Invoice::SYNC_SYNCING, \App\Models\Invoice::SYNC_SYNCED]))
    <a href="{{ route('invoices.edit', encrypt($id)) }}" class='btn btn-ghost-info'>
        <i class="fa fa-edit"></i>
     </a>
@@ -16,5 +17,6 @@
         'onclick' => "return confirm('".trans('invoices.are_you_sure_to_delete_the_invoice')."')"
     ]) !!}
     @endnoeinvoice
+    @endif
 </div>
 {!! Form::close() !!}

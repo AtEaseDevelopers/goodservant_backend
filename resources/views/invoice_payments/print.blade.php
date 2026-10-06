@@ -193,21 +193,28 @@
                         </th>
                     </tr>
                     
+                        @php
+                            // A multi-invoice payment prints one line per
+                            // settled invoice; a normal payment keeps one line.
+                            $paymentLines = isset($batchPayments) && count($batchPayments) > 1 ? $batchPayments : [$invoice];
+                        @endphp
+                        @foreach($paymentLines as $line)
                         <tr>
                             <td>
-                                <p style="font-size:16px;">CREDIT PAYMENT</p>
+                                <p style="font-size:16px;">CREDIT PAYMENT{{ !empty($line->invoice) ? ' - '.$line->invoice->invoiceno : '' }}</p>
                             </td>
                             <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($invoice->amount,2) }}</p>
+                                <p class="ta-r" style="font-size:16px;">{{ number_format($line->amount,2) }}</p>
                             </td>
                             <td>
                                 <p class="ta-r" style="font-size:16px;">1</p>
                             </td>
                             <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($invoice->amount,2) }}</p>
+                                <p class="ta-r" style="font-size:16px;">{{ number_format($line->amount,2) }}</p>
                             </td>
                         </tr>
-                    
+                        @endforeach
+
                 </table>
             </td>
         </tr>
@@ -220,7 +227,7 @@
                             <p class="ta-l" style="font-size:18px;">Total</p>
                         </th>
                         <th>
-                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($invoice->amount,2) }}</p>
+                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($batchTotal ?? $invoice->amount,2) }}</p>
                         </td>
                     </tr>
                 </table>
@@ -232,7 +239,7 @@
                             <p class="ta-l" style="font-size:22px;">Paid Amount</p>
                         </th>
                         <td>
-                            <p class="ta-r" style="font-size:22px;">RM{{ number_format($invoice->amount,2) }}</p>
+                            <p class="ta-r" style="font-size:22px;">RM{{ number_format($batchTotal ?? $invoice->amount,2) }}</p>
                         </td>
                     </tr>
                     <tr>

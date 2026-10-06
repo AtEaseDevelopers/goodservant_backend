@@ -257,6 +257,9 @@
                     </tr>
                     @endif
                 </table>
+                @if($invoice->paymentterm != 1)
+                {{-- Credit sales only: a cash sale is settled on the spot, so
+                     the Paid Summary / Updated Credit block is meaningless. --}}
                 <p class="paidsummary">Paid Summary</p>
                 <table id="footer">
                     <tr>
@@ -276,6 +279,7 @@
                         </td>
                     </tr>
                 </table>
+                @endif
             </td>
         </tr>
         @if(!empty($invoice['remark']))

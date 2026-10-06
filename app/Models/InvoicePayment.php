@@ -27,6 +27,7 @@ class InvoicePayment extends Model
         'customer_id',
         'amount',
         'cash_received',
+        'batch_id',
         'status',
         'attachment',
         'driver_id',
