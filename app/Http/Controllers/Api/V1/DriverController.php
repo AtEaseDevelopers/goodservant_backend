@@ -2797,7 +2797,7 @@ class DriverController extends Controller
            
             return response()->json([
                 'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.invoice_add_successfully',
+                'message' => __LINE__.$this->message_separator.'api.message.payment_recorded_successfully',
                 'data' => $iv
             ], 200);
         }
