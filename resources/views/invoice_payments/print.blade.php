@@ -242,14 +242,6 @@
                             <p class="ta-r" style="font-size:22px;">RM{{ number_format($batchTotal ?? $invoice->amount,2) }}</p>
                         </td>
                     </tr>
-                    <tr>
-                        <th>
-                            <p class="ta-l" style="font-size:22px;">Updated Credit</p>
-                        </th>
-                        <td>
-                            <p class="ta-r" style="font-size:22px;">RM{{ number_format($invoice->newcredit,2) }}</p>
-                        </td>
-                    </tr>
                 </table>
             </td>
         </tr>

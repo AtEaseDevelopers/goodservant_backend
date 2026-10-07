@@ -259,7 +259,7 @@
                 </table>
                 @if($invoice->paymentterm != 1)
                 {{-- Credit sales only: a cash sale is settled on the spot, so
-                     the Paid Summary / Updated Credit block is meaningless. --}}
+                     the Paid Summary block is meaningless. --}}
                 <p class="paidsummary">Paid Summary</p>
                 <table id="footer">
                     <tr>
@@ -268,14 +268,6 @@
                         </th>
                         <td>
                             <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>
-                            <p class="ta-l" style="font-size:18px;">Updated Credit</p>
-                        </th>
-                        <td>
-                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($invoice->newcredit,2) }}</p>
                         </td>
                     </tr>
                 </table>

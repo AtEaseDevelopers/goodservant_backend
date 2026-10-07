@@ -291,14 +291,6 @@
                             </td>
                         </tr>
                         <tr>
-                            <td>
-                                <p class="ta-l" style="">Updated Credit</p>
-                            </td>
-                            <td>
-                                <p class="ta-r" style="">RM {{ number_format($invoice->newcredit ?? 0,2) }}</p>
-                            </td>
-                        </tr>
-                        <tr>
                             <td colspan="2" align="center" id="note">
                                 <p style="">Thank You!</p>
                                 <p style="">Please come again!</p>
