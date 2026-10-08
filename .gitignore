@@ -19,3 +19,6 @@ yarn-error.log
 /.vscode
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# private deployment notes (never commit)
+DEPLOY.local.md
