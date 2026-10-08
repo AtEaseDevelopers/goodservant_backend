@@ -18,10 +18,22 @@ After the owner asks for a change and it is done and checked:
 Only deploy when the owner has asked for the change to go live. If they say
 "don't deploy yet", commit locally and stop.
 
-The exact deploy commands, server address, login user and where the keys live
-are in `DEPLOY.local.md` in this folder. That file is git-ignored on purpose.
-If it is missing (fresh clone), ask the owner for it - do not guess or search
-for credentials.
+## Deploying this backend
+
+No server login is needed, only push access to this repository:
+
+1. Push `main`.
+2. Open the site's pull route (`routes/web.php` -> `DeployWebhookController::pull`):
+   `curl -sk -m 180 https://sales.snoodle.com.my/git-pull`
+   It pulls `main`, runs `composer install` and rebuilds the caches. Read the
+   output: it must show the pushed commit and no `error` / `fatal`.
+3. If the change has a migration, run it the same way:
+   `curl -sk -m 180 https://sales.snoodle.com.my/migrate`
+4. Check `https://sales.snoodle.com.my/login` still returns 200.
+
+`curl` needs `-k` on Windows. A `DEPLOY.local.md` file (git-ignored) may exist
+in this folder with SSH access for one-off checks on the server; it is optional
+for deploying. Never look for or guess credentials.
 
 ## Things that bite
 
