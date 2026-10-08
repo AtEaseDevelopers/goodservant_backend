@@ -109,6 +109,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/driver/task/listtranfer', [App\Http\Controllers\Api\V1\DriverController::class, 'listtranfer']);
     Route::post('/driver/customer/transfer', [App\Http\Controllers\Api\V1\DriverController::class, 'transfercustomer']);
     Route::get('/driver/customer/transfer', [App\Http\Controllers\Api\V1\DriverController::class, 'listcustomertransfer']);
+    Route::get('/driver/transfer/badges', [App\Http\Controllers\Api\V1\DriverController::class, 'gettransferbadges']);
     //dashboard
     Route::post('/driver/dashboard', [App\Http\Controllers\Api\V1\DriverController::class, 'dashboard']);
 

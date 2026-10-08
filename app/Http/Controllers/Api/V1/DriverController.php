@@ -3306,7 +3306,7 @@ class DriverController extends Controller
             // direction (from = giver, to = requester) is mapped onto those keys.
             $request = InventoryTransfer::where('to_driver_id', $trip->driver_id)
             ->where('date', '>=', date('Y-m-d 00:00:00'))
-            ->with('product:id,name')
+            ->with('product:id,name,image_path')
             ->with('fromdriver:id,name')
             ->orderby('date','desc')
             ->get(['id','date','status','quantity','product_id','from_driver_id'])
@@ -3325,7 +3325,7 @@ class DriverController extends Controller
             ->toarray();
             $pending = InventoryTransfer::where('from_driver_id', $trip->driver_id)
             ->where('date', '>=', date('Y-m-d 00:00:00'))
-            ->with('product:id,name')
+            ->with('product:id,name,image_path')
             ->with('todriver:id,name')
             ->orderby('date','desc')
             ->get(['id','date','status','quantity','product_id','to_driver_id'])
@@ -3669,6 +3669,40 @@ class DriverController extends Controller
                     'data' => $driver
                 ], 200);
             }
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Counters behind the red dots on the dashboard's Stock Transfer and Task
+     * Transfer buttons: stock requests waiting for my answer, and the newest
+     * customer transfer I received today (the app remembers the last one seen).
+     */
+    public function gettransferbadges(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver) || empty($request->header('session'))){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $today = date('Y-m-d 00:00:00');
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.transfer_found',
+                'data' => [
+                    'stock_pending' => InventoryTransfer::where('from_driver_id', $driver->id)->where('status', 1)->where('date', '>=', $today)->count(),
+                    'task_received_latest_id' => (int) TaskTransfer::where('to_driver_id', $driver->id)->where('date', '>=', $today)->max('id'),
+                ]
+            ], 200);
         }
         catch(Exception $e){
             return response()->json([
