@@ -1564,7 +1564,10 @@ class DriverController extends Controller
             // Ordered by the driver's saved task sequence (assigns.sequence,
             // maintained by the drag-and-drop reorder screen); customers that
             // only appear via invoices (no assign row) come last, by name.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id]);
+            // has_pending_so: the customer still has an SO from a previous day
+            // that was neither converted nor cancelled - the app shows a red
+            // dot on the customer card so the driver notices overnight orders.
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -1620,7 +1623,12 @@ class DriverController extends Controller
                     'data' => null], 400);
             }
             //process
-            $customer->customerdetail = DB::select("select i.date,i.id,'Invoice' as type, i.invoiceno as name, sum(COALESCE(id.totalprice,0)) as amount from invoices i left join invoice_details id on i.id = id.invoice_id where i.customer_id = ".$customer->id." group by i.date, i.id, i.invoiceno, i.customer_id union select ip.created_at as date,ip.id, 'Payment' as type, '' as name, ip.amount as amount from invoice_payments ip where ip.customer_id = ".$customer->id.";");
+            // status != 2: cancelled invoices stay out of the ledger (and out
+            // of the app's pay-credit invoice picker, which reads this list).
+            // outstanding = invoice total minus the completed payments recorded
+            // against that specific invoice - drives the app's "fully paid
+            // invoices don't show in the pay-credit picker" rule.
+            $customer->customerdetail = DB::select("select i.date,i.id,'Invoice' as type, i.invoiceno as name, sum(COALESCE(id.totalprice,0)) as amount, sum(COALESCE(id.totalprice,0)) - COALESCE((select sum(p.amount) from invoice_payments p where p.invoice_id = i.id and p.status = 1),0) as outstanding from invoices i left join invoice_details id on i.id = id.invoice_id where i.customer_id = ".$customer->id." and i.status != 2 group by i.date, i.id, i.invoiceno, i.customer_id union select ip.created_at as date,ip.id, 'Payment' as type, '' as name, ip.amount as amount, 0 as outstanding from invoice_payments ip where ip.customer_id = ".$customer->id." and ip.status != 2;");
             return response()->json([
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.customer_found',
@@ -2028,6 +2036,11 @@ class DriverController extends Controller
                 $invoicepayment->driver_id = $driver->id;
                 $invoicepayment->approve_by = $driver->name;
                 $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                // Cash the customer handed over; the receipt prints the change
+                // (cash_received - total) when this is more than the total.
+                if(isset($data['cash_received']) && is_numeric($data['cash_received']) && $data['cash_received'] >= $totalprice){
+                    $invoicepayment->cash_received = $data['cash_received'];
+                }
                 $invoicepayment->save();
             }
             $task = Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
@@ -2223,6 +2236,10 @@ class DriverController extends Controller
                         $invoicepayment->driver_id = $driver->id;
                         $invoicepayment->approve_by = $driver->name;
                         $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                        // Same change-on-receipt support as the online addinvoice path.
+                        if(isset($item['cash_received']) && is_numeric($item['cash_received']) && $item['cash_received'] >= $totalprice){
+                            $invoicepayment->cash_received = $item['cash_received'];
+                        }
                         $invoicepayment->save();
                     }
 
@@ -2305,7 +2322,7 @@ class DriverController extends Controller
             }
             $invoice = Invoice::where('id', $id)
                 ->where('driver_id', $driver->id)
-                ->with('customer', 'driver', 'invoicedetail.product', 'paymentAttachments')
+                ->with('customer', 'driver', 'invoicedetail.product', 'paymentAttachments', 'invoicepayment')
                 ->first();
             if(empty($invoice)){
                 return response()->json([
@@ -2366,6 +2383,20 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($invoice->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
+            if(in_array($invoice->sync_status, [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_synced_locked',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
             if($driver->lorry_id){
                 foreach($invoice->invoicedetail as $line){
@@ -2391,9 +2422,13 @@ class DriverController extends Controller
                     $inventorytransaction->save();
                 }
             }
-            InvoicePayment::where('invoice_id', $invoice->id)->delete();
-            InvoiceDetail::where('invoice_id', $invoice->id)->delete();
-            $invoice->delete();
+            // Keep the payments for history too - status 2 (Canceled, same
+            // convention as the admin panel) takes them out of the credit
+            // math, which only counts status-1 payments.
+            InvoicePayment::where('invoice_id', $invoice->id)->update(['status' => 2]);
+            // Keep the invoice and its lines for history; status 2 = Cancelled.
+            $invoice->status = 2;
+            $invoice->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -2643,26 +2678,99 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            
-            DB::beginTransaction();
-            
-            $invoicepayment = New InvoicePayment();
-            if(isset($data['invoice_id'])){
-                $invoicepayment->invoice_id = $data['invoice_id'];
+            if(isset($data['invoice_id']) && Invoice::where('id', $data['invoice_id'])->where('status', 2)->exists()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invoice_already_cancelled',
+                    'data' => null,
+                ], 400);
             }
-            
-            $invoicepayment->type = $data['type'];
-            $invoicepayment->customer_id = $data['customer_id'];
-            $invoicepayment->amount = $data['amount'];
-            $invoicepayment->status = 1;
-            $invoicepayment->chequeno = $data['cheque_no'];
-            $invoicepayment->driver_id = $driver->id;
-            $invoicepayment->approve_by = $driver->name;
-            $invoicepayment->approve_at = date('Y-m-d H:i:s');
-            //$invoicepayment->created_at = $data['date'];
-            $invoicepayment->save();
-            
-            DB::commit();
+
+            // Multi-invoice payment: the app can send invoice_ids[] to settle
+            // several invoices at once. One payment row is created per invoice
+            // (allocated oldest-first), all sharing a batch_id so the receipt
+            // PDF prints them as a single combined receipt.
+            $multiInvoiceIds = [];
+            if(!empty($data['invoice_ids']) && is_array($data['invoice_ids'])){
+                $multiInvoiceIds = array_values(array_unique(array_map('intval', $data['invoice_ids'])));
+            }
+
+            DB::beginTransaction();
+
+            if(count($multiInvoiceIds) > 0){
+                $invoices = Invoice::whereIn('id', $multiInvoiceIds)
+                    ->where('customer_id', $data['customer_id'])
+                    ->where('status', '!=', 2)
+                    ->orderBy('date', 'asc')
+                    ->get();
+                if($invoices->count() != count($multiInvoiceIds)){
+                    DB::rollback();
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.invalid_invoice_selection',
+                        'data' => null,
+                    ], 400);
+                }
+
+                $batchId = (string) \Illuminate\Support\Str::uuid();
+                $remaining = round((float) $data['amount'], 2);
+                $created = [];
+                foreach($invoices as $inv){
+                    if($remaining <= 0){
+                        break;
+                    }
+                    $outstanding = round((float) InvoiceDetail::where('invoice_id', $inv->id)->sum('totalprice')
+                        - (float) InvoicePayment::where('invoice_id', $inv->id)->where('status', 1)->sum('amount'), 2);
+                    if($outstanding <= 0){
+                        continue;
+                    }
+                    $alloc = min($outstanding, $remaining);
+                    $invoicepayment = new InvoicePayment();
+                    $invoicepayment->invoice_id = $inv->id;
+                    $invoicepayment->batch_id = $batchId;
+                    $invoicepayment->type = $data['type'];
+                    $invoicepayment->customer_id = $data['customer_id'];
+                    $invoicepayment->amount = $alloc;
+                    $invoicepayment->status = 1;
+                    $invoicepayment->chequeno = $data['cheque_no'];
+                    $invoicepayment->driver_id = $driver->id;
+                    $invoicepayment->approve_by = $driver->name;
+                    $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                    $invoicepayment->save();
+                    $created[] = $invoicepayment;
+                    $remaining = round($remaining - $alloc, 2);
+                }
+                if(empty($created)){
+                    DB::rollback();
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.no_outstanding_invoices',
+                        'data' => null,
+                    ], 400);
+                }
+                DB::commit();
+                // The first payment fronts the batch: its id is the receipt no,
+                // and paymentpdf prints every payment sharing the batch_id.
+                $invoicepayment = $created[0];
+            }else{
+                $invoicepayment = New InvoicePayment();
+                if(isset($data['invoice_id'])){
+                    $invoicepayment->invoice_id = $data['invoice_id'];
+                }
+
+                $invoicepayment->type = $data['type'];
+                $invoicepayment->customer_id = $data['customer_id'];
+                $invoicepayment->amount = $data['amount'];
+                $invoicepayment->status = 1;
+                $invoicepayment->chequeno = $data['cheque_no'];
+                $invoicepayment->driver_id = $driver->id;
+                $invoicepayment->approve_by = $driver->name;
+                $invoicepayment->approve_at = date('Y-m-d H:i:s');
+                //$invoicepayment->created_at = $data['date'];
+                $invoicepayment->save();
+
+                DB::commit();
+            }
             $iv = InvoicePayment::where('id',$invoicepayment->id)->get()->first();
            
             $iv['payment_no'] = sprintf('PR%05d',$iv->id);
@@ -2689,7 +2797,7 @@ class DriverController extends Controller
            
             return response()->json([
                 'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.invoice_add_successfully',
+                'message' => __LINE__.$this->message_separator.'api.message.payment_recorded_successfully',
                 'data' => $iv
             ], 200);
         }
@@ -2732,13 +2840,27 @@ class DriverController extends Controller
             $invoice = InvoicePayment::where('id',$id)
                     ->with('customer')
                     ->first();
-    
+
             if (empty($invoice)) {
                 abort('404');
             }
-    
+
             $min = 450;
             $each = 23;
+
+            // Multi-invoice payment: print every payment in the batch as one
+            // combined receipt (one line per settled invoice).
+            $batchPayments = null;
+            $batchTotal = null;
+            if (!empty($invoice->batch_id)) {
+                $batchPayments = InvoicePayment::where('batch_id', $invoice->batch_id)
+                    ->where('status', '!=', 2)
+                    ->with('invoice:id,invoiceno')
+                    ->orderBy('id')
+                    ->get();
+                $batchTotal = round($batchPayments->sum('amount'), 2);
+                $min = $min + (max(0, $batchPayments->count() - 1) * $each);
+            }
     
             try
             {
@@ -2762,7 +2884,9 @@ class DriverController extends Controller
             ->first() ?? null;
             
             $pdf = Pdf::loadView('invoice_payments.print', array(
-                'invoice' => $invoice
+                'invoice' => $invoice,
+                'batchPayments' => $batchPayments,
+                'batchTotal' => $batchTotal,
             ));
 
     
@@ -4076,24 +4200,22 @@ class DriverController extends Controller
 
     public function getAllLanguages(Request $request)
     {
-        $data = $request->all();
-        $driver = Driver::where('session', $request->header('session'))->first();
-        if(empty($driver)){
-            return response()->json([
-                'result' => false,
-                'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
-                'data' => null
-            ], 401);
-        }
-
+        // Intentionally NOT session-gated: the app loads this list once at
+        // startup, which can happen before login / after logout. Requiring a
+        // session made the language switcher vanish for the whole app
+        // lifetime whenever the startup fetch 401'd. Language names are not
+        // sensitive.
         $languages = MobileTranslationVersion::with('language')->get();
 
         $translations = [];
 
         foreach ($languages as $languageVersion) {
+            if (empty($languageVersion->language) || !$languageVersion->language->is_active) {
+                continue;
+            }
             $translations[] = [
-                'language' => $languageVersion->language->name, 
-                'code'     => $languageVersion->language->code,  
+                'language' => $languageVersion->language->name,
+                'code'     => $languageVersion->language->code,
                 'version'  => $languageVersion->version,
             ];
         }
@@ -4107,14 +4229,8 @@ class DriverController extends Controller
     public function getTranslations(Request $request)
     {
         $data = $request->all();
-        $driver = Driver::where('session', $request->header('session'))->first();
-        if(empty($driver)){
-            return response()->json([
-                'result' => false,
-                'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
-                'data' => null
-            ], 401);
-        }
+        // Not session-gated, same reasoning as getAllLanguages: translations
+        // must be loadable on the login screen, before any session exists.
         //validation
         $validator = Validator::make($request->all(), [
             'code' => 'required|string',
@@ -4143,7 +4259,7 @@ class DriverController extends Controller
             ->toArray();
 
         $result = [
-            'version' => $version->version,
+            'version' => $version->version ?? 0,
             'translation' => $translations
         ];
 
@@ -4173,22 +4289,11 @@ class DriverController extends Controller
                 ], 401);
             }
             //validation
+            // An active trip is NOT required: customers call in orders at night,
+            // before the driver starts the next trip. An SO created outside a
+            // trip simply has no trip/kelindan attached.
             $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            if(!empty($trip)){
-                if($trip->type == 2){
-                    return response()->json([
-                        'result' => false,
-                        'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                        'data' => null
-                    ], 401);
-                }
-            }else{
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                    'data' => null
-                ], 401);
-            }
+            $hasActiveTrip = !empty($trip) && $trip->type != 2;
             $validator = Validator::make($request->all(), [
                 'sales_order_id' => 'present|nullable|numeric',
                 'date' => 'date_format:Y-m-d H:i:s',
@@ -4217,7 +4322,7 @@ class DriverController extends Controller
             }
             //process
             DB::beginTransaction();
-            $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)
+            $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)->where('status','!=',2)
                 ->whereNull('deliveryorder_id')->whereNull('invoice_id')->first();
             $sono = null;
             $id = null;
@@ -4235,13 +4340,13 @@ class DriverController extends Controller
             $salesOrder->sono = $sono;
             $salesOrder->date = $data['date'] ?? date('Y-m-d H:i:s');
             $salesOrder->customer_id = $data['customer_id'];
-            $salesOrder->driver_id = $trip->driver_id;
-            $salesOrder->kelindan_id = $trip->kelindan_id;
+            $salesOrder->driver_id = $driver->id;
+            $salesOrder->kelindan_id = $hasActiveTrip ? $trip->kelindan_id : null;
             $salesOrder->agent_id = $customer->agent_id;
             $salesOrder->supervisor_id = $customer->supervisor_id;
             $salesOrder->status = 0;
             $salesOrder->remark = $data['remark'] ?? null;
-            $salesOrder->trip_id = $driver->trip_id;
+            $salesOrder->trip_id = $hasActiveTrip ? $driver->trip_id : null;
             $salesOrder->save();
             foreach($data['salesorderdetail'] as $line){
                 $product = Product::where('id',$line['product_id'])->first();
@@ -4509,9 +4614,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($salesOrder->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
-            SalesOrderDetail::where('sales_order_id', $salesOrder->id)->delete();
-            $salesOrder->delete();
+            // Keep the sales order and its lines for history; status 2 = Cancelled.
+            $salesOrder->status = 2;
+            $salesOrder->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -4553,8 +4666,14 @@ class DriverController extends Controller
                 'cheque_no' => 'present|nullable|string',
                 'attachments.*' => 'nullable|image|max:10240',
                 'items' => 'nullable|array',
-                'items.*.sales_order_detail_id' => 'required_with:items|numeric',
+                // Each entry either overrides an existing SO line's quantity
+                // (sales_order_detail_id) or ADDS a new product to the
+                // converted document (product_id) - the SO itself stays as the
+                // customer originally ordered it.
+                'items.*.sales_order_detail_id' => 'nullable|numeric|required_without:items.*.product_id',
+                'items.*.product_id' => 'nullable|numeric|required_without:items.*.sales_order_detail_id',
                 'items.*.quantity' => 'required_with:items|numeric|gt:0',
+                'cash_received' => 'nullable|numeric',
             ]);
             if ($validator->fails()) {
                 return response()->json([
@@ -4563,7 +4682,7 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
-            $salesOrder = SalesOrder::with('salesorderdetail')->where('id',$data['sales_order_id'])->first();
+            $salesOrder = SalesOrder::with('salesorderdetail')->where('id',$data['sales_order_id'])->where('status','!=',2)->first();
             if(empty($salesOrder)){
                 return response()->json([
                     'result' => false,
@@ -4594,23 +4713,45 @@ class DriverController extends Controller
                 ], 400);
             }
             $quantityOverrides = [];
+            $newItems = [];
             if(!empty($data['items'])){
                 $detailIds = $salesOrder->salesorderdetail->pluck('id')->all();
                 foreach($data['items'] as $item){
-                    if(!in_array($item['sales_order_detail_id'], $detailIds)){
-                        return response()->json([
-                            'result' => false,
-                            'message' => __LINE__.$this->message_separator.'api.message.invalid_sales_order_detail',
-                            'data' => null
-                        ], 400);
+                    if(!empty($item['sales_order_detail_id'])){
+                        if(!in_array($item['sales_order_detail_id'], $detailIds)){
+                            return response()->json([
+                                'result' => false,
+                                'message' => __LINE__.$this->message_separator.'api.message.invalid_sales_order_detail',
+                                'data' => null
+                            ], 400);
+                        }
+                        $quantityOverrides[$item['sales_order_detail_id']] = $item['quantity'];
+                    }else{
+                        $product = Product::where('id', $item['product_id'])->where('status', 1)->first();
+                        if(empty($product)){
+                            return response()->json([
+                                'result' => false,
+                                'message' => __LINE__.$this->message_separator.'api.message.product_not_found',
+                                'data' => null
+                            ], 400);
+                        }
+                        // Price comes from the customer's price list, never the client.
+                        $price = SpecialPrice::where('customer_id', $salesOrder->customer_id)
+                            ->where('product_id', $product->id)
+                            ->where('status', 1)
+                            ->value('price') ?? $product->price;
+                        $newItems[] = [
+                            'product_id' => $product->id,
+                            'quantity' => $item['quantity'],
+                            'price' => $price,
+                        ];
                     }
-                    $quantityOverrides[$item['sales_order_detail_id']] = $item['quantity'];
                 }
             }
             $paymentterm = (int) $data['paymentterm'];
             DB::beginTransaction();
             if($customer->is_do_customer && $paymentterm == 2){
-                $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides);
+                $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems);
                 DB::commit();
                 $result = DeliveryOrder::where('id',$deliveryOrder->id)->with('deliveryorderdetail.product')->first();
                 return response()->json([
@@ -4619,7 +4760,7 @@ class DriverController extends Controller
                     'data' => $result
                 ], 200);
             }else{
-                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides);
+                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems, $data['cash_received'] ?? null);
                 $this->storePaymentAttachments($request, $invoice);
                 DB::commit();
                 $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product', 'paymentAttachments')->first();
@@ -4640,7 +4781,7 @@ class DriverController extends Controller
         }
     }
 
-    private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = []){
+    private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = []){
         $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
         $deliveryOrder = new DeliveryOrder();
@@ -4671,13 +4812,25 @@ class DriverController extends Controller
             $detail->save();
         }
 
+        // Items added by the driver at conversion time - they go on the DO
+        // only, the original SO stays as the customer ordered it.
+        foreach($newItems as $newItem){
+            $detail = new DeliveryOrderDetail();
+            $detail->deliveryorder_id = $deliveryOrder->id;
+            $detail->product_id = $newItem['product_id'];
+            $detail->quantity = $newItem['quantity'];
+            $detail->price = $newItem['price'];
+            $detail->totalprice = $newItem['quantity'] * $newItem['price'];
+            $detail->save();
+        }
+
         $salesOrder->deliveryorder_id = $deliveryOrder->id;
         $salesOrder->save();
 
         return $deliveryOrder;
     }
 
-    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = []){
+    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = [], $cashReceived = null){
         if($paymentterm == 2){
             $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
         }else{
@@ -4756,6 +4909,44 @@ class DriverController extends Controller
             }
         }
 
+        // Items added by the driver at conversion time: invoice lines with
+        // the same stock deduction as SO lines; the SO itself is untouched.
+        foreach($newItems as $newItem){
+            $qty = $newItem['quantity'];
+            $detail = new InvoiceDetail();
+            $detail->invoice_id = $invoice->id;
+            $detail->product_id = $newItem['product_id'];
+            $detail->sales_order_id = $salesOrder->id;
+            $detail->quantity = $qty;
+            $detail->price = $newItem['price'];
+            $detail->totalprice = $qty * $newItem['price'];
+            $detail->save();
+            $totalprice = $totalprice + $detail->totalprice;
+
+            if($lorryId){
+                $inventorybalance = InventoryBalance::where('lorry_id', $lorryId)->where('product_id', $newItem['product_id'])->first();
+                if(empty($inventorybalance)){
+                    $newinventorybalance = new InventoryBalance();
+                    $newinventorybalance->lorry_id = $lorryId;
+                    $newinventorybalance->product_id = $newItem['product_id'];
+                    $newinventorybalance->quantity = 0 - $qty;
+                    $newinventorybalance->save();
+                }else{
+                    $inventorybalance->quantity = $inventorybalance->quantity - $qty;
+                    $inventorybalance->save();
+                }
+                $inventorytransaction = new InventoryTransaction();
+                $inventorytransaction->lorry_id = $lorryId;
+                $inventorytransaction->product_id = $newItem['product_id'];
+                $inventorytransaction->quantity = $qty * -1;
+                $inventorytransaction->type = 3;
+                $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
+                $inventorytransaction->date = date('Y-m-d H:i:s');
+                $inventorytransaction->trip_id = $salesOrder->trip_id;
+                $inventorytransaction->save();
+            }
+        }
+
         if($paymentterm == 1){
             $invoicepayment = new InvoicePayment();
             $invoicepayment->invoice_id = $invoice->id;
@@ -4766,6 +4957,10 @@ class DriverController extends Controller
             $invoicepayment->driver_id = $salesOrder->driver_id;
             $invoicepayment->approve_by = optional($salesOrder->driver)->name;
             $invoicepayment->approve_at = date('Y-m-d H:i:s');
+            // Receipt prints the change when the cash handed over covers the total.
+            if(is_numeric($cashReceived) && $cashReceived >= $totalprice){
+                $invoicepayment->cash_received = $cashReceived;
+            }
             $invoicepayment->save();
         }
 
@@ -4904,9 +5099,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+            if($deliveryOrder->status == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.delivery_order_already_cancelled',
+                    'data' => null
+                ], 400);
+            }
             DB::beginTransaction();
-            DeliveryOrderDetail::where('deliveryorder_id', $deliveryOrder->id)->delete();
-            $deliveryOrder->delete();
+            // Keep the delivery order and its lines for history; status 2 = Cancelled.
+            $deliveryOrder->status = 2;
+            $deliveryOrder->save();
             DB::commit();
             return response()->json([
                 'result' => true,
@@ -4951,7 +5154,7 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
-            $deliveryOrders = DeliveryOrder::with('deliveryorderdetail')->whereIn('id',$data['ids'])->whereNull('invoice_id')->get();
+            $deliveryOrders = DeliveryOrder::with('deliveryorderdetail')->whereIn('id',$data['ids'])->whereNull('invoice_id')->where('status','!=',2)->get();
             if($deliveryOrders->isEmpty()){
                 return response()->json([
                     'result' => false,

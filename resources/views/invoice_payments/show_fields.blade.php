@@ -37,7 +37,7 @@
 <!-- Status Field -->
 <div class="form-group">
     {!! Form::label('status', __('invoice_payments.status')) !!}:
-    <p>{{ $invoicePayment->status == 1 ? __('invoice_payments.completed') : __('invoice_payments.new') }}</p>
+    <p>{{ $invoicePayment->status == 2 ? __('invoice_payments.canceled') : ($invoicePayment->status == 1 ? __('invoice_payments.completed') : __('invoice_payments.new')) }}</p>
 </div>
 
 <!-- Attachment Field -->

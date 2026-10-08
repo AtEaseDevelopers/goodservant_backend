@@ -19,6 +19,10 @@ class CustomerDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
+        $dataTable->editColumn('is_do_customer', function ($customer) {
+            return $customer->is_do_customer ? 'Yes' : 'No';
+        });
+
         return $dataTable->addColumn('action', 'customers.datatables_actions');
     }
 
@@ -325,6 +329,10 @@ class CustomerDataTable extends DataTable
             'data' => 'GroupDescription',
             'name' => 'group',
             'searchable' => false]),
+
+            'is_do_customer'=> new \Yajra\DataTables\Html\Column(['title' => 'DO Customer',
+            'data' => 'is_do_customer',
+            'name' => 'customers.is_do_customer']),
         ];
     }
 

@@ -3,6 +3,7 @@
 return [
     'action' => '操作',
     'agent' => '代理',
+    'locked_by_autocount' => '发票已同步至 AutoCount，无法再编辑或删除',
     'are_you_sure_to_delete_the_invoice' => '您确定要删除此发票吗？',
     'cancel' => '取消',
     'cheque_no' => '支票编号',

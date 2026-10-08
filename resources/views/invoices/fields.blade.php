@@ -69,7 +69,7 @@
 <!-- Status Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('status',  __('invoices.status'))  !!}<span class="asterisk"> *</span>
-    {{ Form::select('status', array(0 => 'New' , 1 => 'Completed'), null, ['class' => 'form-control']) }}
+    {{ Form::select('status', array(0 => 'New' , 1 => 'Completed' , 2 => 'Cancelled'), null, ['class' => 'form-control']) }}
 </div>
 
 <!-- Remark Field -->

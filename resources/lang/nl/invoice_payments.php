@@ -13,6 +13,7 @@ return [
     'cheque' => '支票',
     'close' => '关闭',
     'completed' => '已完成',
+    'canceled' => '已取消',
     'create' => '创建',
     'create_invoice_payments' => '创建发票付款',
     'create_payment' => '创建付款',

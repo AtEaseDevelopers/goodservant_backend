@@ -13,6 +13,7 @@ return [
     'cheque' => 'Cheque',
     'close' => 'Close',
     'completed' => 'Completed',
+    'canceled' => 'Canceled',
     'create' => 'Create',
     'create_invoice_payments' => 'Create invoice payments',
     'create_payment' => 'Create payment',

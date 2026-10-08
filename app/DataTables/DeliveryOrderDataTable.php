@@ -97,7 +97,7 @@ class DeliveryOrderDataTable extends DataTable
                     ],
                     [
                         'targets' => 6,
-                        'render' => 'function(data, type){return data == 1 ? "Completed" : "New";}'
+                        'render' => 'function(data, type){return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
                     ],
                 ],
                 'initComplete' => 'function(){
@@ -108,7 +108,7 @@ class DeliveryOrderDataTable extends DataTable
                         var column = this;
                         if(columns[index].searchable){
                             if(columns[index].title == \'Status\'){
-                                var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option></select>\';
+                                var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option></select>\';
                             }else if(columns[index].title == \'Date\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{

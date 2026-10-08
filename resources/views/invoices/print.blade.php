@@ -233,7 +233,33 @@
                             <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
                         </th>
                     </tr>
+                    @php
+                        // Cash sale where the customer handed over more than the
+                        // total: print what was received and the change due.
+                        $cashReceived = optional($invoice->invoicepayment->where('type', 1)->whereNotNull('cash_received')->first())->cash_received;
+                    @endphp
+                    @if(!empty($cashReceived) && $cashReceived >= $totalamount)
+                    <tr>
+                        <th>
+                            <p class="ta-l" style="font-size:18px;">Cash Received</p>
+                        </th>
+                        <th>
+                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($cashReceived,2) }}</p>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>
+                            <p class="ta-l" style="font-size:18px;">Change</p>
+                        </th>
+                        <th>
+                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($cashReceived - $totalamount,2) }}</p>
+                        </th>
+                    </tr>
+                    @endif
                 </table>
+                @if($invoice->paymentterm != 1)
+                {{-- Credit sales only: a cash sale is settled on the spot, so
+                     the Paid Summary block is meaningless. --}}
                 <p class="paidsummary">Paid Summary</p>
                 <table id="footer">
                     <tr>
@@ -244,15 +270,8 @@
                             <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
                         </td>
                     </tr>
-                    <tr>
-                        <th>
-                            <p class="ta-l" style="font-size:18px;">Updated Credit</p>
-                        </th>
-                        <td>
-                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($invoice->newcredit,2) }}</p>
-                        </td>
-                    </tr>
                 </table>
+                @endif
             </td>
         </tr>
         @if(!empty($invoice['remark']))
