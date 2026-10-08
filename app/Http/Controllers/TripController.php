@@ -305,14 +305,6 @@ class TripController extends AppBaseController
         }
         $grandTotal = array_sum($breakdown);
 
-        // Same sales, listed invoice by invoice under each payment method
-        $salesByMethod = [];
-        foreach ($paymentLabels as $key => $label) {
-            $salesByMethod[$key] = $invoices
-                ->filter(fn ($invoice) => (int) $invoice->paymentterm === $key)
-                ->values();
-        }
-
         // Credit collected during this trip: payments the driver received against
         // invoices that were not settled in cash on the spot. The automatic payment
         // row of a cash invoice is already counted as a cash sale above.
@@ -326,18 +318,13 @@ class TripController extends AppBaseController
                 ->whereHas('invoice', function ($q) {
                     $q->where('paymentterm', '!=', 1);
                 })
-                ->with(['invoice:id,invoiceno,paymentterm', 'customer:id,company'])
-                ->orderBy('id')
                 ->get();
         }
-        $collectionsByMethod = [];
         $collectionBreakdown = [];
         foreach ($collectionLabels as $key => $label) {
-            $collectionsByMethod[$key] = $collections->where('type', $key)->values();
-            $collectionBreakdown[$key] = $collectionsByMethod[$key]->sum('amount');
+            $collectionBreakdown[$key] = $collections->where('type', $key)->sum('amount');
         }
         $collectionTotal = array_sum($collectionBreakdown);
-        $collectionCount = $collections->whereIn('type', array_keys($collectionLabels))->count();
 
         // Trip duration
         $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
@@ -438,8 +425,7 @@ class TripController extends AppBaseController
         return compact(
             'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
             'breakdown', 'grandTotal', 'paymentLabels',
-            'salesByMethod', 'collectionLabels', 'collectionsByMethod',
-            'collectionBreakdown', 'collectionTotal', 'collectionCount',
+            'collectionLabels', 'collectionBreakdown', 'collectionTotal',
             'startTime', 'endTime', 'duration',
             'stockMovements'
         );

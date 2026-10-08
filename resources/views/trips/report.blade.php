@@ -45,7 +45,6 @@
     .invoice-table td { padding: 4px 6px; border: 1px solid #ddd; font-size: 10px; vertical-align: top; }
     .invoice-table .inv-total td { background: #f0f0f0; font-weight: bold; text-align: right; }
     .invoice-table .text-right { text-align: right; }
-    .invoice-table .group-row td { background: #f0f0f0; font-weight: bold; }
 
     .mt-10 { margin-top: 10px; }
     .footer { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; text-align: center; font-size: 9px; color: #888; }
@@ -101,7 +100,7 @@
 <table class="split-table">
     <tr>
         <td class="split-cell" style="padding-right:6px;">
-            <div class="section-label mt-10">Sales Summary</div>
+            <div class="section-label mt-10">Payment Summary</div>
             <table class="summary-table">
                 <thead>
                     <tr>
@@ -117,7 +116,7 @@
                     </tr>
                     @endforeach
                     <tr class="total-row">
-                        <td>TOTAL SALES</td>
+                        <td>TOTAL</td>
                         <td class="text-right">{{ number_format($grandTotal, 2) }}</td>
                     </tr>
                 </tbody>
@@ -140,71 +139,13 @@
                     </tr>
                     @endforeach
                     <tr class="total-row">
-                        <td>TOTAL COLLECTED</td>
+                        <td>TOTAL</td>
                         <td class="text-right">{{ number_format($collectionTotal, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
         </td>
     </tr>
-</table>
-
-<div class="section-label mt-10">Sales by Payment Method</div>
-<table class="invoice-table">
-    <thead>
-        <tr>
-            <th style="width:25%">Invoice No</th>
-            <th style="width:55%">Customer</th>
-            <th style="width:20%">Amount (RM)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach($paymentLabels as $key => $label)
-            <tr class="group-row">
-                <td colspan="2">{{ $label }}</td>
-                <td class="text-right">{{ number_format($breakdown[$key] ?? 0, 2) }}</td>
-            </tr>
-            @forelse($salesByMethod[$key] as $invoice)
-            <tr>
-                <td>{{ $invoice->invoiceno }}</td>
-                <td>{{ $invoice->customer?->company ?? '-' }}</td>
-                <td class="text-right">{{ number_format($invoice->invoicedetail->sum('totalprice'), 2) }}</td>
-            </tr>
-            @empty
-            <tr><td colspan="3" style="color:#999;">No invoices.</td></tr>
-            @endforelse
-        @endforeach
-    </tbody>
-</table>
-
-<div class="section-label mt-10">Credit Collected by Payment Method</div>
-<table class="invoice-table">
-    <thead>
-        <tr>
-            <th style="width:18%">Payment No</th>
-            <th style="width:22%">Invoice No</th>
-            <th style="width:40%">Customer</th>
-            <th style="width:20%">Amount (RM)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach($collectionLabels as $key => $label)
-            <tr class="group-row">
-                <td colspan="3">{{ $label }}</td>
-                <td class="text-right">{{ number_format($collectionBreakdown[$key] ?? 0, 2) }}</td>
-            </tr>
-            @forelse($collectionsByMethod[$key] as $payment)
-            <tr>
-                <td>PR{{ str_pad($payment->id, 5, '0', STR_PAD_LEFT) }}</td>
-                <td>{{ $payment->invoice?->invoiceno ?? '-' }}</td>
-                <td>{{ $payment->customer?->company ?? '-' }}</td>
-                <td class="text-right">{{ number_format($payment->amount, 2) }}</td>
-            </tr>
-            @empty
-            <tr><td colspan="4" style="color:#999;">No payments.</td></tr>
-            @endforelse
-        @endforeach
-    </tbody>
 </table>
 
 <div class="section-label mt-10">Stock Movement</div>
