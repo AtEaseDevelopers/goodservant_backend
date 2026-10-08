@@ -125,22 +125,10 @@
         <td class="split-cell" style="padding-left:6px;">
             <div class="section-label mt-10">Credit Collected</div>
             <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>Payment Method</th>
-                        <th>Amount (RM)</th>
-                    </tr>
-                </thead>
                 <tbody>
-                    @foreach($collectionLabels as $key => $label)
-                    <tr>
-                        <td>{{ $label }}</td>
-                        <td class="text-right">{{ number_format($collectionBreakdown[$key] ?? 0, 2) }}</td>
-                    </tr>
-                    @endforeach
                     <tr class="total-row">
-                        <td>TOTAL</td>
-                        <td class="text-right">{{ number_format($collectionTotal, 2) }}</td>
+                        <td>Total Credit Collected</td>
+                        <td class="text-right">RM {{ number_format($collectionTotal, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
