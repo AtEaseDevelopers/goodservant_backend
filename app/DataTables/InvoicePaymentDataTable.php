@@ -198,7 +198,7 @@ class InvoicePaymentDataTable extends DataTable
                     });
                     var groupItems = '.json_encode(Code::where('code','customer_group')->pluck('description','value')->toArray()).';
                     var x = document.getElementById("group");
-                    $.each(groupItems, function( index, value ) {
+                    if(x) $.each(groupItems, function( index, value ) {
                         var option = document.createElement("option");
                         option.text = value;
                         option.value = index;
@@ -245,7 +245,7 @@ class InvoicePaymentDataTable extends DataTable
 
             'amount'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.amount'),
             'data' => 'amount',
-            'name' => 'invoice.amount']),
+            'name' => 'amount']),
 
             'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.status'),
             'data' => 'status',

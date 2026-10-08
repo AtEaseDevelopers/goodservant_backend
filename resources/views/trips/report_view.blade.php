@@ -94,10 +94,22 @@
                         </div>
                         <div class="card-body">
                             <table class="table table-striped table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th class="text-right">Amount (RM)</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
+                                    @foreach($collectionLabels as $key => $label)
+                                    <tr>
+                                        <td>{{ $label }}</td>
+                                        <td class="text-right">{{ number_format($collectionBreakdown[$key] ?? 0, 2) }}</td>
+                                    </tr>
+                                    @endforeach
                                     <tr class="font-weight-bold">
-                                        <td>Total Credit Collected</td>
-                                        <td class="text-right">RM {{ number_format($collectionTotal, 2) }}</td>
+                                        <td>TOTAL</td>
+                                        <td class="text-right">{{ number_format($collectionTotal, 2) }}</td>
                                     </tr>
                                 </tbody>
                             </table>

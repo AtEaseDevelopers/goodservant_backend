@@ -30,7 +30,7 @@ return [
     'offer' => '优惠',
     'operation' => '运营',
     'payment_term' => '付款条款',
-    'payment_term_cash' => '信用票据',
+    'payment_term_cash' => '现金',
     'payment_term_credit_note' => '信用票据',
     'paymentterm' => '支付方式',
     'phone' => '电话',

@@ -30,7 +30,7 @@ return [
     'offer' => 'Offer',
     'operation' => 'Operation',
     'payment_term' => 'Payment term',
-    'payment_term_cash' => 'Credit Note',
+    'payment_term_cash' => 'Cash',
     'payment_term_credit_note' => 'Credit Note',
     'is_do_customer' => 'Uses Delivery Order (Credit orders become a DO before invoicing)',
     'paymentterm' => 'Paymentterm',

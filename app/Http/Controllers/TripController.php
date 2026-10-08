@@ -308,6 +308,7 @@ class TripController extends AppBaseController
         // Credit collected during this trip: payments the driver received against
         // invoices that were not settled in cash on the spot. The automatic payment
         // row of a cash invoice is already counted as a cash sale above.
+        $collectionLabels = [1 => 'Cash', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
         $collections = collect();
         if ($startTrip) {
             $collections = InvoicePayment::where('driver_id', $endTrip->driver_id)
@@ -319,7 +320,11 @@ class TripController extends AppBaseController
                 })
                 ->get();
         }
-        $collectionTotal = $collections->sum('amount');
+        $collectionBreakdown = [];
+        foreach ($collectionLabels as $key => $label) {
+            $collectionBreakdown[$key] = $collections->where('type', $key)->sum('amount');
+        }
+        $collectionTotal = array_sum($collectionBreakdown);
 
         // Trip duration
         $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
@@ -420,7 +425,7 @@ class TripController extends AppBaseController
         return compact(
             'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
             'breakdown', 'grandTotal', 'paymentLabels',
-            'collectionTotal',
+            'collectionLabels', 'collectionBreakdown', 'collectionTotal',
             'startTime', 'endTime', 'duration',
             'stockMovements'
         );
