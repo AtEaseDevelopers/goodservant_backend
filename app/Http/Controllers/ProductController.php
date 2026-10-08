@@ -102,6 +102,35 @@ class ProductController extends AppBaseController
     }
 
     /**
+     * Drag-and-drop screen for the order products are listed in (also the
+     * order the mobile app shows them).
+     */
+    public function arrange()
+    {
+        $products = Product::with('productType:id,name')
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        return view('products.arrange', compact('products'));
+    }
+
+    public function savearrange(Request $request)
+    {
+        $ids = array_values(array_unique(array_filter((array) $request->input('products', []))));
+
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $index => $id) {
+                Product::where('id', $id)->update(['sequence' => $index + 1]);
+            }
+        });
+
+        Flash::success(__('Product sequence saved successfully.'));
+
+        return redirect(route('products.arrange'));
+    }
+
+    /**
      * Display the specified Product.
      *
      * @param int $id

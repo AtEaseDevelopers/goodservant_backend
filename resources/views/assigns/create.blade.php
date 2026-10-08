@@ -20,7 +20,7 @@
                             <div class="card-body">
                                 {!! Form::open(['route' => 'assigns.store']) !!}
 
-                                   @include('assigns.fields')
+                                   @include('assigns.create_fields')
 
                                 {!! Form::close() !!}
                             </div>

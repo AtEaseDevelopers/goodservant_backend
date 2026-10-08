@@ -40,7 +40,8 @@ class Product extends Model
         'status',
         'type',
         'type_id',
-        'classification_code'
+        'classification_code',
+        'sequence'
 
     ];
 
@@ -72,6 +73,7 @@ class Product extends Model
         'type' => 'integer',
         'type_id' => 'integer',
         'classification_code' => 'string',
+        'sequence' => 'integer',
 
     ];
 
@@ -90,6 +92,17 @@ class Product extends Model
         'created_at' => 'nullable|nullable',
         'updated_at' => 'nullable|nullable'
     ];
+
+    protected static function booted()
+    {
+        // New products (admin form or AutoCount sync) go to the end of the
+        // arranged order until an admin moves them.
+        static::creating(function ($product) {
+            if (empty($product->sequence)) {
+                $product->sequence = (int) static::max('sequence') + 1;
+            }
+        });
+    }
 
     public function productType()
     {

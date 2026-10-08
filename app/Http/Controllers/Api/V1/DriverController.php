@@ -1151,6 +1151,8 @@ class DriverController extends Controller
                                 })
                             ->where('products.status','1')
                             ->select('products.id','products.code','products.name',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                            ->orderBy('products.sequence')
+                            ->orderBy('products.id')
                             ->get();
                         $task[$c]['customer']['groupcompany'] = DB::table('companies')
                             ->where('companies.group_id',explode(',',$t['customer']['group'])[0])
@@ -1256,6 +1258,8 @@ class DriverController extends Controller
                                 })
                             ->where('products.status','1')
                             ->select('products.id','products.code','products.name',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                            ->orderBy('products.sequence')
+                            ->orderBy('products.id')
                             ->get();
                         $task[$c]['customer']['groupcompany'] = DB::table('companies')
                             ->where('companies.group_id',explode(',',$t['customer']['group'])[0])
@@ -1507,6 +1511,8 @@ class DriverController extends Controller
                     })
                 ->where('products.status','1')
                 ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                ->orderBy('products.sequence')
+                ->orderBy('products.id')
                 ->get()
                 ->map(function($item){
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
@@ -1527,6 +1533,8 @@ class DriverController extends Controller
                     })
                 ->where('products.status','1')
                 ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('products.price as "price"'))
+                ->orderBy('products.sequence')
+                ->orderBy('products.id')
                 ->get()
                 ->map(function($item){
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
@@ -2949,6 +2957,8 @@ class DriverController extends Controller
             $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)
             ->leftjoin('products','products.id','=','inventory_balances.product_id')
             ->leftjoin('product_types','product_types.id','=','products.type_id')
+            ->orderBy('products.sequence')
+            ->orderBy('products.id')
             ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name','products.image_path','products.type_id','product_types.name as type_name'])
             ->map(function($item){
                 $item->image_url = $item->image_path ? url($item->image_path) : null;
@@ -5342,7 +5352,7 @@ class DriverController extends Controller
                 ->where('date', $date)
                 ->pluck('sequence', 'customer_id');
 
-            $products = Product::orderBy('id')->get(['id', 'code', 'name']);
+            $products = Product::orderBy('sequence')->orderBy('id')->get(['id', 'code', 'name']);
 
             $rows = $salesOrders
                 ->groupBy('customer_id')

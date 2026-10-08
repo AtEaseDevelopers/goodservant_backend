@@ -350,6 +350,8 @@ Route::group(['middleware' => ['auth']], function() {
     });
     Route::group(['middleware' => ['permission:product']], function() {
         Route::get('/products/sync-xero', [App\Http\Controllers\ProductController::class, 'syncXero']);
+        Route::get('/products/arrange', [App\Http\Controllers\ProductController::class, 'arrange'])->name('products.arrange');
+        Route::post('/products/arrange', [App\Http\Controllers\ProductController::class, 'savearrange'])->name('products.savearrange');
         Route::resource('products', App\Http\Controllers\ProductController::class);
         Route::post('/products/massdestroy', [App\Http\Controllers\ProductController::class, 'massdestroy']);
         Route::post('/products/massupdatestatus', [App\Http\Controllers\ProductController::class, 'massupdatestatus']);

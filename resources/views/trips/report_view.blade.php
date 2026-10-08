@@ -58,16 +58,18 @@
             </div>
 
             <div class="row">
-                <div class="col-lg-12">
+                <div class="col-lg-6">
                     <div class="card">
                         <div class="card-header">
-                            <strong>Payment Summary</strong>
+                            <strong>Sales Summary</strong>
+                            <span class="float-right">Total Sales: <strong>RM {{ number_format($grandTotal, 2) }}</strong></span>
                         </div>
                         <div class="card-body">
-                            <table class="table table-striped table-bordered">
+                            <table class="table table-striped table-bordered mb-0">
                                 <thead>
                                     <tr>
                                         <th>Payment Method</th>
+                                        <th class="text-right">Invoices</th>
                                         <th class="text-right">Amount (RM)</th>
                                     </tr>
                                 </thead>
@@ -75,13 +77,123 @@
                                     @foreach($paymentLabels as $key => $label)
                                     <tr>
                                         <td>{{ $label }}</td>
+                                        <td class="text-right">{{ $salesByMethod[$key]->count() }}</td>
                                         <td class="text-right">{{ number_format($breakdown[$key] ?? 0, 2) }}</td>
                                     </tr>
                                     @endforeach
                                     <tr class="font-weight-bold">
-                                        <td>TOTAL</td>
+                                        <td>TOTAL SALES</td>
+                                        <td class="text-right">{{ $invoices->count() }}</td>
                                         <td class="text-right">{{ number_format($grandTotal, 2) }}</td>
                                     </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Credit Collected</strong>
+                            <span class="float-right">Total Collected: <strong>RM {{ number_format($collectionTotal, 2) }}</strong></span>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-striped table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Payment Method</th>
+                                        <th class="text-right">Payments</th>
+                                        <th class="text-right">Amount (RM)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($collectionLabels as $key => $label)
+                                    <tr>
+                                        <td>{{ $label }}</td>
+                                        <td class="text-right">{{ $collectionsByMethod[$key]->count() }}</td>
+                                        <td class="text-right">{{ number_format($collectionBreakdown[$key] ?? 0, 2) }}</td>
+                                    </tr>
+                                    @endforeach
+                                    <tr class="font-weight-bold">
+                                        <td>TOTAL COLLECTED</td>
+                                        <td class="text-right">{{ $collectionCount }}</td>
+                                        <td class="text-right">{{ number_format($collectionTotal, 2) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Sales by Payment Method</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice No</th>
+                                        <th>Customer</th>
+                                        <th class="text-right">Amount (RM)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($paymentLabels as $key => $label)
+                                        <tr style="background:#f0f3f5;">
+                                            <td colspan="2" class="font-weight-bold">{{ $label }}</td>
+                                            <td class="text-right font-weight-bold">{{ number_format($breakdown[$key] ?? 0, 2) }}</td>
+                                        </tr>
+                                        @forelse($salesByMethod[$key] as $invoice)
+                                        <tr>
+                                            <td>{{ $invoice->invoiceno }}</td>
+                                            <td>{{ $invoice->customer?->company ?? '-' }}</td>
+                                            <td class="text-right">{{ number_format($invoice->invoicedetail->sum('totalprice'), 2) }}</td>
+                                        </tr>
+                                        @empty
+                                        <tr><td colspan="3" class="text-muted">No invoices.</td></tr>
+                                        @endforelse
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Credit Collected by Payment Method</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Payment No</th>
+                                        <th>Invoice No</th>
+                                        <th>Customer</th>
+                                        <th class="text-right">Amount (RM)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($collectionLabels as $key => $label)
+                                        <tr style="background:#f0f3f5;">
+                                            <td colspan="3" class="font-weight-bold">{{ $label }}</td>
+                                            <td class="text-right font-weight-bold">{{ number_format($collectionBreakdown[$key] ?? 0, 2) }}</td>
+                                        </tr>
+                                        @forelse($collectionsByMethod[$key] as $payment)
+                                        <tr>
+                                            <td>PR{{ str_pad($payment->id, 5, '0', STR_PAD_LEFT) }}</td>
+                                            <td>{{ $payment->invoice?->invoiceno ?? '-' }}</td>
+                                            <td>{{ $payment->customer?->company ?? '-' }}</td>
+                                            <td class="text-right">{{ number_format($payment->amount, 2) }}</td>
+                                        </tr>
+                                        @empty
+                                        <tr><td colspan="4" class="text-muted">No payments.</td></tr>
+                                        @endforelse
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>

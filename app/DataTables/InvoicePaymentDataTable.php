@@ -33,6 +33,14 @@ class InvoicePaymentDataTable extends DataTable
                     $q->whereRaw("LOWER(CONCAT('PR', LPAD(invoice_payments.id, 5, '0'))) LIKE LOWER(?)", ["%{$searchValue}%"]);
                 });
             }
+
+            $invoiceNo = request('columns')[5]['search']['value'] ?? '';
+
+            if (!empty($invoiceNo)) {
+                $query->whereHas('invoice', function ($q) use ($invoiceNo) {
+                    $q->where('invoiceno', 'like', "%{$invoiceNo}%");
+                });
+            }
         });
         return $dataTable;
     }
@@ -231,8 +239,9 @@ class InvoicePaymentDataTable extends DataTable
             'name' => 'payment_no']),
             
             'invoice_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.invoice_no'),
-            'data' => 'invoice_id',
-            'name' => 'invoice.invoice_no']),
+            'data' => 'invoice.invoiceno',
+            'name' => 'invoice.invoiceno',
+            'defaultContent' => '']),
 
             'amount'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.amount'),
             'data' => 'amount',

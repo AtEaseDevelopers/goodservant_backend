@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Trip;
 use App\Models\Invoice;
+use App\Models\InvoicePayment;
 use App\Models\DeliveryOrder;
 use App\Models\TripInventoryBalance;
 use App\Models\InventoryTransaction;
@@ -304,6 +305,40 @@ class TripController extends AppBaseController
         }
         $grandTotal = array_sum($breakdown);
 
+        // Same sales, listed invoice by invoice under each payment method
+        $salesByMethod = [];
+        foreach ($paymentLabels as $key => $label) {
+            $salesByMethod[$key] = $invoices
+                ->filter(fn ($invoice) => (int) $invoice->paymentterm === $key)
+                ->values();
+        }
+
+        // Credit collected during this trip: payments the driver received against
+        // invoices that were not settled in cash on the spot. The automatic payment
+        // row of a cash invoice is already counted as a cash sale above.
+        $collectionLabels = [1 => 'Cash', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
+        $collections = collect();
+        if ($startTrip) {
+            $collections = InvoicePayment::where('driver_id', $endTrip->driver_id)
+                ->where('status', 1)
+                ->where('created_at', '>=', $startTrip->getRawOriginal('date'))
+                ->where('created_at', '<=', $endTrip->getRawOriginal('date'))
+                ->whereHas('invoice', function ($q) {
+                    $q->where('paymentterm', '!=', 1);
+                })
+                ->with(['invoice:id,invoiceno,paymentterm', 'customer:id,company'])
+                ->orderBy('id')
+                ->get();
+        }
+        $collectionsByMethod = [];
+        $collectionBreakdown = [];
+        foreach ($collectionLabels as $key => $label) {
+            $collectionsByMethod[$key] = $collections->where('type', $key)->values();
+            $collectionBreakdown[$key] = $collectionsByMethod[$key]->sum('amount');
+        }
+        $collectionTotal = array_sum($collectionBreakdown);
+        $collectionCount = $collections->whereIn('type', array_keys($collectionLabels))->count();
+
         // Trip duration
         $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
         $endTime = Carbon::parse($endTrip->getRawOriginal('date') ?? $endTrip->date);
@@ -403,6 +438,8 @@ class TripController extends AppBaseController
         return compact(
             'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
             'breakdown', 'grandTotal', 'paymentLabels',
+            'salesByMethod', 'collectionLabels', 'collectionsByMethod',
+            'collectionBreakdown', 'collectionTotal', 'collectionCount',
             'startTime', 'endTime', 'duration',
             'stockMovements'
         );

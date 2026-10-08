@@ -162,11 +162,11 @@ class ViewServiceProvider extends ServiceProvider
             $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
             $view->with('customerItems', $customerItems);
         });
-        View::composer(['assigns.fields','drivers.assign'], function ($view) {
+        View::composer(['assigns.fields','assigns.create_fields','drivers.assign'], function ($view) {
             $customerItems = Customer::where('status',1)->orderBy("company")->pluck('company','id')->toArray();
             $view->with('customerItems', $customerItems);
         });
-        View::composer(['assigns.fields','drivers.assign','assigns.massfields'], function ($view) {
+        View::composer(['assigns.fields','assigns.create_fields','drivers.assign','assigns.massfields'], function ($view) {
             $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();
             $view->with('driverItems', $driverItems);
         });

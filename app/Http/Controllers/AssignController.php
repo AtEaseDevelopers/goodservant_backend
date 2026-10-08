@@ -62,11 +62,39 @@ class AssignController extends AppBaseController
      *
      * @return Response
      */
-    public function store(CreateAssignRequest $request)
+    public function store(Request $request)
     {
-        $input = $request->all();
+        // The create form posts one row per customer (customer_id[] / sequence[])
+        $request->merge([
+            'customer_id' => array_values((array) $request->input('customer_id', [])),
+            'sequence' => array_values((array) $request->input('sequence', [])),
+        ]);
 
-        $assign = $this->assignRepository->create($input);
+        $request->validate([
+            'driver_id' => 'required|exists:drivers,id',
+            'customer_id' => 'required|array|min:1',
+            'customer_id.*' => 'required|distinct|exists:customers,id',
+            'sequence' => 'required|array',
+            'sequence.*' => 'required|integer|min:0',
+        ], [
+            'customer_id.required' => 'Please add at least one customer.',
+            'customer_id.*.required' => 'Please pick a customer on every row.',
+            'customer_id.*.distinct' => 'The same customer is listed more than once.',
+            'sequence.*.required' => 'Please enter a sequence on every row.',
+        ]);
+
+        $driverId = $request->input('driver_id');
+        $sequences = $request->input('sequence');
+
+        DB::transaction(function () use ($request, $driverId, $sequences) {
+            foreach ($request->input('customer_id') as $index => $customerId) {
+                // A customer already assigned to this driver keeps one row; only its sequence changes
+                Assign::updateOrCreate(
+                    ['driver_id' => $driverId, 'customer_id' => $customerId],
+                    ['sequence' => $sequences[$index] ?? 0]
+                );
+            }
+        });
 
         Flash::success(__('assign.assign_saved_successfully'));
 
