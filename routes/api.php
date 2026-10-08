@@ -37,6 +37,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/trip/start', [App\Http\Controllers\Api\V1\DriverController::class, 'starttrip']);
     Route::post('/driver/trip/end', [App\Http\Controllers\Api\V1\DriverController::class, 'endtrip']);
     Route::get('/driver/get-lasttrip-summary', [App\Http\Controllers\Api\V1\DriverController::class, 'getlasttripsummary']);
+    Route::get('/driver/trip/payment-summary', [App\Http\Controllers\Api\V1\DriverController::class, 'gettrippaymentsummary']);
     Route::post('/driver/trip', [App\Http\Controllers\Api\V1\DriverController::class, 'trip']);
     //Kelindan
     Route::get('/driver/kelindan', [App\Http\Controllers\Api\V1\DriverController::class, 'getkelindan']);
@@ -106,6 +107,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/task/pull', [App\Http\Controllers\Api\V1\DriverController::class, 'pulldrivertask']);
     Route::post('/driver/task/push', [App\Http\Controllers\Api\V1\DriverController::class, 'pushdrivertask']);
     Route::get('/driver/task/listtranfer', [App\Http\Controllers\Api\V1\DriverController::class, 'listtranfer']);
+    Route::post('/driver/customer/transfer', [App\Http\Controllers\Api\V1\DriverController::class, 'transfercustomer']);
+    Route::get('/driver/customer/transfer', [App\Http\Controllers\Api\V1\DriverController::class, 'listcustomertransfer']);
     //dashboard
     Route::post('/driver/dashboard', [App\Http\Controllers\Api\V1\DriverController::class, 'dashboard']);
 

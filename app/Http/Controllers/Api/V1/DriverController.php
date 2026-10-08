@@ -582,7 +582,7 @@ class DriverController extends Controller
                 'lorry_id' => 'required|numeric',
                 'cash' => 'required|numeric',
                 'advance_amount' => 'nullable|numeric',
-                'wastage' => 'present|array',
+                'wastage' => 'nullable|array',
                 'wastage.*.product_id' => 'required|numeric',
                 'wastage.*.quantity' => 'required|numeric'
             ]);
@@ -632,7 +632,7 @@ class DriverController extends Controller
                     $newtrip->save();
                     //cancelled task
                     $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['trip_id'=>$newtrip->id,'status' => 9]);
-                    foreach($data["wastage"] as $wastage) {
+                    foreach(($data["wastage"] ?? []) as $wastage) {
                         $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)->where('product_id',$wastage['product_id'])->first();
                         if(empty($inventorybalance)){
                             // No record yet — create with negative quantity (negative stock allowed)
@@ -668,6 +668,27 @@ class DriverController extends Controller
                             'type' => TripInventoryBalance::TYPE_END,
                         ]);
                     }
+                    // Ending a trip empties the lorry: whatever is left is stocked
+                    // out automatically (the snapshot above keeps what it was).
+                    // trip_id stays empty so these rows are not counted as Admin
+                    // Out in the trip's stock movement report.
+                    foreach($endbalances as $endbalance){
+                        if($endbalance->quantity == 0){
+                            continue;
+                        }
+                        $inventorytransaction = New InventoryTransaction();
+                        $inventorytransaction->lorry_id = $trip->lorry_id;
+                        $inventorytransaction->product_id = $endbalance->product_id;
+                        $inventorytransaction->quantity = $endbalance->quantity * -1;
+                        $inventorytransaction->type = $endbalance->quantity > 0 ? 2 : 1;
+                        $inventorytransaction->remark = 'End trip auto stock out';
+                        $inventorytransaction->date = date('Y-m-d H:i:s');
+                        $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
+                        $inventorytransaction->save();
+
+                        $endbalance->quantity = 0;
+                        $endbalance->save();
+                    }
                     Driver::where('id', $driver->id)->update(['trip_id' => null, 'lorry_id' => null]);
                     DB::commit();
                     return response()->json([
@@ -684,6 +705,53 @@ class DriverController extends Controller
                     'data' => null
                 ], 400);
             }
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Sales and payment collected of the trip the driver is on right now
+     * (or, once ended, of the trip just ended) - shown on the End Trip screen.
+     */
+    public function gettrippaymentsummary(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+
+            $latest = Trip::where('driver_id', $driver->id)->orderby('date','desc')->orderby('id','desc')->first();
+            $startTrip = $latest;
+            $until = null;
+            if(!empty($latest) && $latest->type == 2){
+                $until = $latest->getRawOriginal('date');
+                $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
+                    ->where('date', '<=', $until)
+                    ->orderby('date','desc')->orderby('id','desc')->first();
+            }
+            if(empty($startTrip)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.no_trip_found',
+                    'data' => null
+                ], 200);
+            }
+
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.trip_summary_found',
+                'data' => \App\Support\TripPaymentSummary::build($startTrip, $until)
+            ], 200);
         }
         catch(Exception $e){
             return response()->json([
@@ -1572,10 +1640,12 @@ class DriverController extends Controller
             // Ordered by the driver's saved task sequence (assigns.sequence,
             // maintained by the drag-and-drop reorder screen); customers that
             // only appear via invoices (no assign row) come last, by name.
+            // Customers another driver transferred to me today are added, and
+            // the ones I transferred away today are hidden (task_transfers).
             // has_pending_so: the customer still has an SO from a previous day
             // that was neither converted nor cancelled - the app shows a red
             // dot on the customer card so the driver notices overnight orders.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id]);
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id WHERE customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -2937,24 +3007,12 @@ class DriverController extends Controller
                 ], 401);
             }
             //validation
-            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            //if(!empty($trip)){
-            //    if($trip->type == 2){
-            //        return response()->json([
-            //            'result' => false,
-            //            'message' => __LINE__.$this->message_separator.'Trip had not started',
-            //            'data' => null
-            //        ], 401);
-            //    }
-            //}else{
-            //    return response()->json([
-            //        'result' => false,
-            //        'message' => __LINE__.$this->message_separator.'Trip had not started',
-            //        'data' => null
-            //    ], 401);
-            //}
+            // driver_id (optional): show that driver's lorry instead of my own -
+            // used when requesting stock from another driver.
+            $stockDriverId = $request->query('driver_id') ?: $driver->id;
+            $trip = Trip::where('driver_id', $stockDriverId)->orderby('date','desc')->first();
             //process
-            $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)
+            $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id ?? 0)
             ->leftjoin('products','products.id','=','inventory_balances.product_id')
             ->leftjoin('product_types','product_types.id','=','products.type_id')
             ->orderBy('products.sequence')
@@ -3073,12 +3131,13 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            $drivers = Trip::where('driver_id','!=',$trip->driver_id)
-            ->select('driver_id','drivers.name','drivers.employeeid')
-            ->groupby('driver_id','drivers.name','drivers.employeeid')
-            ->havingRaw('(count(driver_id) % 2) > 0')
-            ->leftjoin('drivers','drivers.id','=','trips.driver_id')
-            ->get()->toarray();
+            // Other drivers who are on a trip right now (their latest trip row is a start).
+            $drivers = Driver::where('drivers.id','!=',$trip->driver_id)
+            ->where('drivers.status', 1)
+            ->whereRaw('(select t.type from trips t where t.driver_id = drivers.id order by t.date desc, t.id desc limit 1) = 1')
+            ->orderBy('drivers.name')
+            ->get(['drivers.id as driver_id','drivers.name','drivers.employeeid'])
+            ->toarray();
             if(count($drivers) == 0){
                 return response()->json([
                     'result' => false,
@@ -3183,10 +3242,13 @@ class DriverController extends Controller
                 }
                 $inventorytransfer = New InventoryTransfer();
                 $inventorytransfer->date = date('Y-m-d H:i:s');
-                $inventorytransfer->from_driver_id = $trip->driver_id;
-                $inventorytransfer->from_lorry_id = $trip->lorry_id;
-                $inventorytransfer->to_driver_id = $totrip->driver_id;
-                $inventorytransfer->to_lorry_id = $totrip->lorry_id;
+                // A stock request: I ask the selected driver for stock. Rows are
+                // stored in the direction the stock will move - from the selected
+                // driver's lorry (who must accept) to mine.
+                $inventorytransfer->from_driver_id = $totrip->driver_id;
+                $inventorytransfer->from_lorry_id = $totrip->lorry_id;
+                $inventorytransfer->to_driver_id = $trip->driver_id;
+                $inventorytransfer->to_lorry_id = $trip->lorry_id;
                 $inventorytransfer->product_id = $td['product_id'];
                 $inventorytransfer->quantity = $td['quantity'];
                 $inventorytransfer->status = 1;
@@ -3238,20 +3300,47 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            $request = InventoryTransfer::where('from_driver_id', $trip->driver_id)
+            // "request": what I asked other drivers for. "pending": what other
+            // drivers asked me for (mine to accept or reject). The app reads the
+            // other party from todriver / fromdriver respectively, so the stored
+            // direction (from = giver, to = requester) is mapped onto those keys.
+            $request = InventoryTransfer::where('to_driver_id', $trip->driver_id)
+            ->where('date', '>=', date('Y-m-d 00:00:00'))
+            ->with('product:id,name')
+            ->with('fromdriver:id,name')
+            ->orderby('date','desc')
+            ->get(['id','date','status','quantity','product_id','from_driver_id'])
+            ->map(function($row){
+                return [
+                    'id' => $row->id,
+                    'date' => $row->date ? $row->date->format('d-m-Y H:i:s') : null,
+                    'status' => $row->status,
+                    'quantity' => $row->quantity,
+                    'product_id' => $row->product_id,
+                    'to_driver_id' => $row->from_driver_id,
+                    'product' => $row->product,
+                    'todriver' => $row->fromdriver,
+                ];
+            })
+            ->toarray();
+            $pending = InventoryTransfer::where('from_driver_id', $trip->driver_id)
             ->where('date', '>=', date('Y-m-d 00:00:00'))
             ->with('product:id,name')
             ->with('todriver:id,name')
             ->orderby('date','desc')
             ->get(['id','date','status','quantity','product_id','to_driver_id'])
-            ->toarray();
-            $pending = InventoryTransfer::where('to_driver_id', $trip->driver_id)
-            ->where('date', '>=', date('Y-m-d 00:00:00'))
-            // ->where('status', 1)
-            ->with('product:id,name')
-            ->with('fromdriver:id,name')
-            ->orderby('date','desc')
-            ->get(['id','date','status','quantity','product_id','from_driver_id'])
+            ->map(function($row){
+                return [
+                    'id' => $row->id,
+                    'date' => $row->date ? $row->date->format('d-m-Y H:i:s') : null,
+                    'status' => $row->status,
+                    'quantity' => $row->quantity,
+                    'product_id' => $row->product_id,
+                    'from_driver_id' => $row->to_driver_id,
+                    'product' => $row->product,
+                    'fromdriver' => $row->todriver,
+                ];
+            })
             ->toarray();
             return response()->json([
                 'result' => true,
@@ -3314,6 +3403,17 @@ class DriverController extends Controller
         // $inventorytransfer = InventoryTransfer::where('id', $data['transfer_id'])->where('to_driver_id',$driver->id)->first();
         $inventorytransfer = InventoryTransfer::where('id', $data['transfer_id'])->first();
         if(empty($inventorytransfer)){
+            return response()->json([
+               'result' => false,
+                'message' => __LINE__.$this->message_separator.'api.message.transfer_not_found',
+                'data' => null
+            ], 400);
+        }
+        // Only the driver who was asked (the one giving the stock) can accept.
+        // Either side may reject - for the requester that is a cancel.
+        $isGiver = $inventorytransfer->from_driver_id == $driver->id;
+        $isRequester = $inventorytransfer->to_driver_id == $driver->id;
+        if(($data['status'] == 2 && !$isGiver) || (!$isGiver && !$isRequester)){
             return response()->json([
                'result' => false,
                 'message' => __LINE__.$this->message_separator.'api.message.transfer_not_found',
@@ -3569,6 +3669,163 @@ class DriverController extends Controller
                     'data' => $driver
                 ], 200);
             }
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Customer (task) transfer: hand some of today's customers to another
+     * driver who is on a trip. Takes effect at once - the customers leave my
+     * delivery list and appear in theirs (see getcustomer()).
+     */
+    public function transfercustomer(Request $request){
+        $data = $request->all();
+        $driver = Driver::where('session', $request->header('session'))->first();
+        if(empty($driver)){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                'data' => null
+            ], 401);
+        }
+        $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->orderby('id','desc')->first();
+        if(empty($trip) || $trip->type == 2){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                'data' => null
+            ], 400);
+        }
+        $validator = Validator::make($data, [
+            'driver_id' => 'required|numeric',
+            'customer_ids' => 'required|array|min:1',
+            'customer_ids.*' => 'required|numeric',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                'data' => null
+            ], 400);
+        }
+        $todriver = Driver::where('id', $data['driver_id'])->where('id', '!=', $driver->id)->first();
+        if(empty($todriver)){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.'api.message.invalid_driver',
+                'data' => null
+            ], 400);
+        }
+        // The receiving driver must be on a trip: starting a trip later would
+        // cancel and rebuild their task list for the day.
+        $totrip = Trip::where('driver_id', $todriver->id)->orderby('date','desc')->orderby('id','desc')->first();
+        if(empty($totrip) || $totrip->type == 2){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.'api.message.selected_driver_trip_had_not_started',
+                'data' => null
+            ], 400);
+        }
+        try{
+            DB::beginTransaction();
+            $today = date('Y-m-d');
+            foreach(array_unique($data['customer_ids']) as $customerId){
+                if(empty(Customer::where('id', $customerId)->first())){
+                    DB::rollback();
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                        'data' => null
+                    ], 400);
+                }
+                $task = Task::where('driver_id', $driver->id)->where('date', $today)
+                    ->where('customer_id', $customerId)->whereIn('status', [0, 1])->first();
+                if(empty($task)){
+                    // Customer with no open task today (e.g. only reached through an
+                    // earlier invoice): give it one so it can be handed over.
+                    $task = new Task();
+                    $task->date = $today;
+                    $task->customer_id = $customerId;
+                }
+                $lastSequence = Task::where('driver_id', $todriver->id)->where('date', $today)->max('sequence');
+                $task->driver_id = $todriver->id;
+                $task->sequence = ((int) $lastSequence) + 1;
+                $task->status = 0;
+                $task->trip_id = null;
+                $task->save();
+
+                $tasktransfer = new TaskTransfer();
+                $tasktransfer->date = date('Y-m-d H:i:s');
+                $tasktransfer->from_driver_id = $driver->id;
+                $tasktransfer->to_driver_id = $todriver->id;
+                $tasktransfer->task_id = $task->id;
+                $tasktransfer->save();
+            }
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.push_task_successfully',
+                'data' => null
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /** Today's customer transfers I sent and received. */
+    public function listcustomertransfer(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $rows = DB::table('task_transfers as tt')
+                ->join('tasks as t', 't.id', '=', 'tt.task_id')
+                ->leftJoin('customers as c', 'c.id', '=', 't.customer_id')
+                ->leftJoin('drivers as fd', 'fd.id', '=', 'tt.from_driver_id')
+                ->leftJoin('drivers as td', 'td.id', '=', 'tt.to_driver_id')
+                ->where('tt.date', '>=', date('Y-m-d 00:00:00'))
+                ->whereNull('tt.deleted_at')
+                ->where(function($q) use ($driver){
+                    $q->where('tt.from_driver_id', $driver->id)->orWhere('tt.to_driver_id', $driver->id);
+                })
+                ->orderBy('tt.id', 'desc')
+                ->get(['tt.id', 'tt.date', 'tt.from_driver_id', 'tt.to_driver_id', 't.customer_id', 'c.company as customer_name', 'fd.name as from_driver_name', 'td.name as to_driver_name']);
+
+            $map = function($row){
+                return [
+                    'id' => $row->id,
+                    'date' => $row->date,
+                    'customer_id' => $row->customer_id,
+                    'customer_name' => $row->customer_name,
+                    'from_driver_name' => $row->from_driver_name,
+                    'to_driver_name' => $row->to_driver_name,
+                ];
+            };
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.task_transfer_found',
+                'data' => [
+                    'sent' => $rows->where('from_driver_id', $driver->id)->map($map)->values(),
+                    'received' => $rows->where('to_driver_id', $driver->id)->map($map)->values(),
+                ]
+            ], 200);
         }
         catch(Exception $e){
             return response()->json([
