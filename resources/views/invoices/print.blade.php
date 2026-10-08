@@ -257,21 +257,6 @@
                     </tr>
                     @endif
                 </table>
-                @if($invoice->paymentterm != 1)
-                {{-- Credit sales only: a cash sale is settled on the spot, so
-                     the Paid Summary block is meaningless. --}}
-                <p class="paidsummary">Paid Summary</p>
-                <table id="footer">
-                    <tr>
-                        <th>
-                            <p class="ta-l" style="font-size:18px;">Paid Amount</p>
-                        </th>
-                        <td>
-                            <p class="ta-r" style="font-size:18px;">RM{{ number_format($totalamount,2) }}</p>
-                        </td>
-                    </tr>
-                </table>
-                @endif
             </td>
         </tr>
         @if(!empty($invoice['remark']))
