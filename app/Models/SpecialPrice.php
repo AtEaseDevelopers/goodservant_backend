@@ -24,7 +24,11 @@ class SpecialPrice extends Model
         'product_id',
         'customer_id',
         'price',
-        'status'
+        'status',
+        // AutoCount sync bookkeeping: 'manual' = hand-entered in the OMS,
+        // 'autocount' = pushed by the plugin (and reconciled/pruned by it).
+        'source',
+        'sync_token'
     ];
 
     /**
@@ -37,7 +41,9 @@ class SpecialPrice extends Model
         'product_id' => 'integer',
         'customer_id' => 'integer',
         'price' => 'float',
-        'status' => 'integer'
+        'status' => 'integer',
+        'source' => 'string',
+        'sync_token' => 'string'
     ];
 
     /**
