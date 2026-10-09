@@ -86,11 +86,20 @@ class Code extends Model
      * stores which yymm period the current `value` belongs to, so a month
      * change can be detected without a schema migration.
      */
-    public static function nextRunningNumber(string $code, string $prefix): string
+    public static function nextRunningNumber(string $code, string $prefix, bool $reuseCancelled = true): string
     {
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($code, $prefix) {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($code, $prefix, $reuseCancelled) {
             $row = static::where('code', $code)->lockForUpdate()->firstOrFail();
             $period = date('ym');
+
+            // Invoice numbers: a number freed by a cancelled invoice of this
+            // month is handed out again before the counter moves on.
+            if ($reuseCancelled && in_array($code, ['invoicerunningnumber', 'cashsalesrunningnumber'], true)) {
+                $reused = static::takeCancelledInvoiceNumber($prefix, $period);
+                if ($reused !== null) {
+                    return $reused;
+                }
+            }
 
             if ($row->STR_UDF1 !== $period) {
                 $row->value = 1;
@@ -102,5 +111,47 @@ class Code extends Model
 
             return $prefix . $period . '/' . sprintf('%04d', $row->value);
         });
+    }
+
+    /**
+     * Lowest running number of this month held by a cancelled invoice, or null.
+     *
+     * The cancelled invoice keeps its record but gives the number up: it is
+     * renamed with a "-C" suffix (IV2610/0005 -> IV2610/0005-C) so the number
+     * stays unique. Invoices already sent to AutoCount are left alone - their
+     * number exists there and must not be issued twice.
+     *
+     * Must run inside the caller's transaction (the counter row is locked).
+     */
+    protected static function takeCancelledInvoiceNumber(string $prefix, string $period): ?string
+    {
+        $candidates = Invoice::where('status', 2)
+            ->where('invoiceno', 'REGEXP', '^' . $prefix . $period . '/[0-9]+$')
+            ->whereNull('api_invoice_id')
+            ->whereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])
+            ->orderBy('invoiceno')
+            ->lockForUpdate()
+            ->get(['id', 'invoiceno']);
+
+        foreach ($candidates as $cancelled) {
+            $number = $cancelled->invoiceno;
+
+            // Never hand out a number another invoice is still using
+            if (Invoice::where('invoiceno', $number)->where('id', '!=', $cancelled->id)->exists()) {
+                continue;
+            }
+
+            $suffix = 1;
+            do {
+                $renamed = $number . '-C' . ($suffix > 1 ? $suffix : '');
+                $suffix++;
+            } while (Invoice::where('invoiceno', $renamed)->exists());
+
+            Invoice::where('id', $cancelled->id)->update(['invoiceno' => $renamed]);
+
+            return $number;
+        }
+
+        return null;
     }
 }

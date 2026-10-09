@@ -2242,7 +2242,7 @@ class DriverController extends Controller
                     // Same counter/format as an online invoice (IV2609/0012),
                     // just with an "A" right before the running number itself
                     // (IV2609/A0012) to flag it as created while offline.
-                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('invoicerunningnumber', 'IV'));
+                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('invoicerunningnumber', 'IV', false));
 
                     $invoice = new Invoice();
                     $invoice->date = $item['date'] ?? date('Y-m-d H:i:s');
