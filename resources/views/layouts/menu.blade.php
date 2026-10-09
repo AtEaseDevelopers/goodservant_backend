@@ -337,6 +337,7 @@
         </ul>
     @endcan
 
+    {{-- Special Prices menu hidden on request (the page and its routes still exist).
     @can('specialprice')
         <ul class="nav-dropdown-items">
             <li class="nav-item {{ Request::is('specialprices*') ? 'active' : '' }}">
@@ -346,6 +347,7 @@
             </li>
         </ul>
     @endcan
+    --}}
 
     @can('foc')
         <ul class="nav-dropdown-items">
