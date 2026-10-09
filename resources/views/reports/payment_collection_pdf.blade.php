@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <style>
+    @page { margin: 28px 36px; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #222; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #222; padding: 0 16px; }
+
+    /* one driver per page */
+    .driver-section { page-break-inside: auto; }
+    .driver-section.new-page { page-break-before: always; }
+    .driver-title { font-size: 12px; font-weight: bold; padding: 4px 0 6px 0; }
+    .grand-total { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .grand-total td { padding: 6px; font-size: 11px; font-weight: bold; background: #e0e0e0; border: 1px solid #ccc; border-top: 2px solid #333; }
 
     .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 8px; }
     .header h1 { font-size: 15px; font-weight: bold; }
@@ -76,48 +84,53 @@
     </tbody>
 </table>
 
-<div class="section-label">Payments</div>
-<table class="list">
-    <thead>
-        <tr>
-            <th style="width:13%">Date / Time</th>
-            <th style="width:10%">Payment No</th>
-            <th style="width:13%">Invoice No</th>
-            <th style="width:26%">Customer</th>
-            <th style="width:14%">Collected By</th>
-            <th style="width:13%">Method</th>
-            <th style="width:11%" class="text-right">Amount (RM)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($rowsByCollector as $collector => $collectorRows)
+@forelse($rowsByCollector as $collector => $collectorRows)
+<div class="driver-section {{ $loop->first ? '' : 'new-page' }}">
+    <div class="section-label driver-title">Collected by: {{ $collector }}</div>
+    <table class="list">
+        <thead>
+            <tr>
+                <th style="width:14%">Date / Time</th>
+                <th style="width:12%">Payment No</th>
+                <th style="width:15%">Invoice No</th>
+                <th style="width:32%">Customer</th>
+                <th style="width:15%">Method</th>
+                <th style="width:12%" class="text-right">Amount (RM)</th>
+            </tr>
+        </thead>
+        <tbody>
             @foreach($collectorRows as $row)
             <tr>
                 <td>{{ $row['time'] }}</td>
                 <td>{{ $row['payment_no'] }}</td>
                 <td>{{ $row['invoice_no'] }}</td>
                 <td>{{ $row['customer'] }}</td>
-                <td>{{ $row['collector'] }}</td>
                 <td>{{ $row['method'] }}</td>
                 <td class="text-right">{{ number_format($row['amount'], 2) }}</td>
             </tr>
             @endforeach
             <tr class="subtotal">
-                <td colspan="6" class="text-right">Total collected by {{ $collector }} ({{ $collectorRows->count() }} payments)</td>
+                <td colspan="5" class="text-right">Total collected by {{ $collector }} ({{ $collectorRows->count() }} payments)</td>
                 <td class="text-right">{{ number_format($collectorRows->sum('amount'), 2) }}</td>
             </tr>
-        @empty
-            <tr><td colspan="7" style="text-align:center;padding:12px;">No payments collected in this period.</td></tr>
-        @endforelse
+        </tbody>
+    </table>
 
-        @if($rows->isNotEmpty())
-        <tr class="grand">
-            <td colspan="6" class="text-right">GRAND TOTAL</td>
-            <td class="text-right">{{ number_format($grandTotal, 2) }}</td>
+    @if($loop->last)
+    <table class="grand-total">
+        <tr>
+            <td>GRAND TOTAL ({{ $rows->count() }} payments)</td>
+            <td style="text-align:right; width:25%">{{ number_format($grandTotal, 2) }}</td>
         </tr>
-        @endif
-    </tbody>
+    </table>
+    @endif
+</div>
+@empty
+<div class="section-label">Payments</div>
+<table class="list">
+    <tr><td style="text-align:center;padding:12px;">No payments collected in this period.</td></tr>
 </table>
+@endforelse
 
 <div class="footer">
     Payments recorded in the system, plus invoices paid on the spot by online banking, e-wallet or cheque.
