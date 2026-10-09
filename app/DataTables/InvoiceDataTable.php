@@ -34,6 +34,11 @@ class InvoiceDataTable extends DataTable
             });
         }
 
+        $discountProductId = \App\Support\InvoiceDiscount::productId();
+        $dataTable->addColumn('discount', function ($invoice) use ($discountProductId) {
+            return number_format(abs((float) $invoice->invoicedetail->where('product_id', $discountProductId)->sum('totalprice')), 2, '.', '');
+        });
+
         return $dataTable->addColumn('action', 'invoices.datatables_actions');
     }
 
@@ -134,12 +139,12 @@ class InvoiceDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 6,
+                        'targets' => 7,
                         'visible' => true,
                         'render' => 'function(data, type){var totalprice = 0; $.each(data,function(index,value){ totalprice=totalprice+parseFloat(value.totalprice) }); return totalprice.toFixed(2);}'
                     ],
                     [
-                    'targets' => 7,
+                    'targets' => 8,
                     'render' => 'function(data, type, row){
                             var paymentTerms = {
                                 1: \'Cash\',
@@ -152,11 +157,11 @@ class InvoiceDataTable extends DataTable
                         }'
                     ],
                     [
-                    'targets' => 8,
+                    'targets' => 9,
                     'render' => 'function(data, type){return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
                     ],
                     [
-                    'targets' => 9,
+                    'targets' => 10,
                     'render' => 'function(data, type, row){
                             var map = {0:"—",1:"Pending",2:"Syncing",3:"Synced",4:"Failed"};
                             var label = map[data] || "—";
@@ -269,6 +274,15 @@ class InvoiceDataTable extends DataTable
             //     'name' => 'supervisor.name'
             // ]),
 
+            'discount' => new \Yajra\DataTables\Html\Column([
+                'title' => 'Discount',
+                'data' => 'discount',
+                'name' => 'discount',
+                'orderable' => false,
+                'searchable' => false
+            ]),
+
+            // Total Price is the sum of all lines, so it is already net of the discount
             'total' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('invoices.total_price'),
                 'data' => 'invoicedetail',
