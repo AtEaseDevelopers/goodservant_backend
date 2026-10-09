@@ -4994,6 +4994,7 @@ class DriverController extends Controller
                 'items.*.product_id' => 'nullable|numeric|required_without:items.*.sales_order_detail_id',
                 'items.*.quantity' => 'required_with:items|numeric|gt:0',
                 'cash_received' => 'nullable|numeric',
+                'discount' => 'nullable|numeric|min:0',
             ]);
             if ($validator->fails()) {
                 return response()->json([
@@ -5080,7 +5081,7 @@ class DriverController extends Controller
                     'data' => $result
                 ], 200);
             }else{
-                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems, $data['cash_received'] ?? null);
+                $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems, $data['cash_received'] ?? null, $data['discount'] ?? 0);
                 $this->storePaymentAttachments($request, $invoice);
                 DB::commit();
                 $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product', 'paymentAttachments')->first();
@@ -5150,7 +5151,7 @@ class DriverController extends Controller
         return $deliveryOrder;
     }
 
-    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = [], $cashReceived = null){
+    private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = [], $cashReceived = null, $discount = 0){
         if($paymentterm == 2){
             $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
         }else{
@@ -5266,6 +5267,10 @@ class DriverController extends Controller
                 $inventorytransaction->save();
             }
         }
+
+        // Discount (e.g. RM 15.40 -> RM 15.00): one negative line, so the
+        // payment below and every later total are net of it.
+        $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $discount);
 
         if($paymentterm == 1){
             $invoicepayment = new InvoicePayment();
