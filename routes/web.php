@@ -270,6 +270,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::group(['middleware' => ['permission:report']], function() {
         Route::get('/reports/daily-sales', [App\Http\Controllers\ReportController::class, 'dailySalesForm'])->name('reports.daily-sales');
         Route::post('/reports/daily-sales/pdf', [App\Http\Controllers\ReportController::class, 'dailySalesPdf'])->name('reports.daily-sales.pdf');
+        Route::get('/reports/payment-collection', [App\Http\Controllers\ReportController::class, 'paymentCollectionForm'])->name('reports.payment-collection');
+        Route::post('/reports/payment-collection/pdf', [App\Http\Controllers\ReportController::class, 'paymentCollectionPdf'])->name('reports.payment-collection.pdf');
         Route::get('/reports/packing-list', [App\Http\Controllers\ReportController::class, 'packingListForm'])->name('reports.packing-list');
         Route::post('/reports/packing-list/pdf', [App\Http\Controllers\ReportController::class, 'packingListPdf'])->name('reports.packing-list.pdf');
         Route::resource('reports', App\Http\Controllers\ReportController::class);

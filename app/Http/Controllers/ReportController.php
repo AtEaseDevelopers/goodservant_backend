@@ -179,6 +179,109 @@ class ReportController extends AppBaseController
 
     // ── Packing List ─────────────────────────────────────────────────────────
 
+    // ── Payment Collection Report ───────────────────────────────────────────
+
+    public function paymentCollectionForm()
+    {
+        $drivers = Driver::orderBy('name')->get();
+
+        return view('reports.payment_collection_filters', compact('drivers'));
+    }
+
+    /**
+     * Every payment collected in the period: which invoice it belongs to, who
+     * collected it, how it was paid and the amount.
+     */
+    public function paymentCollectionPdf(Request $request)
+    {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
+
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'driver_id' => 'nullable|integer|exists:drivers,id',
+        ]);
+
+        $dateFrom = $request->date_from;
+        $dateTo = $request->date_to;
+        $driverId = $request->driver_id ?: null;
+        $methodLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
+        $driverNames = Driver::pluck('name', 'id');
+
+        // Recorded payments: the automatic payment of a cash invoice, and every
+        // payment taken against a credit invoice (by a driver or in the admin).
+        $payments = InvoicePayment::where('status', 1)
+            ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+            ->when($driverId, fn ($q) => $q->where('driver_id', $driverId))
+            ->with(['invoice:id,invoiceno', 'customer:id,company'])
+            ->get();
+
+        $rows = $payments->map(function ($payment) use ($methodLabels, $driverNames) {
+            $at = $payment->getRawOriginal('created_at');
+
+            return [
+                'sort' => $at,
+                'time' => Carbon::parse($at)->format('d-m-Y H:i'),
+                'payment_no' => 'PR' . str_pad($payment->id, 5, '0', STR_PAD_LEFT),
+                'invoice_no' => $payment->invoice->invoiceno ?? '-',
+                'customer' => $payment->customer->company ?? '-',
+                // Payments keyed in from the admin panel have no driver
+                'collector' => $driverNames[$payment->driver_id] ?? ($payment->approve_by ?: 'Admin'),
+                'method' => $methodLabels[$payment->type] ?? '-',
+                'amount' => (float) $payment->amount,
+            ];
+        });
+
+        // Invoices paid on the spot by online banking / e-wallet / cheque have no
+        // payment record of their own - the invoice itself is the collection.
+        $spotInvoices = Invoice::where('status', 1)
+            ->whereIn('paymentterm', [3, 4, 5])
+            ->whereBetween(DB::raw('DATE(date)'), [$dateFrom, $dateTo])
+            ->when($driverId, fn ($q) => $q->where('driver_id', $driverId))
+            ->whereDoesntHave('invoicepayment', fn ($q) => $q->where('status', 1))
+            ->with(['customer:id,company', 'invoicedetail:id,invoice_id,totalprice'])
+            ->get();
+
+        foreach ($spotInvoices as $invoice) {
+            $at = $invoice->getRawOriginal('date');
+            $rows->push([
+                'sort' => $at,
+                'time' => Carbon::parse($at)->format('d-m-Y H:i'),
+                'payment_no' => '-',
+                'invoice_no' => $invoice->invoiceno,
+                'customer' => $invoice->customer->company ?? '-',
+                'collector' => $driverNames[$invoice->driver_id] ?? 'Admin',
+                'method' => $methodLabels[$invoice->paymentterm] ?? '-',
+                'amount' => (float) $invoice->invoicedetail->sum('totalprice'),
+            ]);
+        }
+
+        $rows = $rows->sortBy('sort')->values();
+        $rowsByCollector = $rows->groupBy('collector')->sortKeys();
+
+        $methodSummary = [];
+        foreach ($methodLabels as $type => $label) {
+            $matching = $rows->where('method', $label);
+            if ($type === 2 && $matching->isEmpty()) {
+                continue; // "Credit" is not a way of paying; only listed if such a record exists
+            }
+            $methodSummary[$label] = ['count' => $matching->count(), 'amount' => $matching->sum('amount')];
+        }
+
+        $pdf = Pdf::loadView('reports.payment_collection_pdf', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'driverName' => $driverId ? ($driverNames[$driverId] ?? null) : null,
+            'rows' => $rows,
+            'rowsByCollector' => $rowsByCollector,
+            'methodSummary' => $methodSummary,
+            'grandTotal' => $rows->sum('amount'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('payment-collection-' . $dateFrom . ($dateFrom !== $dateTo ? '-to-' . $dateTo : '') . '.pdf');
+    }
+
     public function packingListForm()
     {
         $drivers = Driver::orderBy('name')->get();

@@ -63,6 +63,29 @@
                                     </div>
                                 </div>
 
+                                {{-- Payment Collection Report --}}
+                                <div class="col-md-4 mb-4">
+                                    <div class="card h-100 shadow-sm" style="border-left: 4px solid #17a2b8;">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <span class="fa-stack fa-lg mr-3" style="color:#17a2b8;">
+                                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                                    <i class="fa fa-money fa-stack-1x fa-inverse"></i>
+                                                </span>
+                                                <h5 class="mb-0">Payment Collection Report</h5>
+                                            </div>
+                                            <p class="text-muted small">
+                                                All payments collected for a day or date range - the invoice each payment belongs to, the driver who collected it, the payment method and amount.
+                                            </p>
+                                        </div>
+                                        <div class="card-footer bg-transparent border-0">
+                                            <a href="{{ route('reports.payment-collection') }}" class="btn btn-info btn-sm">
+                                                <i class="fa fa-arrow-right"></i> Open Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
