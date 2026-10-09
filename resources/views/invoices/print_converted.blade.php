@@ -126,15 +126,26 @@
             </tr>
         </thead>
         <tbody>
-            @php $totalamount = 0; @endphp
-            @foreach ($invoice['invoicedetail'] as $i => $invoicedetail)
+            @php
+                $totalamount = 0;
+                // The discount is a negative line on a hidden product: listed under the total box instead.
+                $discountProductId = \App\Support\InvoiceDiscount::productId();
+                $discountAmount = 0;
+                $itemNo = 0;
+            @endphp
+            @foreach ($invoice['invoicedetail'] as $invoicedetail)
+                @if((int) ($invoicedetail['product_id'] ?? 0) === $discountProductId)
+                    @php $discountAmount += abs($invoicedetail['totalprice']); @endphp
+                    @continue
+                @endif
                 @php
+                    $itemNo++;
                     $totalamount = ($totalamount ?? 0) + $invoicedetail['totalprice'];
                     $itemLabel = $invoicedetail['product']['name'] ?? '';
                     $doNo = $invoicedetail['deliveryorder']['dono'] ?? '';
                 @endphp
                 <tr>
-                    <td class="col-item">{{ $i + 1 }}.</td>
+                    <td class="col-item">{{ $itemNo }}.</td>
                     <td class="col-desc">{{ $itemLabel }}</td>
                     <td class="col-do">{{ $doNo }}</td>
                     <td class="col-qty">{{ $invoicedetail['quantity'] }}</td>
@@ -148,6 +159,17 @@
 
     <div class="footer-block">
         <table>
+            @if($discountAmount > 0)
+            <tr>
+                <td width="70%"></td>
+                <td width="30%" class="ta-r">Subtotal &nbsp; {{ number_format($totalamount, 2) }}</td>
+            </tr>
+            <tr>
+                <td width="70%"></td>
+                <td width="30%" class="ta-r">Discount &nbsp; -{{ number_format($discountAmount, 2) }}</td>
+            </tr>
+            @php $totalamount = $totalamount - $discountAmount; @endphp
+            @endif
             <tr class="amount-words-row">
                 <td width="70%">{{ \App\Support\NumberToWords::ringgit($totalamount) }}</td>
                 <td width="30%" class="total-box ta-r">Total &nbsp; {{ number_format($totalamount, 2) }}</td>

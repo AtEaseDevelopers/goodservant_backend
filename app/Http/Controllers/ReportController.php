@@ -578,11 +578,13 @@ class ReportController extends AppBaseController
             }
     
             foreach ($invoice->invoicedetail as $detail) {
-                $reportData[$customerName][$agentName][$day]['quantity'] += $detail->quantity;
+                // A discount line reduces the price but is not a sold unit
+                $soldQuantity = \App\Support\InvoiceDiscount::isDiscountProduct($detail->product_id) ? 0 : $detail->quantity;
+                $reportData[$customerName][$agentName][$day]['quantity'] += $soldQuantity;
                 $reportData[$customerName][$agentName][$day]['price'] += $detail->totalprice;
     
                 // Add to totals
-                $reportData[$customerName][$agentName]['Total Quantity'] += $detail->quantity;
+                $reportData[$customerName][$agentName]['Total Quantity'] += $soldQuantity;
                 $reportData[$customerName][$agentName]['Total Price'] += $detail->totalprice;
             }
     

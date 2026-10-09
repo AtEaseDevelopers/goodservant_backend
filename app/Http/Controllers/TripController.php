@@ -372,7 +372,7 @@ class TripController extends AppBaseController
         $invoiceSalesMap = [];
         foreach ($invoices as $invoice) {
             foreach ($invoice->invoicedetail as $detail) {
-                if ($detail->product_id && empty($detail->deliveryorder_id)) {
+                if ($detail->product_id && empty($detail->deliveryorder_id) && !\App\Support\InvoiceDiscount::isDiscountProduct($detail->product_id)) {
                     $invoiceSalesMap[$detail->product_id] = ($invoiceSalesMap[$detail->product_id] ?? 0) + $detail->quantity;
                 }
             }

@@ -390,6 +390,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::get('/invoices/{id}/detail', [App\Http\Controllers\InvoiceController::class, 'detail'])->name('invoices.detail');
         Route::post('/invoices/{id}/adddetail', [App\Http\Controllers\InvoiceController::class, 'adddetail'])->name('invoices.adddetail');
         Route::delete('/invoices/{id}/deletedetail', [App\Http\Controllers\InvoiceController::class, 'deletedetail'])->name('invoices.deletedetail');
+        Route::post('/invoices/{id}/discount', [App\Http\Controllers\InvoiceController::class, 'setdiscount'])->name('invoices.discount');
         Route::get('/invoices/customer/{id}', [App\Http\Controllers\InvoiceController::class, 'getcustomer']);
         Route::resource('invoices', App\Http\Controllers\InvoiceController::class);
         Route::post('/invoices/massdestroy', [App\Http\Controllers\InvoiceController::class, 'massdestroy']);

@@ -198,8 +198,16 @@
                     </tr>
                     @php
                             $totalamount = 0;
+                            // The discount is stored as a negative line on a hidden product:
+                            // keep it out of the item rows and show it under the subtotal.
+                            $discountProductId = \App\Support\InvoiceDiscount::productId();
+                            $discountAmount = 0;
                     @endphp
                     @foreach ($invoice['invoicedetail'] as $invoicedetail)
+                        @if((int) ($invoicedetail['product_id'] ?? 0) === $discountProductId)
+                            @php $discountAmount += abs($invoicedetail['totalprice']); @endphp
+                            @continue
+                        @endif
                         @php
                             $totalamount = ($totalamount ?? 0) + $invoicedetail['totalprice'];
                         @endphp
@@ -225,6 +233,25 @@
             <td>
                 <br>
                 <table id="total">
+                    @if($discountAmount > 0)
+                    <tr>
+                        <td>
+                            <p class="ta-l" style="font-size:16px;">Subtotal</p>
+                        </td>
+                        <td>
+                            <p class="ta-r" style="font-size:16px;">RM{{ number_format($totalamount,2) }}</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <p class="ta-l" style="font-size:16px;">Discount</p>
+                        </td>
+                        <td>
+                            <p class="ta-r" style="font-size:16px;">-RM{{ number_format($discountAmount,2) }}</p>
+                        </td>
+                    </tr>
+                    @php $totalamount = $totalamount - $discountAmount; @endphp
+                    @endif
                     <tr>
                         <th>
                             <p class="ta-l" style="font-size:18px;">Total</p>

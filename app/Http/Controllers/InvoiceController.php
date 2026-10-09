@@ -679,6 +679,47 @@ class InvoiceController extends AppBaseController
         Session::forget('invoice_detail_data');
     }
 
+    /**
+     * Set or remove the invoice's discount (e.g. round RM 15.40 down to RM 15.00).
+     */
+    public function setdiscount($id, Request $request)
+    {
+        $id = Crypt::decrypt($id);
+        $invoice = $this->invoiceRepository->find($id);
+
+        if (empty($invoice)) {
+            Flash::error('Invoice not found');
+
+            return redirect(route('invoices.index'));
+        }
+
+        if ($this->lockedByAutoCount($invoice)) {
+            Flash::error(trans('invoices.locked_by_autocount'));
+
+            return redirect()->back();
+        }
+
+        $request->validate(['discount' => 'required|numeric|min:0']);
+
+        DB::transaction(function () use ($id, $request) {
+            $oldTotal = round((float) InvoiceDetail::where('invoice_id', $id)->sum('totalprice'), 2);
+            $applied = \App\Support\InvoiceDiscount::set($id, $request->input('discount'));
+            $newTotal = round((float) InvoiceDetail::where('invoice_id', $id)->sum('totalprice'), 2);
+
+            // An invoice settled by one payment for exactly its old total (a cash
+            // sale) stays exactly settled: the payment follows the new total.
+            $payments = \App\Models\InvoicePayment::where('invoice_id', $id)->where('status', 1)->get();
+            if ($payments->count() === 1 && round((float) $payments[0]->amount, 2) === $oldTotal && $newTotal !== $oldTotal) {
+                $payments[0]->amount = $newTotal;
+                $payments[0]->save();
+            }
+
+            Flash::success($applied > 0 ? 'Discount of RM ' . number_format($applied, 2) . ' saved.' : 'Discount removed.');
+        });
+
+        return redirect(route('invoices.show', encrypt($id)));
+    }
+
     public function deletedetail($id)
     {
         $id = Crypt::decrypt($id);

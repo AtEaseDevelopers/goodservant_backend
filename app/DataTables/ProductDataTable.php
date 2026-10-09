@@ -32,6 +32,8 @@ class ProductDataTable extends DataTable
     {
         return $model->newQuery()
             ->select('products.*')
+            // the hidden system product behind invoice discounts
+            ->where('products.code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
             ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
             ->addSelect('product_types.name as type_name');
     }

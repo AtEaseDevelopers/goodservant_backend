@@ -58,7 +58,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('lorryItems', $lorryItems);
         });
         View::composer(['inventory_transfers.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['inventory_transfers.fields'], function ($view) {
@@ -78,7 +78,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('lorryItems', $lorryItems);
         });
         View::composer(['inventory_transactions.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['inventory_transactions.fields'], function ($view) {
@@ -86,7 +86,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('lorryItems', $lorryItems);
         });
         View::composer(['inventory_balances.index'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['inventory_balances.index'], function ($view) {
@@ -95,7 +95,7 @@ class ViewServiceProvider extends ServiceProvider
         });
 
         View::composer(['inventory_balances.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['inventory_balances.fields'], function ($view) {
@@ -135,7 +135,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('invoiceItems', $invoiceItems);
         });
         View::composer(['invoice_details.fields','invoices.detail'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['invoice_details.fields','invoices.detail'], function ($view) {
@@ -175,7 +175,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('groups', $groups);
         });
         View::composer(['focs.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['focs.fields'], function ($view) {
@@ -183,7 +183,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('customerItems', $customerItems);
         });
         View::composer(['focs.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['special_prices.fields'], function ($view) {
@@ -191,7 +191,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('customerItems', $customerItems);
         });
         View::composer(['special_prices.fields'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['customers.fields'], function ($view) {
@@ -326,7 +326,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('supervisorItems', $supervisorItems);
         });
         View::composer(['sales_orders.detail'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
 
@@ -351,7 +351,7 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('supervisorItems', $supervisorItems);
         });
         View::composer(['delivery_orders.detail'], function ($view) {
-            $productItems = Product::pluck('name','id')->toArray();
+            $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
 

@@ -108,6 +108,7 @@ class ProductController extends AppBaseController
     public function arrange()
     {
         $products = Product::with('productType:id,name')
+            ->where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
             ->orderBy('sequence')
             ->orderBy('id')
             ->get();

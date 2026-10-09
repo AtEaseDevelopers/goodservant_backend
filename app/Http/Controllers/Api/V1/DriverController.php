@@ -808,6 +808,9 @@ class DriverController extends Controller
                 $invoiceTotal = 0;
                 foreach($invoice->invoicedetail as $line){
                     $invoiceTotal += $line->totalprice;
+                    if(\App\Support\InvoiceDiscount::isDiscountProduct($line->product_id)){
+                        continue;
+                    }
                     $productId = $line->product_id;
                     if(!isset($productsSold[$productId])){
                         $productsSold[$productId] = ['name' => $line->product?->name ?? 'Unknown', 'quantity' => 0];
@@ -1984,6 +1987,7 @@ class DriverController extends Controller
                 'invoicedetail.*.quantity' => 'required',
                 'invoicedetail.*.price' => 'required',
                 'invoicedetail.*.foc' => 'required|boolean',
+                'discount' => 'nullable|numeric|min:0',
                 'attachments.*' => 'nullable|image|max:10240'
             ]);
             if ($validator->fails()) {
@@ -2055,6 +2059,10 @@ class DriverController extends Controller
                     ], 400);
                     DB::rollback();
                 }
+                if(\App\Support\InvoiceDiscount::isDiscountProduct($product->id)){
+                    // e.g. a repurchase of a discounted invoice: the discount is not an item
+                    continue;
+                }
                 $invoicedetail = new InvoiceDetail();
                 $invoicedetail->invoice_id = $invoice->id;
                 $invoicedetail->product_id = $id['product_id'];
@@ -2104,6 +2112,9 @@ class DriverController extends Controller
                 $inventorytransaction->date = date('Y-m-d H:i:s');
                 $inventorytransaction->save();
             }
+            // Discount (e.g. RM 15.40 -> RM 15.00): one negative line, so the
+            // payment below and every later total are net of it.
+            $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $data['discount'] ?? 0);
             if($data['type'] == 1){
                 $invoicepayment = New InvoicePayment();
                 $invoicepayment->invoice_id = $invoice->id;
@@ -2254,6 +2265,9 @@ class DriverController extends Controller
                         if(empty($product)){
                             throw new \Exception('Invalid product');
                         }
+                        if(\App\Support\InvoiceDiscount::isDiscountProduct($product->id)){
+                            continue;
+                        }
                         $invoicedetail = new InvoiceDetail();
                         $invoicedetail->invoice_id = $invoice->id;
                         $invoicedetail->product_id = $line['product_id'];
@@ -2303,6 +2317,8 @@ class DriverController extends Controller
                         $inventorytransaction->trip_id = $driver->trip_id;
                         $inventorytransaction->save();
                     }
+
+                    $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $item['discount'] ?? 0);
 
                     if($item['type'] == 1){
                         $invoicepayment = new InvoicePayment();
@@ -2478,6 +2494,9 @@ class DriverController extends Controller
             DB::beginTransaction();
             if($driver->lorry_id){
                 foreach($invoice->invoicedetail as $line){
+                    if(\App\Support\InvoiceDiscount::isDiscountProduct($line->product_id)){
+                        continue;
+                    }
                     $inventorybalance = InventoryBalance::where('lorry_id', $driver->lorry_id)->where('product_id', $line->product_id)->first();
                     if(empty($inventorybalance)){
                         $newinventorybalance = new InventoryBalance();
@@ -4336,8 +4355,8 @@ class DriverController extends Controller
             $cash = DB::Select('select coalesce(sum(coalesce(amount,0)),0) as cash from invoice_payments where type = 1 and status = 1 and driver_id = '.$driver->id.' and approve_at >= "'.$data['date'].'" and approve_at < "'.date('Y-m-d', strtotime("+1 day", strtotime($data['date']))).'";')[0]->cash;
             // $credit = DB::select('select sum(a.totalprice) as credit from ( select i.id,sum(id.totalprice) as totalprice from invoices i left join invoice_details id on id.invoice_id = i.id left join invoice_payments ip on ip.invoice_id = i.id where i.status = 1 and i.date = "'.$data['date'].'" and i.driver_id = '.$driver->id.' and ip.id is null group by i.id ) a')[0]->credit;
             $credit = DB::select('select sum(a.totalprice) as credit from ( select i.id, sum(id.totalprice) as totalprice from invoices i left join invoice_details id on id.invoice_id = i.id where i.status = 1 and DATE(i.date) = "'.$data['date'].'" and i.driver_id = '.$driver->id.' and i.paymentterm = 2 group by i.id ) a')[0]->credit;
-            $productsold = DB::Select('select sum(id.quantity) as productsold from invoices i left join invoice_details id on id.invoice_id = i.id where i.status = 1 and DATE(i.date) = "'.$data['date'].'" and i.driver_id = '.$driver->id)[0]->productsold;
-            $solddetail = DB::select('select p.name, sum(id.quantity) as quantity from invoices i left join invoice_details id on id.invoice_id = i.id left join products p on p.id = id.product_id where i.status = 1 and DATE(i.date) = "'.$data['date'].'" and i.driver_id = '.$driver->id.' group by id.product_id, p.id, p.name');
+            $productsold = DB::Select('select sum(id.quantity) as productsold from invoices i left join invoice_details id on id.invoice_id = i.id where i.status = 1 and DATE(i.date) = "'.$data['date'].'" and i.driver_id = '.$driver->id.' and id.product_id <> '.\App\Support\InvoiceDiscount::productId())[0]->productsold;
+            $solddetail = DB::select('select p.name, sum(id.quantity) as quantity from invoices i left join invoice_details id on id.invoice_id = i.id left join products p on p.id = id.product_id where i.status = 1 and DATE(i.date) = "'.$data['date'].'" and i.driver_id = '.$driver->id.' and id.product_id <> '.\App\Support\InvoiceDiscount::productId().' group by id.product_id, p.id, p.name');
             $trip = DB::select('select t.id, d.name as driver_name, k.name as kelindan_name, l.lorryno from trips t left join drivers d on d.id = t.driver_id left join kelindans k on k.id = t.kelindan_id left join lorrys l on l.id = t.lorry_id where t.driver_id = '.$driver->id.' and t.type = 1 and t.date >= "'.$data['date'].'" and t.date < "'.$data['date'].' 23:59:59"');
             // $trip = Trip::where('driver_id', $driver->id)
             // ->where('date','>=',$data['date'].' 00:00:00')
@@ -5643,7 +5662,7 @@ class DriverController extends Controller
                 ->where('date', $date)
                 ->pluck('sequence', 'customer_id');
 
-            $products = Product::orderBy('sequence')->orderBy('id')->get(['id', 'code', 'name']);
+            $products = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->orderBy('sequence')->orderBy('id')->get(['id', 'code', 'name']);
 
             $rows = $salesOrders
                 ->groupBy('customer_id')

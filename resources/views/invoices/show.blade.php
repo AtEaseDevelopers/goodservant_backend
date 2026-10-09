@@ -94,6 +94,38 @@
                                     </tbody>
                                 </table>
 
+                                @php
+                                    $discountSubtotal = \App\Support\InvoiceDiscount::subtotal($id);
+                                    $discountAmount = \App\Support\InvoiceDiscount::amount($id);
+                                @endphp
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <tr>
+                                                <th style="width:50%">Subtotal</th>
+                                                <td class="text-right">RM {{ number_format($discountSubtotal, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Discount</th>
+                                                <td class="text-right">- RM {{ number_format($discountAmount, 2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Total</th>
+                                                <td class="text-right font-weight-bold">RM {{ number_format($discountSubtotal - $discountAmount, 2) }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {!! Form::open(['route' => ['invoices.discount', Crypt::encrypt($id)], 'class' => 'form-inline']) !!}
+                                            <label for="discount" class="mr-2">Discount (RM)</label>
+                                            <input type="number" name="discount" id="discount" class="form-control mr-2" style="width:120px" min="0" step="0.01" value="{{ number_format($discountAmount, 2, '.', '') }}">
+                                            <button type="button" class="btn btn-outline-secondary mr-2" id="discount-round-down" data-cents="{{ number_format($discountSubtotal - floor($discountSubtotal), 2, '.', '') }}">Round down (RM {{ number_format($discountSubtotal - floor($discountSubtotal), 2) }})</button>
+                                            <button type="submit" class="btn btn-primary">Save discount</button>
+                                        {!! Form::close() !!}
+                                        <small class="text-muted">Set 0 to remove the discount. "Round down" takes off the cents, e.g. RM 15.40 becomes RM 15.00.</small>
+                                    </div>
+                                </div>
+
                              </div>
                          </div>
                      </div>
@@ -108,6 +140,9 @@
             if(e.altKey && e.keyCode == 78){
                 $('.card .card-header a')[1].click();
             }
+        });
+        $(document).on('click', '#discount-round-down', function() {
+            $('#discount').val($(this).data('cents'));
         });
     </script>
 @endpush

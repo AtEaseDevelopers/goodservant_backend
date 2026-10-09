@@ -477,7 +477,12 @@ class AutoCountController extends Controller
                     'paymentterm' => $invoice->paymentterm,
                     'customer_code' => optional($invoice->customer)->code,
                     'customer_name' => optional($invoice->customer)->company,
-                    'details' => $invoice->invoicedetail->map(function ($d) {
+                    // Discount (stored as a negative line on a hidden product) is sent
+                    // separately so the item lines stay real AutoCount items.
+                    'discount' => \App\Support\InvoiceDiscount::amount($invoice->id),
+                    'details' => $invoice->invoicedetail->reject(function ($d) {
+                        return \App\Support\InvoiceDiscount::isDiscountProduct($d->product_id);
+                    })->map(function ($d) {
                         return [
                             'item_code' => optional($d->product)->code,
                             'description' => optional($d->product)->name ?: $d->remark,
