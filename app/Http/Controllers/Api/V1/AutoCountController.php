@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\ProductPriceCategory;
 use App\Models\ProductType;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -98,6 +99,11 @@ class AutoCountController extends Controller
             ]);
         }
 
+        // The plugin's pricing field was renamed product_type -> price_category.
+        // Accept the legacy name as a fallback so a not-yet-rebuilt plugin keeps
+        // syncing, then validate/read the canonical product_price_category key.
+        $this->normalizeProductPriceCategoryKeys($request);
+
         $validator = Validator::make($request->all(), [
             'products' => ['required', 'array', 'min:1'],
             'products.*.code' => ['required', 'string', 'max:255'],
@@ -107,11 +113,11 @@ class AutoCountController extends Controller
             'products.*.price' => ['nullable', 'numeric'],
             'products.*.status' => ['nullable', 'integer'],
             'products.*.classification_code' => ['nullable', 'string', 'max:255'],
-            // Per-product-type prices. Absent = leave the product's type prices
-            // untouched; present (even empty) = full-replace them. The product
-            // type is matched by name and created if it does not exist yet.
+            // Per-price-category prices. Absent = leave the product's category
+            // prices untouched; present (even empty) = full-replace them. The
+            // price category is matched by name and created if it does not exist.
             'products.*.prices' => ['sometimes', 'array'],
-            'products.*.prices.*.product_type' => ['required', 'string', 'max:255'],
+            'products.*.prices.*.product_price_category' => ['required', 'string', 'max:255'],
             'products.*.prices.*.price' => ['required', 'numeric'],
         ]);
 
@@ -134,9 +140,9 @@ class AutoCountController extends Controller
         // uncategorised (every existing product points at "Noodle").
         $defaultTypeId = ProductType::query()->orderBy('id')->value('id');
 
-        // Product-type name -> id, filled lazily across the batch so a type is
-        // resolved (or created) once, not per product.
-        $typeCache = [];
+        // Price-category name -> id, filled lazily across the batch so a category
+        // is resolved (or created) once, not per product.
+        $categoryCache = [];
 
         $created = 0;
         $updated = 0;
@@ -151,7 +157,7 @@ class AutoCountController extends Controller
             // Guard per-item: one bad row logs a traceable reason and is skipped,
             // instead of 500-ing the whole batch.
             try {
-                if ($this->upsertProduct($code, $row, $defaultTypeId, $typeCache)) {
+                if ($this->upsertProduct($code, $row, $defaultTypeId, $categoryCache)) {
                     $created++;
                 } else {
                     $updated++;
@@ -226,6 +232,10 @@ class AutoCountController extends Controller
             ]);
         }
 
+        // Accept the legacy product_type key as a fallback for the renamed
+        // product_price_category field (see normalizeProductPriceCategoryKeys).
+        $this->normalizeProductPriceCategoryKeys($request);
+
         $validator = Validator::make($request->all(), [
             'customers' => ['required', 'array', 'min:1'],
             'customers.*.code' => ['required', 'string', 'max:255'],
@@ -237,10 +247,10 @@ class AutoCountController extends Controller
             'customers.*.registration_no' => ['nullable', 'string', 'max:255'],
             'customers.*.sst_registration_no' => ['nullable', 'string', 'max:255'],
             'customers.*.status' => ['nullable', 'integer'],
-            // The product type (pricing category) this debtor is assigned to.
-            // Absent = leave untouched; blank = clear (falls back to base price);
-            // a new name is created as a product type.
-            'customers.*.product_type' => ['nullable', 'string', 'max:255'],
+            // The price category this debtor is assigned to. Absent = leave
+            // untouched; blank = clear (falls back to base price); a new name is
+            // created as a price category.
+            'customers.*.product_price_category' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -258,8 +268,8 @@ class AutoCountController extends Controller
             return response()->json($payload, 400);
         }
 
-        // Product-type name -> id, filled lazily across the batch.
-        $typeCache = [];
+        // Price-category name -> id, filled lazily across the batch.
+        $categoryCache = [];
 
         $created = 0;
         $updated = 0;
@@ -274,7 +284,7 @@ class AutoCountController extends Controller
             // Guard per-item: one bad row logs a traceable reason and is skipped,
             // instead of 500-ing the whole batch.
             try {
-                if ($this->upsertCustomer($code, $row, $typeCache)) {
+                if ($this->upsertCustomer($code, $row, $categoryCache)) {
                     $created++;
                 } else {
                     $updated++;
@@ -536,12 +546,12 @@ class AutoCountController extends Controller
      *   updates leave OMS-owned fields (image_path/type_id/type) untouched.
      * - Race-safe: if a concurrent sync wins the insert (unique `code`), the
      *   duplicate-key error is caught and retried as an update.
-     * - prices: when the row carries a `prices` array, the product's per-type
+     * - prices: when the row carries a `prices` array, the product's per-category
      *   prices are reconciled against it (see syncProductPrices).
      *
-     * @param array $typeCache  product-type name => id, reused/extended across the batch
+     * @param array $categoryCache  price-category name => id, reused/extended across the batch
      */
-    private function upsertProduct(string $code, array $row, $defaultTypeId, array &$typeCache = []): bool
+    private function upsertProduct(string $code, array $row, $defaultTypeId, array &$categoryCache = []): bool
     {
         $attributes = [
             'name' => $row['name'],
@@ -584,57 +594,96 @@ class AutoCountController extends Controller
         }
 
         if (array_key_exists('prices', $row)) {
-            $this->syncProductPrices($product, is_array($row['prices']) ? $row['prices'] : [], $typeCache);
+            $this->syncProductPrices($product, is_array($row['prices']) ? $row['prices'] : [], $categoryCache);
         }
 
         return $isNew;
     }
 
     /**
-     * Reconcile one product's per-type prices against the sent list. The product
-     * type is matched by name and created if missing; any type not sent for this
-     * product is removed (full-replace per product).
+     * Reconcile one product's per-category prices against the sent list. The
+     * price category is matched by name and created if missing; any category not
+     * sent for this product is removed (full-replace per product).
      *
-     * @param array $typeCache  product-type name => id, reused/extended across the batch
+     * @param array $categoryCache  price-category name => id, reused/extended across the batch
      */
-    private function syncProductPrices(Product $product, array $prices, array &$typeCache): void
+    private function syncProductPrices(Product $product, array $prices, array &$categoryCache): void
     {
-        $sent = []; // product_type_id => price
+        $sent = []; // product_price_category_id => price
         foreach ($prices as $pr) {
-            $typeName = trim((string) ($pr['product_type'] ?? ''));
-            if ($typeName === '') {
+            $categoryName = trim((string) ($pr['product_price_category'] ?? ''));
+            if ($categoryName === '') {
                 continue;
             }
-            $typeId = $this->resolveProductTypeId($typeName, $typeCache);
-            $sent[$typeId] = (float) $pr['price'];
+            $categoryId = $this->resolvePriceCategoryId($categoryName, $categoryCache);
+            $sent[$categoryId] = (float) $pr['price'];
         }
 
-        foreach ($sent as $typeId => $price) {
+        foreach ($sent as $categoryId => $price) {
             ProductPrice::updateOrCreate(
-                ['product_id' => $product->id, 'product_type_id' => $typeId],
+                ['product_id' => $product->id, 'product_price_category_id' => $categoryId],
                 ['price' => $price]
             );
         }
 
         $stale = ProductPrice::where('product_id', $product->id);
         if (!empty($sent)) {
-            $stale->whereNotIn('product_type_id', array_keys($sent));
+            $stale->whereNotIn('product_price_category_id', array_keys($sent));
         }
         $stale->delete();
     }
 
     /**
-     * Resolve a product-type name to its id, creating the type if it does not
-     * exist yet (product types double as the pricing category, and AutoCount is
-     * the source of the category list). Cached per batch to avoid re-querying.
+     * Resolve a price-category name to its id, creating the category if it does
+     * not exist yet (AutoCount is the source of the price-category list). Cached
+     * per batch to avoid re-querying. Distinct from a product's ProductType.
      */
-    private function resolveProductTypeId(string $name, array &$typeCache): int
+    private function resolvePriceCategoryId(string $name, array &$categoryCache): int
     {
-        if (!array_key_exists($name, $typeCache)) {
-            $typeCache[$name] = ProductType::firstOrCreate(['name' => $name], ['status' => 1])->id;
+        if (!array_key_exists($name, $categoryCache)) {
+            $categoryCache[$name] = ProductPriceCategory::firstOrCreate(['name' => $name], ['status' => 1])->id;
         }
 
-        return (int) $typeCache[$name];
+        return (int) $categoryCache[$name];
+    }
+
+    /**
+     * Back-compat shim for the renamed wire field. The plugin used to send the
+     * price category as `product_type`; it is now `product_price_category`. Copy
+     * the legacy key onto the new one (on product price rows and customer rows)
+     * only where the new key was not supplied, so a not-yet-rebuilt plugin keeps
+     * syncing while a rebuilt one takes precedence.
+     */
+    private function normalizeProductPriceCategoryKeys(Request $request): void
+    {
+        $products = $request->input('products');
+        if (is_array($products)) {
+            foreach ($products as $i => $product) {
+                if (!isset($product['prices']) || !is_array($product['prices'])) {
+                    continue;
+                }
+                foreach ($product['prices'] as $j => $price) {
+                    if (is_array($price)
+                        && !array_key_exists('product_price_category', $price)
+                        && array_key_exists('product_type', $price)) {
+                        $products[$i]['prices'][$j]['product_price_category'] = $price['product_type'];
+                    }
+                }
+            }
+            $request->merge(['products' => $products]);
+        }
+
+        $customers = $request->input('customers');
+        if (is_array($customers)) {
+            foreach ($customers as $i => $customer) {
+                if (is_array($customer)
+                    && !array_key_exists('product_price_category', $customer)
+                    && array_key_exists('product_type', $customer)) {
+                    $customers[$i]['product_price_category'] = $customer['product_type'];
+                }
+            }
+            $request->merge(['customers' => $customers]);
+        }
     }
 
     /**
@@ -648,13 +697,13 @@ class AutoCountController extends Controller
      *   paymentterm = Credit, is_do_customer = false). Updates leave those
      *   OMS-owned fields untouched.
      * - Race-safe against the unique `code` index, like upsertProduct().
-     * - product_type: when the key is present it is resolved to a
-     *   product_type_id, creating the type if needed (blank -> null, i.e.
-     *   base-price fallback); when absent the existing assignment is untouched.
+     * - product_price_category: when the key is present it is resolved to a
+     *   product_price_category_id, creating the category if needed (blank ->
+     *   null, i.e. base-price fallback); when absent the assignment is untouched.
      *
-     * @param array $typeCache  product-type name => id, reused/extended across the batch
+     * @param array $categoryCache  price-category name => id, reused/extended across the batch
      */
-    private function upsertCustomer(string $code, array $row, array &$typeCache = []): bool
+    private function upsertCustomer(string $code, array $row, array &$categoryCache = []): bool
     {
         $attributes = [
             'company' => $row['company'],
@@ -668,11 +717,11 @@ class AutoCountController extends Controller
             }
         }
 
-        // Product type (pricing category) is explicit: present means set it (even
-        // to null to clear); absent means leave the current assignment alone.
-        if (array_key_exists('product_type', $row)) {
-            $typeName = trim((string) $row['product_type']);
-            $attributes['product_type_id'] = $typeName !== '' ? $this->resolveProductTypeId($typeName, $typeCache) : null;
+        // Price category is explicit: present means set it (even to null to
+        // clear); absent means leave the current assignment alone.
+        if (array_key_exists('product_price_category', $row)) {
+            $categoryName = trim((string) $row['product_price_category']);
+            $attributes['product_price_category_id'] = $categoryName !== '' ? $this->resolvePriceCategoryId($categoryName, $categoryCache) : null;
         }
 
         $customer = Customer::firstOrNew(['code' => $code]);

@@ -1217,7 +1217,7 @@ class DriverController extends Controller
                             ->leftJoin('product_prices', function($join) use($t)
                                 {
                                     $join->on('product_prices.product_id', '=', 'products.id');
-                                    $join->on('product_prices.product_type_id', '=', DB::raw("'".($t['customer']['product_type_id'] ?? 0)."'"));
+                                    $join->on('product_prices.product_price_category_id', '=', DB::raw("'".($t['customer']['product_price_category_id'] ?? 0)."'"));
                                 })
                             ->where('products.status','1')
                             ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
@@ -1323,7 +1323,7 @@ class DriverController extends Controller
                             ->leftJoin('product_prices', function($join) use($t)
                                 {
                                     $join->on('product_prices.product_id', '=', 'products.id');
-                                    $join->on('product_prices.product_type_id', '=', DB::raw("'".($t['customer']['product_type_id'] ?? 0)."'"));
+                                    $join->on('product_prices.product_price_category_id', '=', DB::raw("'".($t['customer']['product_price_category_id'] ?? 0)."'"));
                                 })
                             ->where('products.status','1')
                             ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
@@ -1565,12 +1565,12 @@ class DriverController extends Controller
             }
             //process
             if(isset($data['customer_id'])){
-                $priceCategoryId = Customer::where('id', $data['customer_id'])->value('product_type_id') ?? 0;
+                $priceCategoryId = Customer::where('id', $data['customer_id'])->value('product_price_category_id') ?? 0;
                 $product = DB::table('products')
                 ->leftJoin('product_prices', function($join) use($priceCategoryId)
                     {
                         $join->on('product_prices.product_id', '=', 'products.id');
-                        $join->on('product_prices.product_type_id', '=', DB::raw("'".$priceCategoryId."'"));
+                        $join->on('product_prices.product_price_category_id', '=', DB::raw("'".$priceCategoryId."'"));
                     })
                 ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
                 ->leftJoin('inventory_balances', function($join) use($driver)
@@ -5056,10 +5056,10 @@ class DriverController extends Controller
                         }
                         // Price comes from the customer's price category, never the client.
                         $price = $product->price;
-                        $priceCategoryId = Customer::where('id', $salesOrder->customer_id)->value('product_type_id');
+                        $priceCategoryId = Customer::where('id', $salesOrder->customer_id)->value('product_price_category_id');
                         if ($priceCategoryId) {
                             $categoryPrice = ProductPrice::where('product_id', $product->id)
-                                ->where('product_type_id', $priceCategoryId)
+                                ->where('product_price_category_id', $priceCategoryId)
                                 ->value('price');
                             if ($categoryPrice !== null) {
                                 $price = $categoryPrice;

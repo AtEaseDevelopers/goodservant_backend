@@ -102,16 +102,16 @@ class CustomerController extends AppBaseController
             return redirect(route('customers.index'));
         }
 
-        // Pricing category (a product type) + the price every active product
-        // resolves to for this customer: their category price, else base price.
-        $priceCategory = $customer->product_type_id
-            ? DB::table('product_types')->where('id', $customer->product_type_id)->value('name')
+        // Price category + the price every active product resolves to for this
+        // customer: their category price, else base price.
+        $priceCategory = $customer->product_price_category_id
+            ? DB::table('product_price_categories')->where('id', $customer->product_price_category_id)->value('name')
             : null;
 
         $priceList = DB::table('products')
             ->leftJoin('product_prices', function ($join) use ($customer) {
                 $join->on('product_prices.product_id', '=', 'products.id')
-                    ->where('product_prices.product_type_id', '=', (int) ($customer->product_type_id ?? 0));
+                    ->where('product_prices.product_price_category_id', '=', (int) ($customer->product_price_category_id ?? 0));
             })
             ->where('products.status', 1)
             ->orderBy('products.sequence')

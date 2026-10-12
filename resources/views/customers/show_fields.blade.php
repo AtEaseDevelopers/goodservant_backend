@@ -84,7 +84,7 @@
 
 <!-- Price Category Field -->
 <div class="form-group">
-    {!! Form::label('product_type_id', 'Price Category') !!}:
+    {!! Form::label('product_price_category_id', 'Price Category') !!}:
     <p>{{ $priceCategory ?? '—' }}</p>
 </div>
 
