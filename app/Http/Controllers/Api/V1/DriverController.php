@@ -2026,7 +2026,11 @@ class DriverController extends Controller
                     }
 
                 }else{
-                    $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
+                    // Same rule as the admin panel and SO conversion: a credit sale is an
+                    // invoice (IV), anything paid on the spot is a cash sale (CS).
+                    $invoiceno = $data['type'] == 2
+                        ? Code::nextRunningNumber('invoicerunningnumber', 'IV')
+                        : Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
                 }
             }
             $invoice = new Invoice();
@@ -2237,10 +2241,12 @@ class DriverController extends Controller
                         throw new \Exception('Invalid customer');
                     }
 
-                    // Same counter/format as an online invoice (IV2609/0012),
+                    // Same counter/format as an online invoice (IV2609/0012, or CS for a cash sale),
                     // just with an "A" right before the running number itself
                     // (IV2609/A0012) to flag it as created while offline.
-                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('invoicerunningnumber', 'IV', false));
+                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', $item['type'] == 2
+                        ? Code::nextRunningNumber('invoicerunningnumber', 'IV', false)
+                        : Code::nextRunningNumber('cashsalesrunningnumber', 'CS', false));
 
                     $invoice = new Invoice();
                     $invoice->date = $item['date'] ?? date('Y-m-d H:i:s');
