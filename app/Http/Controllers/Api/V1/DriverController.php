@@ -2110,6 +2110,7 @@ class DriverController extends Controller
                 $inventorytransaction->product_id = $id['product_id'];
                 $inventorytransaction->quantity = $id['quantity'] * -1;
                 $inventorytransaction->type = 3;
+                $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
                 $inventorytransaction->date = date('Y-m-d H:i:s');
                 $inventorytransaction->save();
@@ -2316,6 +2317,7 @@ class DriverController extends Controller
                         $inventorytransaction->product_id = $line['product_id'];
                         $inventorytransaction->quantity = $line['quantity'] * -1;
                         $inventorytransaction->type = 3;
+                        $inventorytransaction->remark = $invoice->invoiceno;
                         $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
                         $inventorytransaction->date = date('Y-m-d H:i:s');
                         $inventorytransaction->trip_id = $driver->trip_id;
@@ -2517,6 +2519,7 @@ class DriverController extends Controller
                     $inventorytransaction->product_id = $line->product_id;
                     $inventorytransaction->quantity = $line->quantity;
                     $inventorytransaction->type = 3;
+                    $inventorytransaction->remark = $invoice->invoiceno;
                     $inventorytransaction->user = $driver->employeeid . " (".$driver->name.") - invoice cancelled";
                     $inventorytransaction->date = date('Y-m-d H:i:s');
                     $inventorytransaction->trip_id = $invoice->trip_id;
@@ -3611,22 +3614,72 @@ class DriverController extends Controller
                 ->select('inventory_transactions.product_id', 'products.name', DB::raw('sum(inventory_transactions.quantity) as quantity'))
                 ->get();
 
-            $transactions = InventoryTransaction::where('lorry_id', $lorryId)
+            $rows = InventoryTransaction::where('lorry_id', $lorryId)
                 ->where('date', '>=', $startDate)
                 ->where('date', '<=', $endDate)
                 ->with('product')
                 ->orderby('date','desc')
-                ->get()
-                ->map(function($row){
-                    return [
-                        'id' => $row->id,
-                        'product_id' => $row->product_id,
-                        'name' => optional($row->product)->name,
-                        'quantity' => $row->quantity,
-                        'type' => $row->type,
-                        'date' => $row->date,
-                    ];
-                });
+                ->orderby('id','desc')
+                ->get();
+
+            // Which invoice each invoice movement belongs to. New rows carry the
+            // invoice number in `remark`; older ones are matched to an invoice of
+            // this driver made at the same moment with the same product and quantity.
+            $tripInvoices = Invoice::where('driver_id', $driver->id)
+                ->where('created_at', '>=', \Carbon\Carbon::parse($startDate)->subMinute())
+                ->where('created_at', '<=', \Carbon\Carbon::parse($endDate)->addMinute())
+                ->with(['customer:id,company', 'invoicedetail:id,invoice_id,product_id,quantity'])
+                ->get();
+            $invoiceByNo = $tripInvoices->keyBy('invoiceno');
+            $referencedNos = $rows->where('type', 3)->pluck('remark')->filter()->unique()
+                ->diff($invoiceByNo->keys());
+            if($referencedNos->isNotEmpty()){
+                $invoiceByNo = $invoiceByNo->merge(
+                    Invoice::whereIn('invoiceno', $referencedNos)->with('customer:id,company')->get()->keyBy('invoiceno')
+                );
+            }
+            $findInvoice = function($row) use ($tripInvoices, $invoiceByNo){
+                if(!empty($row->remark) && isset($invoiceByNo[$row->remark])){
+                    return $invoiceByNo[$row->remark];
+                }
+                $at = \Carbon\Carbon::parse($row->getRawOriginal('date'));
+                foreach($tripInvoices as $invoice){
+                    if(abs($at->diffInSeconds($invoice->getRawOriginal('created_at'), false)) > 5){
+                        continue;
+                    }
+                    foreach($invoice->invoicedetail as $detail){
+                        if($detail->product_id == $row->product_id && abs($detail->quantity) == abs($row->quantity)){
+                            return $invoice;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            $transactions = $rows->map(function($row) use ($findInvoice){
+                $reference = null;
+                $customer = null;
+                if($row->type == 3){
+                    $invoice = $findInvoice($row);
+                    $reference = $invoice->invoiceno ?? ($row->remark ?: null);
+                    $customer = optional(optional($invoice)->customer)->company;
+                }
+                return [
+                    'id' => $row->id,
+                    'product_id' => $row->product_id,
+                    'name' => optional($row->product)->name,
+                    'quantity' => $row->quantity,
+                    'type' => $row->type,
+                    'date' => $row->date,
+                    // invoice number (invoice movements) and its customer
+                    'reference' => $reference,
+                    'customer' => $customer,
+                    // stock given back by cancelling an invoice
+                    'cancelled' => $row->type == 3 && $row->quantity > 0,
+                    // admin note on stock in/out, "A => B" on transfers
+                    'note' => $row->type == 4 ? $row->user : ($row->type == 3 ? null : $row->remark),
+                ];
+            });
 
             return response()->json([
                 'result' => true,
@@ -5233,6 +5286,7 @@ class DriverController extends Controller
                 $inventorytransaction->product_id = $line->product_id;
                 $inventorytransaction->quantity = $qty * -1;
                 $inventorytransaction->type = 3;
+                $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
                 $inventorytransaction->date = date('Y-m-d H:i:s');
                 $inventorytransaction->trip_id = $salesOrder->trip_id;
@@ -5271,6 +5325,7 @@ class DriverController extends Controller
                 $inventorytransaction->product_id = $newItem['product_id'];
                 $inventorytransaction->quantity = $qty * -1;
                 $inventorytransaction->type = 3;
+                $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
                 $inventorytransaction->date = date('Y-m-d H:i:s');
                 $inventorytransaction->trip_id = $salesOrder->trip_id;
@@ -5583,6 +5638,7 @@ class DriverController extends Controller
                         $inventorytransaction->product_id = $line->product_id;
                         $inventorytransaction->quantity = $line->quantity * -1;
                         $inventorytransaction->type = 3;
+                        $inventorytransaction->remark = $invoice->invoiceno;
                         $inventorytransaction->user = optional($first->driver)->employeeid ?? 'system';
                         $inventorytransaction->date = date('Y-m-d H:i:s');
                         $inventorytransaction->trip_id = $invoice->trip_id;
