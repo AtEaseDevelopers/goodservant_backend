@@ -12,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -679,7 +680,13 @@ class AutoCountController extends Controller
 
         if ($isNew) {
             // Required legacy columns with no AutoCount source — minimal defaults.
-            $customer->name = $row['company'];          // legacy NOT NULL, not fillable
+            // `name` is a legacy NOT NULL column that only exists on some
+            // deployments (the live schema has drifted from migration history;
+            // see snoodle-web legacy base tables). Only write it where present,
+            // otherwise every insert dies with "Unknown column 'name'".
+            if ($this->customersHaveNameColumn()) {
+                $customer->name = $row['company'];      // not fillable
+            }
             $customer->agent_id = 0;
             $customer->supervisor_id = 0;
             $customer->paymentterm = self::DEFAULT_PAYMENT_TERM;
@@ -702,6 +709,21 @@ class AutoCountController extends Controller
         }
 
         return $isNew;
+    }
+
+    /**
+     * Whether the `customers` table carries the legacy `name` column. Cached
+     * per request so a 20-row batch does not hit information_schema 20 times.
+     */
+    private function customersHaveNameColumn(): bool
+    {
+        static $hasName = null;
+
+        if ($hasName === null) {
+            $hasName = Schema::hasColumn('customers', 'name');
+        }
+
+        return $hasName;
     }
 
     private function isDuplicateKey(QueryException $e): bool
