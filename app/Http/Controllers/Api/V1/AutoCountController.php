@@ -664,7 +664,12 @@ class AutoCountController extends Controller
         // Optional fields: only overwrite when AutoCount actually sent something.
         foreach (['phone', 'address', 'email', 'postcode', 'registration_no', 'sst_registration_no'] as $field) {
             if (array_key_exists($field, $row) && trim((string) $row[$field]) !== '') {
-                $attributes[$field] = $row[$field];
+                // phone is varchar(20) but AutoCount pads to 255 and sometimes
+                // joins two numbers into one field; clamp it so an over-width
+                // value is trimmed instead of 1406-ing the whole row.
+                $attributes[$field] = $field === 'phone'
+                    ? $this->clampToColumn('phone', (string) $row[$field])
+                    : $row[$field];
             }
         }
 
@@ -724,6 +729,35 @@ class AutoCountController extends Controller
         }
 
         return $hasName;
+    }
+
+    /**
+     * Truncate a synced string to the `customers` column's real max length so a
+     * value wider than the column (e.g. a 25-char phone into varchar(20)) is
+     * trimmed instead of failing the whole upsert with a 1406. Column lengths
+     * are read once per request. Columns with no length cap (text) or unknown
+     * to the current schema are left untouched.
+     */
+    private function clampToColumn(string $column, string $value): string
+    {
+        static $limits = [];
+
+        if (!array_key_exists($column, $limits)) {
+            try {
+                $length = Schema::getConnection()
+                    ->getDoctrineColumn('customers', $column)
+                    ->getLength();
+                $limits[$column] = is_int($length) && $length > 0 ? $length : null;
+            } catch (\Throwable $e) {
+                // Column unknown to this schema, or driver can't introspect it:
+                // don't clamp (the save itself will surface a real problem).
+                $limits[$column] = null;
+            }
+        }
+
+        $limit = $limits[$column];
+
+        return $limit !== null ? mb_substr($value, 0, $limit) : $value;
     }
 
     private function isDuplicateKey(QueryException $e): bool
