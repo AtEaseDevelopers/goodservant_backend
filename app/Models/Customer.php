@@ -43,6 +43,9 @@ class Customer extends Model
         'phone',
         'address',
         'status',
+        // Product type this customer is tied to, used as their pricing category
+        // (selects which product_prices row applies); null = base price.
+        'product_type_id',
         'sst',
         //e-invoice fields
         'postcode',
@@ -73,6 +76,7 @@ class Customer extends Model
         'phone' => 'string',
         'address' => 'string',
         'status' => 'integer',
+        'product_type_id' => 'integer',
         'sst' => 'string',
         'tin' => 'string'
     ];
@@ -122,6 +126,13 @@ class Customer extends Model
         return $this->foc()->where('startdate','<=',date('Y-m-d H:i:s'))->where('enddate','>',date('Y-m-d H:i:s'))->where('status',1);
     }
 
+    public function productType(){
+        return $this->belongsTo(\App\Models\ProductType::class, 'product_type_id', 'id');
+    }
+
+    // Retained but dormant: special prices are no longer used for pricing (the
+    // customer's price category drives it now) and the admin UI/routes are
+    // disabled. Kept so the data and feature can be restored if needed.
     public function specialprice(){
         return $this->hasMany(\App\Models\SpecialPrice::class, 'customer_id', 'id');
     }

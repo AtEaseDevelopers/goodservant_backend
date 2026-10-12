@@ -114,10 +114,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/dashboard', [App\Http\Controllers\Api\V1\DriverController::class, 'dashboard']);
 
     //AutoCount plugin sync (X-AutoCount-Token protected; AutoCount -> OMS)
+    // Products carry per-product-type prices; customers carry their product type
+    // (the pricing category) — both create the product type by name on the fly.
     Route::post('/autocount/products', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncProducts']);
     Route::post('/autocount/customers', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncCustomers']);
-    // Customer-specific prices (AutoCount price categories -> OMS special_prices).
-    Route::post('/autocount/special-prices', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncSpecialPrices']);
     // Invoice sync (OMS -> AutoCount): plugin pulls pending, writes result back.
     Route::post('/autocount/invoices/pending', [App\Http\Controllers\Api\V1\AutoCountController::class, 'pendingInvoices']);
     Route::post('/autocount/invoices/result', [App\Http\Controllers\Api\V1\AutoCountController::class, 'syncInvoiceResults']);

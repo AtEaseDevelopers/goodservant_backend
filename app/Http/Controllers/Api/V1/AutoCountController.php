@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\ProductPrice;
 use App\Models\ProductType;
-use App\Models\SpecialPrice;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +106,12 @@ class AutoCountController extends Controller
             'products.*.price' => ['nullable', 'numeric'],
             'products.*.status' => ['nullable', 'integer'],
             'products.*.classification_code' => ['nullable', 'string', 'max:255'],
+            // Per-product-type prices. Absent = leave the product's type prices
+            // untouched; present (even empty) = full-replace them. The product
+            // type is matched by name and created if it does not exist yet.
+            'products.*.prices' => ['sometimes', 'array'],
+            'products.*.prices.*.product_type' => ['required', 'string', 'max:255'],
+            'products.*.prices.*.price' => ['required', 'numeric'],
         ]);
 
         if ($validator->fails()) {
@@ -127,6 +133,10 @@ class AutoCountController extends Controller
         // uncategorised (every existing product points at "Noodle").
         $defaultTypeId = ProductType::query()->orderBy('id')->value('id');
 
+        // Product-type name -> id, filled lazily across the batch so a type is
+        // resolved (or created) once, not per product.
+        $typeCache = [];
+
         $created = 0;
         $updated = 0;
         $failed = 0;
@@ -140,7 +150,7 @@ class AutoCountController extends Controller
             // Guard per-item: one bad row logs a traceable reason and is skipped,
             // instead of 500-ing the whole batch.
             try {
-                if ($this->upsertProduct($code, $row, $defaultTypeId)) {
+                if ($this->upsertProduct($code, $row, $defaultTypeId, $typeCache)) {
                     $created++;
                 } else {
                     $updated++;
@@ -226,6 +236,10 @@ class AutoCountController extends Controller
             'customers.*.registration_no' => ['nullable', 'string', 'max:255'],
             'customers.*.sst_registration_no' => ['nullable', 'string', 'max:255'],
             'customers.*.status' => ['nullable', 'integer'],
+            // The product type (pricing category) this debtor is assigned to.
+            // Absent = leave untouched; blank = clear (falls back to base price);
+            // a new name is created as a product type.
+            'customers.*.product_type' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -243,6 +257,9 @@ class AutoCountController extends Controller
             return response()->json($payload, 400);
         }
 
+        // Product-type name -> id, filled lazily across the batch.
+        $typeCache = [];
+
         $created = 0;
         $updated = 0;
         $failed = 0;
@@ -256,7 +273,7 @@ class AutoCountController extends Controller
             // Guard per-item: one bad row logs a traceable reason and is skipped,
             // instead of 500-ing the whole batch.
             try {
-                if ($this->upsertCustomer($code, $row)) {
+                if ($this->upsertCustomer($code, $row, $typeCache)) {
                     $created++;
                 } else {
                     $updated++;
@@ -508,176 +525,6 @@ class AutoCountController extends Controller
     }
 
     /**
-     * Upsert customer-specific prices pushed from AutoCount.
-     *
-     * AutoCount has no per-customer price rows: each item carries 6 price levels
-     * (Price 1-6) and each debtor is assigned a price category that selects one
-     * of them. The plugin resolves that per (customer, item) and sends the
-     * already-flattened price here; this endpoint maps it to the OMS
-     * `special_prices` table, which is keyed (customer_id, product_id).
-     *
-     * Body: {
-     *   "sync_token": "<uuid, one per sync run>",
-     *   "final": true|false,            // true on the last batch of the run
-     *   "special_prices": [ { customer_code, item_code, price }, ... ]
-     * }
-     *
-     * Reconciliation (runs only when final=true): every 'autocount' row NOT
-     * written by this run's token is deleted, so a customer moving price
-     * category — or a price that is no longer special — is removed. 'manual'
-     * rows are never touched. On conflict (same customer+product exists as a
-     * manual override) AutoCount wins: the row is overwritten and claimed as
-     * 'autocount'.
-     *
-     * Depends on customers + products already being synced (rows are matched by
-     * code); any (customer_code, item_code) that does not resolve is skipped.
-     */
-    public function syncSpecialPrices(Request $request)
-    {
-        $received = is_array($request->input('special_prices')) ? count($request->input('special_prices')) : 0;
-        $this->log($request, 'special-prices', 'RECV', ['received_count' => $received]);
-
-        if (!$this->authorized($request)) {
-            $this->log($request, 'special-prices', 'SENT', ['status' => 403, 'message' => 'Token rejected.'], 'warning');
-
-            return response()->json(['result' => false, 'message' => 'Unauthorized.'], 403);
-        }
-
-        if ($this->dryRun()) {
-            $this->log($request, 'special-prices', 'DRYRUN', [
-                'received_count' => $received,
-                'special_prices' => $request->input('special_prices'),
-                'note' => 'Dry run — nothing written, nothing pruned.',
-            ]);
-
-            return response()->json(['result' => true, 'dry_run' => true, 'created' => 0, 'updated' => 0, 'pruned' => 0]);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'sync_token' => ['required', 'string', 'max:64'],
-            'final' => ['nullable', 'boolean'],
-            // 'present' (not 'min:1'): the last batch may be empty and still need
-            // to run the prune (e.g. every customer is back on the default level).
-            'special_prices' => ['present', 'array'],
-            'special_prices.*.customer_code' => ['required', 'string', 'max:255'],
-            'special_prices.*.item_code' => ['required', 'string', 'max:255'],
-            'special_prices.*.price' => ['required', 'numeric'],
-        ]);
-
-        if ($validator->fails()) {
-            $this->log($request, 'special-prices', 'SENT', [
-                'status' => 400, 'message' => 'Validation failed.', 'errors' => $validator->errors()->all(),
-            ], 'warning');
-
-            return response()->json([
-                'result' => false, 'message' => 'Validation failed.', 'errors' => $validator->errors(),
-            ], 400);
-        }
-
-        $rows = $request->input('special_prices');
-        $token = $request->input('sync_token');
-        $final = filter_var($request->input('final', false), FILTER_VALIDATE_BOOLEAN);
-
-        // Resolve codes -> ids in two queries rather than per row.
-        $customerMap = Customer::whereIn('code', collect($rows)->pluck('customer_code')
-            ->map(fn ($c) => trim((string) $c))->filter()->unique()->values())
-            ->pluck('id', 'code');
-        $productMap = Product::whereIn('code', collect($rows)->pluck('item_code')
-            ->map(fn ($c) => trim((string) $c))->filter()->unique()->values())
-            ->pluck('id', 'code');
-
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-
-        foreach ($rows as $row) {
-            $customerCode = trim((string) $row['customer_code']);
-            $itemCode = trim((string) $row['item_code']);
-            $customerId = $customerMap[$customerCode] ?? null;
-            $productId = $productMap[$itemCode] ?? null;
-
-            // Customer or product not synced yet — skip (and let the prune leave
-            // any older row alone, since it won't carry this run's token... it
-            // will be pruned, which is correct: an unresolvable code can't price).
-            if (!$customerId || !$productId) {
-                $skipped++;
-                continue;
-            }
-
-            try {
-                if ($this->upsertSpecialPrice((int) $customerId, (int) $productId, (float) $row['price'], $token)) {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            } catch (\Throwable $e) {
-                $skipped++;
-                Log::channel('autocount')->warning('[special-prices] upsert FAILED', [
-                    'customer_code' => $customerCode,
-                    'item_code' => $itemCode,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Full-replace reconciliation: drop AutoCount-owned rows this run didn't
-        // re-affirm. Manual rows (source != 'autocount') are untouched.
-        $pruned = 0;
-        if ($final) {
-            $pruned = SpecialPrice::where('source', 'autocount')
-                ->where(function ($q) use ($token) {
-                    $q->where('sync_token', '!=', $token)->orWhereNull('sync_token');
-                })
-                ->delete();
-        }
-
-        $this->log($request, 'special-prices', 'SENT', [
-            'status' => 200,
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'final' => $final,
-            'pruned' => $pruned,
-        ]);
-
-        return response()->json([
-            'result' => true,
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'pruned' => $pruned,
-        ]);
-    }
-
-    /**
-     * Create or update one special price, matched by (customer_id, product_id).
-     * Returns true if a new row was created, false if an existing one updated.
-     * Always claims the row as 'autocount' (AutoCount wins over manual) and
-     * stamps the current run's token so the prune keeps it.
-     */
-    private function upsertSpecialPrice(int $customerId, int $productId, float $price, string $token): bool
-    {
-        $row = SpecialPrice::where('customer_id', $customerId)
-            ->where('product_id', $productId)
-            ->first();
-        $isNew = $row === null;
-
-        if ($isNew) {
-            $row = new SpecialPrice();
-            $row->customer_id = $customerId;
-            $row->product_id = $productId;
-        }
-
-        $row->price = $price;
-        $row->status = 1;
-        $row->source = 'autocount';
-        $row->sync_token = $token;
-        $row->save();
-
-        return $isNew;
-    }
-
-    /**
      * Create or update one product, matched by `code`. Returns true if a new
      * product was created, false if an existing one was updated.
      *
@@ -688,8 +535,12 @@ class AutoCountController extends Controller
      *   updates leave OMS-owned fields (image_path/type_id/type) untouched.
      * - Race-safe: if a concurrent sync wins the insert (unique `code`), the
      *   duplicate-key error is caught and retried as an update.
+     * - prices: when the row carries a `prices` array, the product's per-type
+     *   prices are reconciled against it (see syncProductPrices).
+     *
+     * @param array $typeCache  product-type name => id, reused/extended across the batch
      */
-    private function upsertProduct(string $code, array $row, $defaultTypeId): bool
+    private function upsertProduct(string $code, array $row, $defaultTypeId, array &$typeCache = []): bool
     {
         $attributes = [
             'name' => $row['name'],
@@ -731,7 +582,58 @@ class AutoCountController extends Controller
             $isNew = false;
         }
 
+        if (array_key_exists('prices', $row)) {
+            $this->syncProductPrices($product, is_array($row['prices']) ? $row['prices'] : [], $typeCache);
+        }
+
         return $isNew;
+    }
+
+    /**
+     * Reconcile one product's per-type prices against the sent list. The product
+     * type is matched by name and created if missing; any type not sent for this
+     * product is removed (full-replace per product).
+     *
+     * @param array $typeCache  product-type name => id, reused/extended across the batch
+     */
+    private function syncProductPrices(Product $product, array $prices, array &$typeCache): void
+    {
+        $sent = []; // product_type_id => price
+        foreach ($prices as $pr) {
+            $typeName = trim((string) ($pr['product_type'] ?? ''));
+            if ($typeName === '') {
+                continue;
+            }
+            $typeId = $this->resolveProductTypeId($typeName, $typeCache);
+            $sent[$typeId] = (float) $pr['price'];
+        }
+
+        foreach ($sent as $typeId => $price) {
+            ProductPrice::updateOrCreate(
+                ['product_id' => $product->id, 'product_type_id' => $typeId],
+                ['price' => $price]
+            );
+        }
+
+        $stale = ProductPrice::where('product_id', $product->id);
+        if (!empty($sent)) {
+            $stale->whereNotIn('product_type_id', array_keys($sent));
+        }
+        $stale->delete();
+    }
+
+    /**
+     * Resolve a product-type name to its id, creating the type if it does not
+     * exist yet (product types double as the pricing category, and AutoCount is
+     * the source of the category list). Cached per batch to avoid re-querying.
+     */
+    private function resolveProductTypeId(string $name, array &$typeCache): int
+    {
+        if (!array_key_exists($name, $typeCache)) {
+            $typeCache[$name] = ProductType::firstOrCreate(['name' => $name], ['status' => 1])->id;
+        }
+
+        return (int) $typeCache[$name];
     }
 
     /**
@@ -745,8 +647,13 @@ class AutoCountController extends Controller
      *   paymentterm = Credit, is_do_customer = false). Updates leave those
      *   OMS-owned fields untouched.
      * - Race-safe against the unique `code` index, like upsertProduct().
+     * - product_type: when the key is present it is resolved to a
+     *   product_type_id, creating the type if needed (blank -> null, i.e.
+     *   base-price fallback); when absent the existing assignment is untouched.
+     *
+     * @param array $typeCache  product-type name => id, reused/extended across the batch
      */
-    private function upsertCustomer(string $code, array $row): bool
+    private function upsertCustomer(string $code, array $row, array &$typeCache = []): bool
     {
         $attributes = [
             'company' => $row['company'],
@@ -758,6 +665,13 @@ class AutoCountController extends Controller
             if (array_key_exists($field, $row) && trim((string) $row[$field]) !== '') {
                 $attributes[$field] = $row[$field];
             }
+        }
+
+        // Product type (pricing category) is explicit: present means set it (even
+        // to null to clear); absent means leave the current assignment alone.
+        if (array_key_exists('product_type', $row)) {
+            $typeName = trim((string) $row['product_type']);
+            $attributes['product_type_id'] = $typeName !== '' ? $this->resolveProductTypeId($typeName, $typeCache) : null;
         }
 
         $customer = Customer::firstOrNew(['code' => $code]);

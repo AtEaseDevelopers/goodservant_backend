@@ -82,6 +82,44 @@
     <p>{{ $customer->status == 1 ? __('customers.active') : __('customers.unactive') }}</p>
 </div>
 
+<!-- Price Category Field -->
+<div class="form-group">
+    {!! Form::label('product_type_id', 'Price Category') !!}:
+    <p>{{ $priceCategory ?? '—' }}</p>
+</div>
+
+<!-- Price list for this customer (read-only) -->
+<div class="form-group">
+    {!! Form::label('price_list', 'Pricing for this customer') !!}
+    @if(empty($priceCategory))
+        <p class="text-muted mb-2">No price category assigned — every product uses its base price.</p>
+    @endif
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Product</th>
+                <th class="text-right">Base Price</th>
+                <th class="text-right">{{ $priceCategory ? e($priceCategory).' Price' : 'Category Price' }}</th>
+                <th class="text-right">Price Applied</th>
+            </tr>
+        </thead>
+        <tbody>
+        @forelse($priceList as $item)
+            <tr>
+                <td>{{ $item->code }}</td>
+                <td>{{ $item->name }}</td>
+                <td class="text-right">{{ number_format($item->base_price, 2) }}</td>
+                <td class="text-right">{{ is_null($item->category_price) ? '—' : number_format($item->category_price, 2) }}</td>
+                <td class="text-right"><strong>{{ number_format($item->effective_price, 2) }}</strong></td>
+            </tr>
+        @empty
+            <tr><td colspan="5" class="text-center text-muted">No active products.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+</div>
+
 @push('scripts')
     <script>
         $(document).keyup(function(e) {

@@ -17,7 +17,7 @@ use App\Models\InvoiceDetail;
 use App\Models\Customer;
 use App\Models\Code;
 use App\Models\Product;
-use App\Models\SpecialPrice;
+use App\Models\ProductPrice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -352,13 +352,30 @@ class DeliveryOrderController extends AppBaseController
             return response()->json(['status' => false, 'message' => 'Product not found!']);
         }
 
-        $specialprice = SpecialPrice::where('customer_id', $deliveryOrder->customer_id)->where('product_id', $product_id)->first();
+        $price = $this->resolveCustomerPrice($product, $deliveryOrder->customer_id);
 
-        if (empty($specialprice)) {
-            return response()->json(['status' => true, 'message' => 'Special Price not found!', 'data' => $product->price]);
-        } else {
-            return response()->json(['status' => true, 'message' => 'Special Price found!', 'data' => $specialprice->price]);
+        return response()->json(['status' => true, 'message' => 'Price resolved.', 'data' => $price]);
+    }
+
+    /**
+     * Price a product for a customer: the customer's AutoCount price category
+     * selects the matching product_prices row; absent category, or no price for
+     * it, falls back to the product's base price.
+     */
+    private function resolveCustomerPrice(Product $product, $customerId)
+    {
+        $categoryId = $customerId ? Customer::where('id', $customerId)->value('product_type_id') : null;
+
+        if ($categoryId) {
+            $categoryPrice = ProductPrice::where('product_id', $product->id)
+                ->where('product_type_id', $categoryId)
+                ->value('price');
+            if ($categoryPrice !== null) {
+                return $categoryPrice;
+            }
         }
+
+        return $product->price;
     }
 
     public function getDoViewPDF($id, $function)

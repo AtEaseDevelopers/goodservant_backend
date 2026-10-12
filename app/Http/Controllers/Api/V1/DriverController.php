@@ -19,7 +19,7 @@ use App\Models\TaskTransfer;
 use App\Models\Assign;
 use App\Models\Invoice;
 use App\Models\Product;
-use App\Models\SpecialPrice;
+use App\Models\ProductPrice;
 use App\Models\Customer;
 use App\Models\InvoicePayment;
 use App\Models\InvoiceDetail;
@@ -1214,14 +1214,13 @@ class DriverController extends Controller
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
                         $task[$c]['customer']['product'] = DB::table('products')
-                            ->leftJoin('special_prices', function($join) use($t)
+                            ->leftJoin('product_prices', function($join) use($t)
                                 {
-                                    $join->on('special_prices.customer_id','=',DB::raw("'".$t['customer']['id']."'"));
-                                    $join->on('special_prices.product_id', '=', 'products.id');
-                                    $join->on('special_prices.status', '=', DB::raw("'1'"));
+                                    $join->on('product_prices.product_id', '=', 'products.id');
+                                    $join->on('product_prices.product_type_id', '=', DB::raw("'".($t['customer']['product_type_id'] ?? 0)."'"));
                                 })
                             ->where('products.status','1')
-                            ->select('products.id','products.code','products.name',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                            ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
                             ->get();
@@ -1321,14 +1320,13 @@ class DriverController extends Controller
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
                         $task[$c]['customer']['product'] = DB::table('products')
-                            ->leftJoin('special_prices', function($join) use($t)
+                            ->leftJoin('product_prices', function($join) use($t)
                                 {
-                                    $join->on('special_prices.customer_id','=',DB::raw("'".$t['customer']['id']."'"));
-                                    $join->on('special_prices.product_id', '=', 'products.id');
-                                    $join->on('special_prices.status', '=', DB::raw("'1'"));
+                                    $join->on('product_prices.product_id', '=', 'products.id');
+                                    $join->on('product_prices.product_type_id', '=', DB::raw("'".($t['customer']['product_type_id'] ?? 0)."'"));
                                 })
                             ->where('products.status','1')
-                            ->select('products.id','products.code','products.name',DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                            ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
                             ->get();
@@ -1567,12 +1565,12 @@ class DriverController extends Controller
             }
             //process
             if(isset($data['customer_id'])){
+                $priceCategoryId = Customer::where('id', $data['customer_id'])->value('product_type_id') ?? 0;
                 $product = DB::table('products')
-                ->leftJoin('special_prices', function($join) use($data)
+                ->leftJoin('product_prices', function($join) use($priceCategoryId)
                     {
-                        $join->on('special_prices.customer_id','=',DB::raw("'".$data['customer_id']."'"));
-                        $join->on('special_prices.product_id', '=', 'products.id');
-                        $join->on('special_prices.status', '=', DB::raw("'1'"));
+                        $join->on('product_prices.product_id', '=', 'products.id');
+                        $join->on('product_prices.product_type_id', '=', DB::raw("'".$priceCategoryId."'"));
                     })
                 ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
                 ->leftJoin('inventory_balances', function($join) use($driver)
@@ -1581,7 +1579,7 @@ class DriverController extends Controller
                         $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
                     })
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('coalesce(special_prices.price,products.price) as "price"'))
+                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('coalesce(product_prices.price,products.price) as "price"'))
                 ->orderBy('products.sequence')
                 ->orderBy('products.id')
                 ->get()
@@ -5056,11 +5054,17 @@ class DriverController extends Controller
                                 'data' => null
                             ], 400);
                         }
-                        // Price comes from the customer's price list, never the client.
-                        $price = SpecialPrice::where('customer_id', $salesOrder->customer_id)
-                            ->where('product_id', $product->id)
-                            ->where('status', 1)
-                            ->value('price') ?? $product->price;
+                        // Price comes from the customer's price category, never the client.
+                        $price = $product->price;
+                        $priceCategoryId = Customer::where('id', $salesOrder->customer_id)->value('product_type_id');
+                        if ($priceCategoryId) {
+                            $categoryPrice = ProductPrice::where('product_id', $product->id)
+                                ->where('product_type_id', $priceCategoryId)
+                                ->value('price');
+                            if ($categoryPrice !== null) {
+                                $price = $categoryPrice;
+                            }
+                        }
                         $newItems[] = [
                             'product_id' => $product->id,
                             'quantity' => $item['quantity'],

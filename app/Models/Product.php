@@ -108,4 +108,14 @@ class Product extends Model
     {
         return $this->belongsTo(\App\Models\ProductType::class, 'type_id', 'id');
     }
+
+    /**
+     * Per-price-category prices synced from AutoCount. A line price resolves as
+     * the buying customer's category -> the matching row here, falling back to
+     * $this->price.
+     */
+    public function prices()
+    {
+        return $this->hasMany(\App\Models\ProductPrice::class, 'product_id', 'id');
+    }
 }

@@ -369,11 +369,15 @@ Route::group(['middleware' => ['auth']], function() {
         Route::resource('companies', App\Http\Controllers\CompanyController::class);
         Route::post('/companies/massdestroy', [App\Http\Controllers\CompanyController::class, 'massdestroy']);
     });
-    Route::group(['middleware' => ['permission:specialprice']], function() {
-        Route::resource('specialPrices', App\Http\Controllers\SpecialPriceController::class);
-        Route::post('/specialPrices/massdestroy', [App\Http\Controllers\SpecialPriceController::class, 'massdestroy']);
-        Route::post('/specialPrices/massupdatestatus', [App\Http\Controllers\SpecialPriceController::class, 'massupdatestatus']);
-    });
+    // Special Prices disabled: pricing is driven by the customer's AutoCount
+    // price category now. Routes commented out (feature hidden/non-operational)
+    // but SpecialPriceController and its views/model are kept so it can be
+    // switched back on by uncommenting.
+    // Route::group(['middleware' => ['permission:specialprice']], function() {
+    //     Route::resource('specialPrices', App\Http\Controllers\SpecialPriceController::class);
+    //     Route::post('/specialPrices/massdestroy', [App\Http\Controllers\SpecialPriceController::class, 'massdestroy']);
+    //     Route::post('/specialPrices/massupdatestatus', [App\Http\Controllers\SpecialPriceController::class, 'massupdatestatus']);
+    // });
     Route::group(['middleware' => ['permission:foc']], function() {
         Route::resource('focs', App\Http\Controllers\focController::class);
         Route::post('/focs/massdestroy', [App\Http\Controllers\focController::class, 'massdestroy']);
