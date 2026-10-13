@@ -29,6 +29,35 @@
     <p>{{ $product->status == 1 ? __('products.active') : __('products.unactive') }}</p>
 </div>
 
+<!-- Price per category (read-only) -->
+<div class="form-group">
+    {!! Form::label('price_categories', 'Price by Category') !!}
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th>Price Category</th>
+                <th class="text-right">Price</th>
+            </tr>
+        </thead>
+        <tbody>
+        @forelse(($priceCategories ?? []) as $category)
+            <tr>
+                <td>{{ $category->name }}</td>
+                <td class="text-right">
+                    @if(is_null($category->category_price))
+                        {{ number_format($product->price, 2) }} <span class="text-muted">(base)</span>
+                    @else
+                        {{ number_format($category->category_price, 2) }}
+                    @endif
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="2" class="text-center text-muted">No price categories.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+</div>
+
 @einvoice
 <!-- Classification Code Field -->
 <div class="form-group">

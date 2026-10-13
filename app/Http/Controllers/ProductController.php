@@ -149,8 +149,24 @@ class ProductController extends AppBaseController
             return redirect(route('products.index'));
         }
 
-        $data = ['product' => $product];
-        
+        // Every price category and this product's price under it: the category
+        // price when set, else the product's base price (same fallback the OMS
+        // uses to resolve a line price for a customer on that category).
+        $priceCategories = DB::table('product_price_categories as c')
+            ->leftJoin('product_prices as pp', function ($join) use ($product) {
+                $join->on('pp.product_price_category_id', '=', 'c.id')
+                    ->where('pp.product_id', '=', (int) $product->id);
+            })
+            ->where('c.status', 1)
+            ->orderBy('c.id')
+            ->select('c.name', 'pp.price as category_price')
+            ->get();
+
+        $data = [
+            'product' => $product,
+            'priceCategories' => $priceCategories,
+        ];
+
         // Add classification data if e-invoice is enabled
         if ($this->eInvoiceService->isEnabled()) {
             $data['classificationOptions'] = $this->getClassificationOptions();
