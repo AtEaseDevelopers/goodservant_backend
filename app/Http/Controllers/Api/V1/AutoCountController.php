@@ -251,6 +251,8 @@ class AutoCountController extends Controller
             // untouched; blank = clear (falls back to base price); a new name is
             // created as a price category.
             'customers.*.product_price_category' => ['nullable', 'string', 'max:255'],
+            // AutoCount Debtor Type (Debtor.DebtorType). AutoCount-owned.
+            'customers.*.debtor_type' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -715,6 +717,12 @@ class AutoCountController extends Controller
             if (array_key_exists($field, $row) && trim((string) $row[$field]) !== '') {
                 $attributes[$field] = $row[$field];
             }
+        }
+
+        // Debtor type is AutoCount-owned: present means reflect it (blank -> null),
+        // absent means leave the stored value alone (the plugin always sends it).
+        if (array_key_exists('debtor_type', $row)) {
+            $attributes['debtor_type'] = trim((string) $row['debtor_type']) ?: null;
         }
 
         // Price category is explicit: present means set it (even to null to

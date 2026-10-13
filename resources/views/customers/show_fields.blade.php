@@ -76,6 +76,12 @@
     <p>{{ $customer->tin }}</p>
 </div>
 
+<!-- Debtor Type Field (from AutoCount, read-only) -->
+<div class="form-group">
+    {!! Form::label('debtor_type', __('customers.debtor_type')) !!}:
+    <p>{{ $customer->debtor_type ?? '—' }}</p>
+</div>
+
 <!-- Status Field -->
 <div class="form-group">
     {!! Form::label('status', __('customers.status')) !!}:

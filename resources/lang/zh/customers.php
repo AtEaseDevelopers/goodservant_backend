@@ -46,6 +46,7 @@ return [
     'ssm' => 'SSM',
     'sst' => 'SST',
     'start_date' => '开始日期',
+    'debtor_type' => '客户类型',
     'status' => '状态',
     'target' => '目标',
     'tin' => '税务编号',

@@ -57,6 +57,8 @@ class Customer extends Model
         'msic',
         'sst_registration_no',
         'tourism_tax_registration',
+        // AutoCount Debtor Type (Debtor.DebtorType); synced from the plugin.
+        'debtor_type',
     ];
 
     /**

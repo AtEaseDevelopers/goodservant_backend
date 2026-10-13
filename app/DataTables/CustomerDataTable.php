@@ -140,7 +140,8 @@ class CustomerDataTable extends DataTable
                     'customers.group',
                     'customers.tin',
                     'customers.sst',
-                    'customers.customer_type', 
+                    'customers.customer_type',
+                    'customers.debtor_type',
                     'customers.chinese_name',
                     'invoicesummary.customer_id',
                     'invoicesummary.totalprice',
@@ -324,6 +325,10 @@ class CustomerDataTable extends DataTable
             // 'name' => 'sst']),
 
             'tin',
+
+            'debtor_type'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.debtor_type'),
+            'data' => 'debtor_type',
+            'name' => 'debtor_type']),
 
             'group_descr'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.group'),
             'data' => 'GroupDescription',
