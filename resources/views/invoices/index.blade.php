@@ -19,7 +19,7 @@
                              <a class="pull-right text-danger pr-2 d-none" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
                             @endnoeinvoice
                              <a class="pull-right text-success pr-2 d-none" id="massactive" href="#" alt="Mass active"><i class="fa fa-check fa-lg"></i></a>
-                             <a class="pull-right text-info pr-2 d-none" id="markpendingsync" href="#" alt="Mark pending sync to AutoCount"><i class="fa fa-cloud-upload fa-lg"></i></a>
+                             <button type="button" class="btn btn-info btn-sm pull-right mr-2" id="markpendingsync" title="Select invoices then click to sync them to AutoCount"><i class="fa fa-cloud-upload"></i> Sync to AutoCount</button>
                              <!--<a class="pull-right pr-2" id="masssyncxero" href="#" alt="Mass Sync to Xero"><i class="fa fa-refresh fa-lg"></i></a>-->
                             @einvoice
                              <button type="button" class="btn btn-primary btn-sm pull-right mr-2" onclick="submitEinvoice()" title="Submit E-Invoice">
