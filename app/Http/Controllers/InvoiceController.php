@@ -494,17 +494,18 @@ class InvoiceController extends AppBaseController
      * pending (sync_status = 1) invoices every 30s.
      *
      * Skipped:
-     *  - already synced (3): an invoice is created in AutoCount once and cannot
-     *    be re-synced (there is no upsert — a re-sync would be a duplicate).
      *  - currently syncing (2): must not disturb an in-flight sync.
-     * Eligible: none (0), pending (1, harmless re-mark), failed (4, retry).
+     * Eligible: none (0), pending (1, harmless re-mark), failed (4, retry) and
+     * already synced (3, resync). Resyncing a synced invoice is safe: the plugin
+     * de-dups by Ref (the OMS invoiceno), so it returns the existing AutoCount
+     * DocNo instead of creating a duplicate.
      */
     public function markpendingsync(Request $request)
     {
         $ids = $request->input('ids', []);
 
         $count = Invoice::whereIn('id', $ids)
-            ->whereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])
+            ->where('sync_status', '!=', Invoice::SYNC_SYNCING)
             ->update([
                 'sync_status' => Invoice::SYNC_PENDING,
                 'sync_error' => null,
