@@ -26,6 +26,8 @@ return [
     'edit_special_price_offer' => '编辑特价优惠',
     'end_date' => '结束日期',
     'group' => '分组',
+
+    'price_category' => '价格类别',
     'no_special_price_offers_apply_for_this_customer' => '此客户不适用任何特殊价格优惠',
     'offer' => '优惠',
     'operation' => '运营',

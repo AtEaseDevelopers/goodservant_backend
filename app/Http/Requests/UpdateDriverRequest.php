@@ -40,6 +40,8 @@ class UpdateDriverRequest extends FormRequest
             'temperature' => 'nullable|numeric',
             'status' => 'required',
             'remark' => 'nullable|string|max:255',
+            'debtor_types' => 'nullable|array',
+            'debtor_types.*' => 'string|max:255',
             'created_at' => 'nullable',
             'updated_at' => 'nullable',
             'deleted_at' => 'nullable'

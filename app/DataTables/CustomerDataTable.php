@@ -23,6 +23,10 @@ class CustomerDataTable extends DataTable
             return $customer->is_do_customer ? 'Yes' : 'No';
         });
 
+        $dataTable->addColumn('price_category', function ($customer) {
+            return $customer->productPriceCategory->name ?? '';
+        });
+
         return $dataTable->addColumn('action', 'customers.datatables_actions');
     }
 
@@ -83,8 +87,9 @@ class CustomerDataTable extends DataTable
             $query = $model->newQuery()
     
                 ->with('agent:id,name')
-    
+
                 ->with('supervisor:id,name')
+                ->with('productPriceCategory:id,name')
                 ->leftJoin(DB::raw("
                 (
                  SELECT
@@ -333,6 +338,12 @@ class CustomerDataTable extends DataTable
             'group_descr'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.group'),
             'data' => 'GroupDescription',
             'name' => 'group',
+            'searchable' => false]),
+
+            'price_category'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.price_category'),
+            'data' => 'price_category',
+            'name' => 'price_category',
+            'orderable' => false,
             'searchable' => false]),
 
             'is_do_customer'=> new \Yajra\DataTables\Html\Column(['title' => 'DO Customer',

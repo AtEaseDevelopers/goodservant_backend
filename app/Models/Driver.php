@@ -41,6 +41,9 @@ class Driver extends Model
         'invoice_runningnumber',
         'trip_id',
         'lorry_id',
+        // AutoCount Debtor Types this driver covers; drives auto-assignment of
+        // matching customers (see App\Services\DebtorTypeAssignmentService).
+        'debtor_types',
     ];
 
     protected $hidden = [
@@ -70,6 +73,7 @@ class Driver extends Model
         'session' => 'string',
         'trip_id' => 'integer',
         'lorry_id' => 'integer',
+        'debtor_types' => 'array',
     ];
 
     /**
@@ -91,6 +95,8 @@ class Driver extends Model
         'temperature' => 'nullable|numeric',
         'status' => 'required',
         'remark' => 'nullable|string|max:255',
+        'debtor_types' => 'nullable|array',
+        'debtor_types.*' => 'string|max:255',
         'created_at' => 'nullable',
         'updated_at' => 'nullable',
         'deleted_at' => 'nullable'

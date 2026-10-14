@@ -31,7 +31,10 @@ class Assign extends Model
     public $fillable = [
         'driver_id',
         'customer_id',
-        'sequence'
+        'sequence',
+        // 'manual' (admin / mobile) vs 'debtor_type' (auto-maintained from a
+        // driver's debtor_types; see App\Services\DebtorTypeAssignmentService).
+        'source',
     ];
 
     /**

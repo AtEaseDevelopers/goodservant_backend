@@ -24,6 +24,7 @@ use App\Models\Trip;
 use App\Models\InventoryTransfer;
 use App\Models\DriverLocation;
 use App\Models\Assign;
+use App\Models\Customer;
 
 class DriverController extends AppBaseController
 {
@@ -54,7 +55,21 @@ class DriverController extends AppBaseController
      */
     public function create()
     {
-        return view('drivers.create');
+        return view('drivers.create')->with('debtorTypes', $this->debtorTypeOptions());
+    }
+
+    /**
+     * Distinct, non-empty debtor types present across customers — the pool a
+     * driver can be assigned to. Keyed value => value for the multi-select.
+     */
+    private function debtorTypeOptions()
+    {
+        return Customer::query()
+            ->whereNotNull('debtor_type')
+            ->where('debtor_type', '!=', '')
+            ->distinct()
+            ->orderBy('debtor_type')
+            ->pluck('debtor_type', 'debtor_type');
     }
 
     /**
@@ -67,7 +82,9 @@ class DriverController extends AppBaseController
     public function store(CreateDriverRequest $request)
     {
         $input = $request->all();
-    
+        // Absent when nothing is picked; normalise so the array cast stores [].
+        $input['debtor_types'] = $request->input('debtor_types', []);
+
         $driver = $this->driverRepository->create($input);
 
         Flash::success($input['name'].__('drivers.saved_successfully'));
@@ -115,7 +132,7 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
-        return view('drivers.edit')->with('driver', $driver);
+        return view('drivers.edit')->with('driver', $driver)->with('debtorTypes', $this->debtorTypeOptions());
     }
 
     /**
@@ -138,6 +155,8 @@ class DriverController extends AppBaseController
         }
 
         $input = $request->all();
+        // Absent when nothing is picked; normalise so deselect-all clears it.
+        $input['debtor_types'] = $request->input('debtor_types', []);
 
         $driver = $this->driverRepository->update($input, $id);
 

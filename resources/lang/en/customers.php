@@ -26,6 +26,7 @@ return [
     'edit_special_price_offer' => 'Edit special price offer',
     'end_date' => 'End date',
     'group' => 'Group',
+    'price_category' => 'Price Category',
     'no_special_price_offers_apply_for_this_customer' => 'No special price offers apply for this customer',
     'offer' => 'Offer',
     'operation' => 'Operation',

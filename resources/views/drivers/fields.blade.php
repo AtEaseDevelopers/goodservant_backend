@@ -104,6 +104,12 @@
     {!! Form::number('temperature', null, ['class' => 'form-control','step'=>'0.1','min'=>'0']) !!}
 </div> -->
 
+<!-- Debtor Types Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('debtor_types', __('drivers.debtor_types')) !!}
+    {!! Form::select('debtor_types[]', $debtorTypes ?? [], old('debtor_types', isset($driver) ? ($driver->debtor_types ?? []) : []), ['class' => 'selectpicker form-control', 'multiple' => true, 'data-live-search' => 'true', 'title' => __('drivers.debtor_types_placeholder')]) !!}
+</div>
+
 <!-- Status Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('status', __('drivers.status')) !!}<span class="asterisk"> *</span>

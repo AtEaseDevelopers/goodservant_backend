@@ -64,6 +64,12 @@
     <p>{{ $driver->temperature }}</p>
 </div> -->
 
+<!-- Debtor Types Field -->
+<div class="form-group">
+    {!! Form::label('debtor_types', __('drivers.debtor_types')) !!}:
+    <p>{{ !empty($driver->debtor_types) ? implode(', ', $driver->debtor_types) : '—' }}</p>
+</div>
+
 <!-- Status Field -->
 <div class="form-group">
     {!! Form::label('status', __('drivers.status')) !!}:

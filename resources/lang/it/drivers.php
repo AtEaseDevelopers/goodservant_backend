@@ -16,6 +16,8 @@ return [
     'create' => '创建',
     'create_driver' => '创建司机',
     'customer' => '客户',
+    'debtor_types' => '客户类型',
+    'debtor_types_placeholder' => '选择客户类型...',
     'deleted_successfully' => '删除成功',
     'detail' => '详情',
     'driver_not_found' => '未找到司机',

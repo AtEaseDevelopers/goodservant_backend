@@ -89,9 +89,10 @@ class AssignController extends AppBaseController
         DB::transaction(function () use ($request, $driverId, $sequences) {
             foreach ($request->input('customer_id') as $index => $customerId) {
                 // A customer already assigned to this driver keeps one row; only its sequence changes
+                // Mark manual so the debtor-type automation never removes it.
                 Assign::updateOrCreate(
                     ['driver_id' => $driverId, 'customer_id' => $customerId],
-                    ['sequence' => $sequences[$index] ?? 0]
+                    ['sequence' => $sequences[$index] ?? 0, 'source' => 'manual']
                 );
             }
         });
@@ -111,6 +112,8 @@ class AssignController extends AppBaseController
                 'driver_id' => $input['driver_id'],
                 'customer_id' => $customerId,
                 'sequence' => $input['sequence'][$index] ?? 1,
+                // Mark manual so the debtor-type automation never removes it.
+                'source' => 'manual',
             ];
             
             // Check if assignment already exists using where()->first()

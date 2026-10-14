@@ -22,6 +22,8 @@ return [
     'edit' => '编辑',
     'edit_customer' => '编辑客户',
     'group' => '分组',
+
+    'price_category' => '价格类别',
     'operation' => '运营',
     'payment_term' => '付款条款',
     'payment_term_cash' => '现金',

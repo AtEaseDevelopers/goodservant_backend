@@ -16,6 +16,8 @@ return [
     'create' => 'Create',
     'create_driver' => 'Create driver',
     'customer' => 'Customer',
+    'debtor_types' => 'Debtor Types',
+    'debtor_types_placeholder' => 'Select debtor types...',
     'deleted_successfully' => 'Deleted successfully',
     'detail' => 'Detail',
     'driver_not_found' => 'Driver not found',
