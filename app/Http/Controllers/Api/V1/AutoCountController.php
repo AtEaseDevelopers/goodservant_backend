@@ -61,9 +61,11 @@ class AutoCountController extends Controller
     /**
      * Upsert products + base pricing pushed from AutoCount.
      *
-     * Body: { "products": [ { code, name, price, status?, classification_code? }, ... ] }
-     * Matched by `code` (AutoCount ItemCode). On update only the synced
-     * columns change, so OMS-owned fields (image_path, type_id) are preserved.
+     * Body: { "products": [ { code, name, price, status?, classification_code?, item_group? }, ... ] }
+     * Matched by `code` (AutoCount ItemCode). On update only the synced columns
+     * change, so OMS-owned fields are preserved — except `type_id`, which now
+     * follows AutoCount's Item Group when one is sent (image_path stays
+     * OMS-owned).
      */
     public function syncProducts(Request $request)
     {
@@ -113,6 +115,11 @@ class AutoCountController extends Controller
             'products.*.price' => ['nullable', 'numeric'],
             'products.*.status' => ['nullable', 'integer'],
             'products.*.classification_code' => ['nullable', 'string', 'max:255'],
+            // AutoCount Item Group -> OMS product type (classification). When
+            // non-empty it drives products.type_id (created by name if missing);
+            // blank/absent leaves the product's type untouched. Distinct from
+            // the price categories below (customer pricing tier).
+            'products.*.item_group' => ['nullable', 'string', 'max:255'],
             // Per-price-category prices. Absent = leave the product's category
             // prices untouched; present (even empty) = full-replace them. The
             // price category is matched by name and created if it does not exist.
@@ -144,6 +151,10 @@ class AutoCountController extends Controller
         // is resolved (or created) once, not per product.
         $categoryCache = [];
 
+        // Item-group name -> product_types.id, resolved (or created) once per
+        // batch so repeated item groups are not re-queried per product.
+        $typeCache = [];
+
         $created = 0;
         $updated = 0;
         $failed = 0;
@@ -157,7 +168,7 @@ class AutoCountController extends Controller
             // Guard per-item: one bad row logs a traceable reason and is skipped,
             // instead of 500-ing the whole batch.
             try {
-                if ($this->upsertProduct($code, $row, $defaultTypeId, $categoryCache)) {
+                if ($this->upsertProduct($code, $row, $defaultTypeId, $categoryCache, $typeCache)) {
                     $created++;
                 } else {
                     $updated++;
@@ -545,15 +556,19 @@ class AutoCountController extends Controller
      *   has no base-UOM price, so the existing OMS price is kept (new rows fall
      *   back to 0).
      * - On first creation only, stamps the legacy `type`/`type_id` defaults;
-     *   updates leave OMS-owned fields (image_path/type_id/type) untouched.
+     *   updates leave OMS-owned fields (image_path/type) untouched.
+     * - item_group: when sent non-empty, drives `type_id` on both create and
+     *   update (AutoCount is master — overwrites the create-time default and any
+     *   prior value). Blank/absent leaves the product's type as-is.
      * - Race-safe: if a concurrent sync wins the insert (unique `code`), the
      *   duplicate-key error is caught and retried as an update.
      * - prices: when the row carries a `prices` array, the product's per-category
      *   prices are reconciled against it (see syncProductPrices).
      *
      * @param array $categoryCache  price-category name => id, reused/extended across the batch
+     * @param array $typeCache      item-group name => product_types.id, reused/extended across the batch
      */
-    private function upsertProduct(string $code, array $row, $defaultTypeId, array &$categoryCache = []): bool
+    private function upsertProduct(string $code, array $row, $defaultTypeId, array &$categoryCache = [], array &$typeCache = []): bool
     {
         $attributes = [
             'name' => $row['name'],
@@ -566,6 +581,13 @@ class AutoCountController extends Controller
 
         if (array_key_exists('classification_code', $row)) {
             $attributes['classification_code'] = $row['classification_code'];
+        }
+
+        // AutoCount's Item Group drives the OMS product type. Resolve/create the
+        // type by name and assign it (overwriting the create-time default below).
+        // A blank item group leaves type_id untouched.
+        if (array_key_exists('item_group', $row) && trim((string) $row['item_group']) !== '') {
+            $attributes['type_id'] = $this->resolveProductTypeId(trim((string) $row['item_group']), $typeCache);
         }
 
         $product = Product::firstOrNew(['code' => $code]);
@@ -647,6 +669,21 @@ class AutoCountController extends Controller
         }
 
         return (int) $categoryCache[$name];
+    }
+
+    /**
+     * Resolve an item-group name to its product_types id, creating the type if
+     * it does not exist yet (AutoCount's Item Group is the source of the product
+     * classification list). Cached per batch to avoid re-querying. Distinct from
+     * a price category (customer pricing tier) — this is the product's type.
+     */
+    private function resolveProductTypeId(string $name, array &$typeCache): int
+    {
+        if (!array_key_exists($name, $typeCache)) {
+            $typeCache[$name] = ProductType::firstOrCreate(['name' => $name], ['status' => 1])->id;
+        }
+
+        return (int) $typeCache[$name];
     }
 
     /**
