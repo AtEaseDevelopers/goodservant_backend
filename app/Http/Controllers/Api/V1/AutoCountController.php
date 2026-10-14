@@ -158,10 +158,22 @@ class AutoCountController extends Controller
         $created = 0;
         $updated = 0;
         $failed = 0;
+        $skipped = 0;
 
         foreach ($request->input('products') as $row) {
             $code = trim($row['code']);
             if ($code === '') {
+                continue;
+            }
+
+            // Inactive (discontinued) items must not be created in the OMS: they
+            // cannot be invoiced, so a newly-synced inactive product could only
+            // clutter the catalogue with lines that can never sync back on an
+            // order. An already-existing product still falls through to upsert, so
+            // a discontinuation in AutoCount is reflected (status -> 0).
+            if (isset($row['status']) && (int) $row['status'] === 0
+                && !Product::where('code', $code)->exists()) {
+                $skipped++;
                 continue;
             }
 
@@ -188,6 +200,7 @@ class AutoCountController extends Controller
             'created' => $created,
             'updated' => $updated,
             'failed' => $failed,
+            'skipped' => $skipped,
             'total' => $created + $updated,
         ];
         $this->log($request, 'products', 'SENT', [
@@ -196,6 +209,7 @@ class AutoCountController extends Controller
             'created' => $created,
             'updated' => $updated,
             'failed' => $failed,
+            'skipped' => $skipped,
         ]);
 
         return response()->json($payload);
@@ -287,10 +301,23 @@ class AutoCountController extends Controller
         $created = 0;
         $updated = 0;
         $failed = 0;
+        $skipped = 0;
 
         foreach ($request->input('customers') as $row) {
             $code = trim($row['code']);
             if ($code === '') {
+                continue;
+            }
+
+            // Inactive debtors must not be created in the OMS. AutoCount itself
+            // refuses to post an invoice to an inactive debtor ("already inactive,
+            // save aborted"), so a newly-synced inactive customer could only ever
+            // raise orders that can never sync back. An already-existing customer
+            // still falls through to upsert, so a deactivation in AutoCount is
+            // reflected (status -> 0) rather than left stale.
+            if (isset($row['status']) && (int) $row['status'] === 0
+                && !Customer::where('code', $code)->exists()) {
+                $skipped++;
                 continue;
             }
 
@@ -317,6 +344,7 @@ class AutoCountController extends Controller
             'created' => $created,
             'updated' => $updated,
             'failed' => $failed,
+            'skipped' => $skipped,
             'total' => $created + $updated,
         ];
         $this->log($request, 'customers', 'SENT', [
@@ -325,6 +353,7 @@ class AutoCountController extends Controller
             'created' => $created,
             'updated' => $updated,
             'failed' => $failed,
+            'skipped' => $skipped,
         ]);
 
         return response()->json($payload);
