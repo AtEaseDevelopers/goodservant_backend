@@ -532,6 +532,16 @@ class AutoCountController extends Controller
             ->whereIn('id', $ids)
             ->get();
 
+        // Approved payments already collected against each invoice, keyed by
+        // invoice id. A cash sale carries the full amount here (the POS payment is
+        // written when the CS invoice is created), which the plugin stamps on the
+        // AutoCount Cash Sale so it posts fully knocked off. Hoisted to one query.
+        $paidByInvoice = \App\Models\InvoicePayment::whereIn('invoice_id', $ids)
+            ->where('status', 1)
+            ->groupBy('invoice_id')
+            ->selectRaw('invoice_id, SUM(amount) as paid')
+            ->pluck('paid', 'invoice_id');
+
         $payload = [];
 
         foreach ($invoices as $invoice) {
@@ -545,6 +555,15 @@ class AutoCountController extends Controller
                     'date' => \Illuminate\Support\Carbon::parse($invoice->getRawOriginal('date'))->format('Y-m-d'),
                     'remark' => $invoice->remark,
                     'paymentterm' => $invoice->paymentterm,
+                    // A cash sale (invoiceno CS…, already paid at point of sale) must
+                    // become an AutoCount Cash Sale, not a credit Sales Invoice. The
+                    // CS/IV prefix is set deterministically on creation; treat pure-cash
+                    // paymentterm (1) as a fallback signal for legacy rows.
+                    'is_cash_sale' => $this->isCashSale($invoice),
+                    // Amount already collected (approved payments). For a cash sale this
+                    // is the full total; the plugin stamps it on the Cash Sale so the
+                    // document posts with zero outstanding (auto knock-off).
+                    'paid_amount' => round((float) ($paidByInvoice[$invoice->id] ?? 0), 2),
                     'customer_code' => optional($invoice->customer)->code,
                     'customer_name' => optional($invoice->customer)->company,
                     // Discount (stored as a negative line on a hidden product) is sent
@@ -575,6 +594,27 @@ class AutoCountController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * Whether an invoice is a cash sale (paid on the spot) rather than a credit
+     * invoice. Cash sales carry a `CS` invoiceno prefix (credit invoices use `IV`),
+     * set deterministically when the document is created. Falls back to the pure-cash
+     * payment term (1) for any legacy row with no recognisable prefix.
+     */
+    private function isCashSale(Invoice $invoice): bool
+    {
+        $no = strtoupper(trim((string) $invoice->invoiceno));
+
+        if (\Illuminate\Support\Str::startsWith($no, 'CS')) {
+            return true;
+        }
+
+        if (\Illuminate\Support\Str::startsWith($no, 'IV')) {
+            return false;
+        }
+
+        return (int) $invoice->paymentterm === 1;
     }
 
     /**
