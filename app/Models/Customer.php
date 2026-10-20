@@ -102,6 +102,24 @@ class Customer extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      **/
+    /**
+     * Customers that can be picked when creating a record. Inactive customers
+     * stay out. An existing document can still show its own customer.
+     */
+    public static function activeChoices($includeId = null): array
+    {
+        return static::query()
+            ->where(function ($query) use ($includeId) {
+                $query->where('status', 1);
+                if ($includeId) {
+                    $query->orWhere('id', $includeId);
+                }
+            })
+            ->orderBy('company')
+            ->pluck('company', 'id')
+            ->toArray();
+    }
+
     public function agent()
     {
         return $this->belongsTo(\App\Models\Agent::class, 'agent_id', 'id');

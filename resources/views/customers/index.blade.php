@@ -13,7 +13,7 @@
                          <div class="card-header">
                              <i class="fa fa-align-justify"></i>
                              {{ __('customers.customers')}}
-                            <a class="pull-right" href="{{ route('customers.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
+                            {{-- Create customer is hidden. Customers come from AutoCount. --}}
                             <!--<a class="pull-right pr-2" id="masssyncxero" href="#" alt="Mass Sync to Xero"><i class="fa fa-refresh fa-lg"></i></a>-->
                          </div>
                          <div class="card-body">

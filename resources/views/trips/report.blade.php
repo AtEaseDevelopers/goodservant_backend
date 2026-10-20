@@ -97,6 +97,17 @@
     </tr>
 </table>
 
+<table class="summary-table">
+    <tr>
+        <td style="width:50%;"><strong>Total Daily Sales</strong></td>
+        <td class="text-right">RM {{ number_format($dailySalesTotal, 2) }}</td>
+    </tr>
+    <tr class="total-row">
+        <td><strong>Total Payment</strong></td>
+        <td class="text-right">RM {{ number_format($totalPayment, 2) }}</td>
+    </tr>
+</table>
+
 <table class="split-table">
     <tr>
         <td class="split-cell" style="padding-right:6px;">

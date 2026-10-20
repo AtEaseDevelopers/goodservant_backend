@@ -73,12 +73,11 @@ class InvoiceController extends AppBaseController
         $input = $request->all();
 
         $input['date'] = date_create($input['date']);
-        if($input['invoiceno'] == null){
-            if ($input['paymentterm'] == 2) {
-                $input['invoiceno'] = Code::nextRunningNumber('invoicerunningnumber', 'IV');
-            } else {
-                $input['invoiceno'] = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
-            }
+        if (empty($input['invoiceno'])) {
+            $input['invoiceno'] = Code::nextDocumentNumber(
+                $input['paymentterm'] == 2 ? 'IV' : 'CS',
+                $input['driver_id'] ?? null
+            );
         }
 
         $invoice = $this->invoiceRepository->create($input);
@@ -209,12 +208,11 @@ class InvoiceController extends AppBaseController
         $input = $request->all();
 
         $input['date'] = date_create($input['date']);
-        if($input['invoiceno'] == null){
-            if ($input['paymentterm'] == 2) {
-                $input['invoiceno'] = Code::nextRunningNumber('invoicerunningnumber', 'IV');
-            } else {
-                $input['invoiceno'] = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
-            }
+        if (empty($input['invoiceno'])) {
+            $input['invoiceno'] = Code::nextDocumentNumber(
+                $input['paymentterm'] == 2 ? 'IV' : 'CS',
+                $input['driver_id'] ?? null
+            );
         }
 
         $invoice = $this->invoiceRepository->update($input, $id);

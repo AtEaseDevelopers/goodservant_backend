@@ -13,7 +13,7 @@
                          <div class="card-header">
                              <i class="fa fa-align-justify"></i>
                              {{ __('products.products')}}
-                             <a class="pull-right" href="{{ route('products.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
+                            {{-- Create product is hidden. Products come from AutoCount. --}}
                              <a class="pull-right pr-2" href="{{ route('products.arrange') }}" title="{{ __('Arrange Products') }}"><i class="fa fa-sort fa-lg"></i> {{ __('Arrange') }}</a>
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
                              <a class="pull-right text-success pr-2" id="massactive" href="#" alt="Mass active"><i class="fa fa-check fa-lg"></i></a>

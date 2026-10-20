@@ -115,10 +115,10 @@ class DriverDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                    'targets' => 4,
+                    'targets' => 6,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
                     [
-                    'targets' => 5,
+                    'targets' => 7,
                     'render' => 'function(data, type){
                         if(type !== "display") return data;
                         return data == 1
@@ -170,6 +170,10 @@ class DriverDataTable extends DataTable
             'data' => 'employeeid',
             'name' => 'drivers.employeeid']),
 
+            'doc_code'=> new \Yajra\DataTables\Html\Column(['title' => 'Invoice code',
+            'data' => 'doc_code',
+            'name' => 'drivers.doc_code']),
+
             /*'password'=> new \Yajra\DataTables\Html\Column(['title' => 'Employee Password',
             'data' => 'password',
             'name' => 'drivers.password']),*/
@@ -186,9 +190,9 @@ class DriverDataTable extends DataTable
             'data' => 'phone',
             'name' => 'drivers.phone']),
 
-            // 'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission Rate',
-            // 'data' => 'commissionrate',
-            // 'name' => 'commissionrate']),
+            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission %',
+            'data' => 'commissionrate',
+            'name' => 'drivers.commissionrate']),
 
             /*'bankdetails1'=> new \Yajra\DataTables\Html\Column(['title' => 'Bank Details 1',
             'data' => 'bankdetails1',

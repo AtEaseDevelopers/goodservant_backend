@@ -1070,6 +1070,22 @@ class DriverController extends Controller
                         ]);
                     }
                     Driver::where('id', $driver->id)->update(['trip_id' => null, 'lorry_id' => null]);
+                    foreach($endbalances as $endbalance){
+                        if($endbalance->quantity == 0){
+                            continue;
+                        }
+                        $inventorytransaction = New InventoryTransaction();
+                        $inventorytransaction->lorry_id = $data['lorry_id'];
+                        $inventorytransaction->product_id = $endbalance->product_id;
+                        $inventorytransaction->quantity = $endbalance->quantity * -1;
+                        $inventorytransaction->type = $endbalance->quantity > 0 ? 2 : 1;
+                        $inventorytransaction->remark = 'End trip auto stock out';
+                        $inventorytransaction->date = date('Y-m-d H:i:s');
+                        $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
+                        $inventorytransaction->save();
+                        $endbalance->quantity = 0;
+                        $endbalance->save();
+                    }
                     //cancelled task
                     $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['status' => 9]);
                     return response()->json([
@@ -1103,7 +1119,7 @@ class DriverController extends Controller
             }
             //process
             // $kelindan = Kelindan::where('status',1)->select('id','name')->get()->toarray();
-            $kelindan = DB::select("select k.id, k.name from kelindans k left join ( select driver_id, type, kelindan_id from trips where id in ( select max(id) as id from trips group by driver_id ) ) b on k.id = b.kelindan_id and b.type = 1 where b.kelindan_id is null;");
+            $kelindan = DB::select("select k.id, k.name from kelindans k left join ( select driver_id, type, kelindan_id from trips where id in ( select max(id) as id from trips group by driver_id ) ) b on k.id = b.kelindan_id and b.type = 1 where b.kelindan_id is null and k.status = 1;");
             if(count($kelindan) != 0){
                 return response()->json([
                     'result' => true,
@@ -1167,6 +1183,173 @@ class DriverController extends Controller
     }
 
     //Task
+    /**
+     * Today's visit list, in the task sequence. This is what the phone
+     * Deliver tab shows, including a list copied from another driver.
+     */
+    public function getcustomertoday(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $tasks = Task::where('driver_id', $driver->id)
+                ->where('date', date('Y-m-d'))
+                ->where('status', '!=', 9)
+                ->whereHas('customer', function ($query) {
+                    $query->where('status', 1);
+                })
+                ->orderBy('sequence', 'asc')
+                ->get();
+            if($tasks->isEmpty()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.customer_not_found',
+                    'data' => null
+                ], 200);
+            }
+            $customers = Customer::whereIn('id', $tasks->pluck('customer_id'))->get()->keyBy('id');
+            $pending = SalesOrder::where('driver_id', $driver->id)
+                ->where('status', '!=', 2)
+                ->whereNull('deliveryorder_id')
+                ->whereNull('invoice_id')
+                ->where('date', '<', date('Y-m-d'))
+                ->pluck('customer_id')
+                ->unique();
+            $rows = [];
+            $seen = [];
+            foreach($tasks as $task){
+                if(isset($seen[$task->customer_id])){
+                    continue;
+                }
+                $seen[$task->customer_id] = true;
+                $customer = $customers->get($task->customer_id);
+                if(empty($customer)){
+                    continue;
+                }
+                $rows[] = [
+                    'id' => $customer->id,
+                    'code' => $customer->code,
+                    'company' => $customer->company,
+                    'phone' => $customer->phone,
+                    'paymentterm' => $customer->paymentterm,
+                    'address' => $customer->address,
+                    'is_do_customer' => $customer->is_do_customer ? 1 : 0,
+                    'has_pending_so' => $pending->contains($customer->id) ? 1 : 0,
+                    'credit' => 0,
+                ];
+            }
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.customer_found',
+                'data' => $rows
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Replace this driver's open tasks for today with another driver's
+     * task list from a chosen day.
+     */
+    public function replacetasklist(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
+            if(empty($trip) || $trip->type == 2){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'driver_id' => 'required|numeric',
+                'date' => 'required|date_format:Y-m-d',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $source = Driver::where('id', $request->input('driver_id'))->first();
+            if(empty($source) || $source->id == $driver->id){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                    'data' => null
+                ], 400);
+            }
+            $sourceTasks = Task::where('driver_id', $source->id)
+                ->where('date', $request->input('date'))
+                ->where('status', '!=', 9)
+                ->orderBy('sequence', 'asc')
+                ->get();
+            if($sourceTasks->isEmpty()){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.task_not_found',
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            Task::where('driver_id', $driver->id)
+                ->where('date', date('Y-m-d'))
+                ->whereIn('status', [0, 1])
+                ->update(['status' => 9]);
+            $sequence = 1;
+            $seen = [];
+            foreach($sourceTasks as $sourceTask){
+                if(isset($seen[$sourceTask->customer_id])){
+                    continue;
+                }
+                $seen[$sourceTask->customer_id] = true;
+                $task = new Task();
+                $task->date = date('Y-m-d');
+                $task->driver_id = $driver->id;
+                $task->customer_id = $sourceTask->customer_id;
+                $task->sequence = $sequence;
+                $task->status = 0;
+                $task->trip_id = $trip->id;
+                $task->save();
+                $sequence++;
+            }
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.task_found',
+                'data' => ['count' => count($seen)]
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     public function gettask(Request $request){
         try{
             $data = $request->all();
@@ -1199,6 +1382,10 @@ class DriverController extends Controller
             //process
             $task = Task::where('driver_id', $driver->id)
                 ->where('date',date('Y-m-d'))
+                ->where('status', '!=', 9)
+                ->whereHas('customer', function ($query) {
+                    $query->where('status', 1);
+                })
                 ->where(function ($query) use ($trip) {
                     $query->where('trip_id', $trip->id)
                         ->orWhere('trip_id', null);
@@ -1206,6 +1393,7 @@ class DriverController extends Controller
                 // ->whereIn('trip_id',[NULL,$trip->id])
                 ->with('customer.activefoc')
                 ->with('invoice.invoicedetail.product:id,code,name')
+                ->orderBy('sequence', 'asc')
                 ->get()->toarray();
             if(count($task) != 0){
                 $message = true;
@@ -1302,8 +1490,10 @@ class DriverController extends Controller
             //process
             $task = Task::where('driver_id', $driver->id)
                 ->where('date',date('Y-m-d'))
-                //->where('status','!=',9)
-                //->where('status','!=',0)
+                ->where('status', '!=', 9)
+                ->whereHas('customer', function ($query) {
+                    $query->where('status', 1);
+                })
                 ->where(function ($query) use ($trip) {
                     $query->where('trip_id', $trip->id)
                         ->orWhere('trip_id', null);
@@ -1311,6 +1501,7 @@ class DriverController extends Controller
                 // ->whereIn('trip_id',[NULL,$trip->id])
                 ->with('customer.activefoc')
                 ->with('invoice.invoicedetail.product:id,code,name')
+                ->orderBy('sequence', 'asc')
                 ->paginate($size);
 
             if(count($task) != 0){
@@ -1646,7 +1837,7 @@ class DriverController extends Controller
             // has_pending_so: the customer still has an SO from a previous day
             // that was neither converted nor cancelled - the app shows a red
             // dot on the customer card so the driver notices overnight orders.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id WHERE customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( select invoices.customer_id, sum(invoice_details.totalprice) as totalprice, COALESCE(paymentsummary.amount,0) as paid, ( sum(invoice_details.totalprice) - COALESCE(paymentsummary.amount,0) ) as credit from invoices left join invoice_details on invoices.id = invoice_details.invoice_id left join ( select invoice_payments.customer_id, sum(COALESCE(invoice_payments.amount,0)) as amount from invoice_payments where invoice_payments.status = 1 group by invoice_payments.customer_id ) as paymentsummary on invoices.customer_id = paymentsummary.customer_id where invoices.status = 1 group by invoices.customer_id, paymentsummary.customer_id, paymentsummary.amount ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -2005,6 +2196,22 @@ class DriverController extends Controller
             }
             //process
             DB::beginTransaction();
+            if($customer->is_do_customer && (int) $data['type'] === 2){
+                $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $data['invoicedetail'], $data['date'] ?? date('Y-m-d H:i:s'), $data['remark'] ?? null, $data['cheque_no'] ?? null);
+                Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                DB::commit();
+                return response()->json([
+                    'result' => true,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_converted_to_delivery_order',
+                    'data' => [
+                        'id' => $deliveryOrder->id,
+                        'invoiceno' => $deliveryOrder->dono,
+                        'paymentterm' => 2,
+                        'status' => 0,
+                        'is_delivery_order' => true,
+                    ]
+                ], 200);
+            }
             $extinvoice = Invoice::where('id',$data['invoice_id'])->where('status',0)->first();
             $invoiceno = null;
             $id = null;
@@ -2024,13 +2231,13 @@ class DriverController extends Controller
                     if(($driver->invoice_runningnumber <=> $invoicerunningnumber) == -1){
                         Driver::where('id',$driver->id)->update(['invoice_runningnumber' => $invoicerunningnumber]);
                     }
+                    Code::acknowledgeDocumentNumber($data['type'] == 2 ? 'IV' : 'CS', $driver->id, $invoiceno);
 
                 }else{
                     // Same rule as the admin panel and SO conversion: a credit sale is an
                     // invoice (IV), anything paid on the spot is a cash sale (CS).
-                    $invoiceno = $data['type'] == 2
-                        ? Code::nextRunningNumber('invoicerunningnumber', 'IV')
-                        : Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
+                    // Each driver has their own sequence, shared with offline uploads.
+                    $invoiceno = Code::nextDocumentNumber($data['type'] == 2 ? 'IV' : 'CS', $driver->id);
                 }
             }
             $invoice = new Invoice();
@@ -2118,10 +2325,10 @@ class DriverController extends Controller
             // Discount (e.g. RM 15.40 -> RM 15.00): one negative line, so the
             // payment below and every later total are net of it.
             $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $data['discount'] ?? 0);
-            if($data['type'] == 1){
+            if(in_array((int) $data['type'], [1, 3, 4], true)){
                 $invoicepayment = New InvoicePayment();
                 $invoicepayment->invoice_id = $invoice->id;
-                $invoicepayment->type = 1;
+                $invoicepayment->type = $data['type'];
                 $invoicepayment->customer_id = $invoice->customer_id;
                 $invoicepayment->amount = $totalprice;
                 $invoicepayment->status = 1;
@@ -2130,7 +2337,9 @@ class DriverController extends Controller
                 $invoicepayment->approve_at = date('Y-m-d H:i:s');
                 // Cash the customer handed over; the receipt prints the change
                 // (cash_received - total) when this is more than the total.
-                if(isset($data['cash_received']) && is_numeric($data['cash_received']) && $data['cash_received'] >= $totalprice){
+                // Online banking and e-wallet are paid on the spot too, so they
+                // are settled the same way and do not stay on the customer's due.
+                if((int) $data['type'] === 1 && isset($data['cash_received']) && is_numeric($data['cash_received']) && $data['cash_received'] >= $totalprice){
                     $invoicepayment->cash_received = $data['cash_received'];
                 }
                 $invoicepayment->save();
@@ -2242,12 +2451,22 @@ class DriverController extends Controller
                         throw new \Exception('Invalid customer');
                     }
 
-                    // Same counter/format as an online invoice (IV2609/0012, or CS for a cash sale),
-                    // just with an "A" right before the running number itself
-                    // (IV2609/A0012) to flag it as created while offline.
-                    $invoiceno = preg_replace('/\/(\d+)$/', '/A$1', $item['type'] == 2
-                        ? Code::nextRunningNumber('invoicerunningnumber', 'IV', false)
-                        : Code::nextRunningNumber('cashsalesrunningnumber', 'CS', false));
+                    if($customer->is_do_customer && (int) $item['type'] === 2){
+                        $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $item['invoicedetail'], $item['date'] ?? date('Y-m-d H:i:s'), $item['remark'] ?? null, $item['cheque_no'] ?? null);
+                        Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                        DB::commit();
+                        $created[] = [
+                            'client_ref' => $item['client_ref'],
+                            'invoice_id' => $deliveryOrder->id,
+                            'invoiceno' => $deliveryOrder->dono,
+                        ];
+                        continue;
+                    }
+
+                    // Same counter and format as an online invoice for this driver
+                    // (IV2610/CODE/0001, or CS for a cash sale). Offline uploads
+                    // take the next number in that same sequence.
+                    $invoiceno = Code::nextDocumentNumber($item['type'] == 2 ? 'IV' : 'CS', $driver->id, false);
 
                     $invoice = new Invoice();
                     $invoice->date = $item['date'] ?? date('Y-m-d H:i:s');
@@ -2326,10 +2545,10 @@ class DriverController extends Controller
 
                     $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $item['discount'] ?? 0);
 
-                    if($item['type'] == 1){
+                    if(in_array((int) $item['type'], [1, 3, 4], true)){
                         $invoicepayment = new InvoicePayment();
                         $invoicepayment->invoice_id = $invoice->id;
-                        $invoicepayment->type = 1;
+                        $invoicepayment->type = $item['type'];
                         $invoicepayment->customer_id = $invoice->customer_id;
                         $invoicepayment->amount = $totalprice;
                         $invoicepayment->status = 1;
@@ -2337,7 +2556,7 @@ class DriverController extends Controller
                         $invoicepayment->approve_by = $driver->name;
                         $invoicepayment->approve_at = date('Y-m-d H:i:s');
                         // Same change-on-receipt support as the online addinvoice path.
-                        if(isset($item['cash_received']) && is_numeric($item['cash_received']) && $item['cash_received'] >= $totalprice){
+                        if((int) $item['type'] === 1 && isset($item['cash_received']) && is_numeric($item['cash_received']) && $item['cash_received'] >= $totalprice){
                             $invoicepayment->cash_received = $item['cash_received'];
                         }
                         $invoicepayment->save();
@@ -5165,6 +5384,43 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * A DO customer paying on credit gets a Delivery Order, not an invoice.
+     * Stock is not deducted until that DO is converted to an invoice.
+     */
+    private function createDirectDeliveryOrder($customer, $driver, $trip, $lines, $date, $remark, $chequeno){
+        $deliveryOrder = new DeliveryOrder();
+        $deliveryOrder->dono = Code::nextRunningNumber('dorunningnumber', 'DO');
+        $deliveryOrder->date = $date;
+        $deliveryOrder->customer_id = $customer->id;
+        $deliveryOrder->driver_id = $trip->driver_id;
+        $deliveryOrder->kelindan_id = $trip->kelindan_id;
+        $deliveryOrder->agent_id = $customer->agent_id;
+        $deliveryOrder->supervisor_id = $customer->supervisor_id;
+        $deliveryOrder->paymentterm = 2;
+        $deliveryOrder->status = 0;
+        $deliveryOrder->remark = $remark;
+        $deliveryOrder->chequeno = $chequeno;
+        $deliveryOrder->trip_id = $driver->trip_id;
+        $deliveryOrder->save();
+
+        foreach($lines as $line){
+            $product = Product::where('id', $line['product_id'])->first();
+            if(empty($product) || \App\Support\InvoiceDiscount::isDiscountProduct($product->id)){
+                continue;
+            }
+            $detail = new DeliveryOrderDetail();
+            $detail->deliveryorder_id = $deliveryOrder->id;
+            $detail->product_id = $line['product_id'];
+            $detail->quantity = $line['quantity'];
+            $detail->price = $line['price'];
+            $detail->totalprice = $line['quantity'] * $line['price'];
+            $detail->save();
+        }
+
+        return $deliveryOrder;
+    }
+
     private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = []){
         $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
 
@@ -5215,11 +5471,7 @@ class DriverController extends Controller
     }
 
     private function convertSalesOrderToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = [], $cashReceived = null, $discount = 0){
-        if($paymentterm == 2){
-            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
-        }else{
-            $invoiceno = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
-        }
+        $invoiceno = Code::nextDocumentNumber($paymentterm == 2 ? 'IV' : 'CS', $salesOrder->driver_id);
 
         $invoice = new Invoice();
         $invoice->invoiceno = $invoiceno;
@@ -5337,10 +5589,10 @@ class DriverController extends Controller
         // payment below and every later total are net of it.
         $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $discount);
 
-        if($paymentterm == 1){
+        if(in_array((int) $paymentterm, [1, 3, 4], true)){
             $invoicepayment = new InvoicePayment();
             $invoicepayment->invoice_id = $invoice->id;
-            $invoicepayment->type = 1;
+            $invoicepayment->type = $paymentterm;
             $invoicepayment->customer_id = $invoice->customer_id;
             $invoicepayment->amount = $totalprice;
             $invoicepayment->status = 1;
@@ -5348,7 +5600,7 @@ class DriverController extends Controller
             $invoicepayment->approve_by = optional($salesOrder->driver)->name;
             $invoicepayment->approve_at = date('Y-m-d H:i:s');
             // Receipt prints the change when the cash handed over covers the total.
-            if(is_numeric($cashReceived) && $cashReceived >= $totalprice){
+            if((int) $paymentterm === 1 && is_numeric($cashReceived) && $cashReceived >= $totalprice){
                 $invoicepayment->cash_received = $cashReceived;
             }
             $invoicepayment->save();
@@ -5571,7 +5823,7 @@ class DriverController extends Controller
             }
             DB::beginTransaction();
             $first = $deliveryOrders->first();
-            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
+            $invoiceno = Code::nextDocumentNumber('IV', $first->driver_id);
 
             $invoice = new Invoice();
             $invoice->invoiceno = $invoiceno;

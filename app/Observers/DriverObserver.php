@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Driver;
 use App\Services\DebtorTypeAssignmentService;
+use App\Services\DriverKelindanSync;
 
 class DriverObserver
 {
@@ -17,5 +18,7 @@ class DriverObserver
         if ($driver->wasRecentlyCreated || $driver->wasChanged('debtor_types')) {
             DebtorTypeAssignmentService::syncDriver($driver);
         }
+
+        DriverKelindanSync::sync($driver);
     }
 }

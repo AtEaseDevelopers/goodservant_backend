@@ -38,7 +38,7 @@
 <!-- Status Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('status', 'Status:') !!}
-    {{ Form::select('status', array(0 => 'New', 1 => 'Completed', 2 => 'Canceled'), null, ['class' => 'form-control']) }}
+    {{ Form::select('status', array(0 => 'New', 1 => 'Completed', 2 => 'Canceled'), isset($invoicePayment) ? null : 1, ['class' => 'form-control']) }}
 </div>
 @endcan
 

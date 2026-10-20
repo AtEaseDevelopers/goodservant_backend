@@ -29,7 +29,7 @@
 
     <!-- Stock In Modal -->
     <div id="stockin" class="modal fade">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title h6">{{ __('inventory_balances.stock_in') }}</h4>
@@ -61,28 +61,29 @@
                         </div>
                     </div>
 
-                    <!-- Products: pick as many as needed, each with its own quantity -->
+                    <!-- Products listed like the driver app: photo, name, quantity -->
                     <div class="form-group text-left">
                         <label class="col-form-label">{{ __('inventory_balances.product') }}:</label>
-                        <div id="stockInProductRows">
-                            <div class="row stock-in-product-row mx-0 mb-2">
-                                <div class="col-7 pl-0">
-                                    <select name="products[0][product_id]" class="form-control" required>
-                                        <option value="">{{ __('Select Product') }}</option>
-                                        @foreach($productItems as $productId => $productName)
-                                            <option value="{{ $productId }}">{{ $productName }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-4 px-0">
-                                    <input type="number" min="1" class="form-control" placeholder="{{ __('inventory_balances.transfer_quantity') }}" name="products[0][quantity]" required>
-                                </div>
-                                <div class="col-1 px-0 d-flex align-items-center justify-content-center">
-                                    <button type="button" class="btn btn-link text-danger remove-product-row p-0" style="display:none;">&times;</button>
-                                </div>
-                            </div>
+                        <input type="text" class="form-control mb-2" id="stockInProductSearch" placeholder="Search product...">
+                        <div class="mb-2" id="stockInTypeFilters">
+                            <button type="button" class="btn btn-sm btn-primary stock-in-type" data-type="">All</button>
+                            @foreach(collect($stockInProducts)->pluck('type_name')->filter()->unique()->sort() as $typeName)
+                                <button type="button" class="btn btn-sm btn-outline-primary stock-in-type" data-type="{{ $typeName }}">{{ $typeName }}</button>
+                            @endforeach
                         </div>
-                        <button type="button" id="addProductRowStockIn" class="btn btn-outline-primary btn-sm mt-2"><i class="fa fa-plus"></i> {{ __('Add Product') }}</button>
+                        <div class="stock-in-grid">
+                            @foreach($stockInProducts as $product)
+                                <div class="stock-in-card" data-name="{{ strtolower($product->name . ' ' . $product->code) }}" data-type="{{ $product->type_name }}">
+                                    @if($product->image_url)
+                                        <img src="{{ $product->image_url }}" alt="" class="stock-in-photo">
+                                    @else
+                                        <div class="stock-in-photo stock-in-photo-empty"><i class="fa fa-cube"></i></div>
+                                    @endif
+                                    <div class="stock-in-name">{{ $product->name }}</div>
+                                    <input type="number" min="0" class="form-control form-control-sm text-center" placeholder="Qty" name="quantities[{{ $product->id }}]">
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
 
                     <button type="button" class="btn btn-secondary rounded-0 mt-2" data-dismiss="modal">{{ __('inventory_balances.cancel') }}</button>
@@ -209,6 +210,41 @@
             border: 1px solid rgba(0,0,0,.125);
             margin-bottom: -1px;
         }
+        .stock-in-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            max-height: 420px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        .stock-in-card {
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+            background: #fff;
+        }
+        .stock-in-photo {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .stock-in-photo-empty {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f3f3f3;
+            color: #888;
+        }
+        .stock-in-name {
+            font-weight: 700;
+            min-height: 38px;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
     </style>
 
     <script>
@@ -299,31 +335,22 @@
             }
         });
 
-        // Stock In: let the admin pick multiple products (each with its own
-        // quantity) for the selected lorry/lorries in one submission,
-        // instead of repeating the whole modal per product.
-        $('#addProductRowStockIn').on('click', function () {
-            var rows = $('#stockInProductRows');
-            var index = rows.find('.stock-in-product-row').length;
-            var newRow = rows.find('.stock-in-product-row').first().clone();
-            newRow.find('select').attr('name', 'products[' + index + '][product_id]').val('');
-            newRow.find('input[type="number"]').attr('name', 'products[' + index + '][quantity]').val('');
-            newRow.find('.remove-product-row').show();
-            rows.append(newRow);
-            rows.find('.remove-product-row').show();
-        });
-
-        $(document).on('click', '.remove-product-row', function () {
-            var rows = $('#stockInProductRows');
-            $(this).closest('.stock-in-product-row').remove();
-            // Reindex remaining rows so the submitted array has no gaps.
-            rows.find('.stock-in-product-row').each(function (index) {
-                $(this).find('select').attr('name', 'products[' + index + '][product_id]');
-                $(this).find('input[type="number"]').attr('name', 'products[' + index + '][quantity]');
+        var stockInType = '';
+        function filterStockInProducts() {
+            var term = ($('#stockInProductSearch').val() || '').toLowerCase();
+            $('.stock-in-card').each(function () {
+                var name = $(this).data('name') || '';
+                var type = $(this).data('type') || '';
+                var show = name.indexOf(term) !== -1 && (stockInType === '' || type === stockInType);
+                $(this).toggle(show);
             });
-            if (rows.find('.stock-in-product-row').length <= 1) {
-                rows.find('.remove-product-row').hide();
-            }
+        }
+        $('#stockInProductSearch').on('keyup', filterStockInProducts);
+        $(document).on('click', '.stock-in-type', function () {
+            stockInType = $(this).data('type') || '';
+            $('.stock-in-type').removeClass('btn-primary').addClass('btn-outline-primary');
+            $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+            filterStockInProducts();
         });
 
         // Stock out specific functionality

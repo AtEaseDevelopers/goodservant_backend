@@ -40,6 +40,29 @@
                                     </div>
                                 </div>
 
+                                {{-- Commission --}}
+                                <div class="col-md-4 mb-4">
+                                    <div class="card h-100 shadow-sm" style="border-left: 4px solid #6f42c1;">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <span class="fa-stack fa-lg mr-3" style="color:#6f42c1;">
+                                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                                    <i class="fa fa-percent fa-stack-1x fa-inverse"></i>
+                                                </span>
+                                                <h5 class="mb-0">Commission</h5>
+                                            </div>
+                                            <p class="text-muted small">
+                                                Driver and kelindan commission for a date range, from each person's rate and the sales on their invoices.
+                                            </p>
+                                        </div>
+                                        <div class="card-footer bg-transparent border-0">
+                                            <a href="{{ route('reports.commission') }}" class="btn btn-sm text-white" style="background:#6f42c1;">
+                                                <i class="fa fa-arrow-right"></i> Open Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {{-- Packing List --}}
                                 <div class="col-md-4 mb-4">
                                     <div class="card h-100 shadow-sm" style="border-left: 4px solid #28a745;">

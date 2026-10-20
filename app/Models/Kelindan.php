@@ -36,7 +36,8 @@ class Kelindan extends Model
         'temperature',
         'permitdate',
         'status',
-        'remark'
+        'remark',
+        'driver_id',
     ];
 
     /**
@@ -72,7 +73,7 @@ class Kelindan extends Model
         'name' => 'required|string|max:255',
         'ic' => 'nullable|string|max:20|unique:kelindans,ic',
         'phone' => 'nullable|string|max:255',
-        // 'commissionrate' => 'required|numeric|min:0|max:100',
+        'commissionrate' => 'nullable|numeric|min:0|max:100',
         'bankdetails1' => 'nullable|string|max:255',
         'bankdetails2' => 'nullable|string|max:255',
         'firstvaccine' => 'nullable',

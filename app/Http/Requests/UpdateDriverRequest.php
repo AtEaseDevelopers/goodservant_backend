@@ -28,6 +28,8 @@ class UpdateDriverRequest extends FormRequest
         $id = $this->route('driver');
         $rules = [
             'employeeid' => 'nullable|string|max:20|unique:drivers,employeeid,'.Crypt::decrypt($id),
+            'doc_code' => 'required|string|max:6|regex:/^[A-Za-z0-9]+$/|unique:drivers,doc_code,'.Crypt::decrypt($id),
+            'commissionrate' => 'nullable|numeric|min:0|max:100',
             'password' => 'required|string|max:65535',
             'name' => 'required|string|max:255',
             'ic' => 'nullable|string|max:20|unique:drivers,ic,'.Crypt::decrypt($id),

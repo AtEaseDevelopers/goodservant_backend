@@ -183,11 +183,6 @@ class CustomerDataTable extends DataTable
                 'lengthMenu' => [[ 10, 50, 100, 300 ],[ '10 rows', '50 rows', '100 rows', '300 rows' ]],
                 'buttons' => [
                     [
-                        'extend' => 'create',
-                        'className' => 'btn btn-default btn-sm no-corner',
-                        'text' => '<i class="fa fa-plus"></i> ' . trans('table_buttons.create'),
-                    ],
-                    [
                         'extend' => 'print',
                         'className' => 'btn btn-default btn-sm no-corner',
                         'text' => '<i class="fa fa-print"></i> ' . trans('table_buttons.print'),

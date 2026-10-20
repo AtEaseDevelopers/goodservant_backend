@@ -10,6 +10,13 @@
     {!! Form::text('password', null, ['class' => 'form-control', 'maxlength' => 65535]) !!}
 </div>
 
+<!-- Invoice code, printed as IV2610/CODE/0001 -->
+<div class="form-group col-sm-6">
+    {!! Form::label('doc_code', 'Invoice code') !!}<span class="asterisk"> *</span>
+    {!! Form::text('doc_code', null, ['class' => 'form-control', 'maxlength' => 6, 'required' => true]) !!}
+    <small class="text-muted">Letters and numbers only. Invoice and cash sale numbers use it, for example IV2610/{{ isset($driver) ? $driver->documentCode() : 'XX' }}/0001.</small>
+</div>
+
 <!-- Name Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('name', __('drivers.name')) !!}<span class="asterisk"> *</span>
@@ -29,10 +36,10 @@
 </div>
 
 <!-- CommissionRate Field -->
-<!-- <div class="form-group col-sm-6">
-    {!! Form::label('commissionrate', 'Commission Rate:') !!}<span class="asterisk"> *</span>
-    {!! Form::number('commissionrate', null, ['class' => 'form-control','step'=>'0.01','min'=>'0', 'required'=> 'true']) !!}
-</div> -->
+<div class="form-group col-sm-6">
+    {!! Form::label('commissionrate', 'Commission Rate (%)') !!}
+    {!! Form::number('commissionrate', null, ['class' => 'form-control','step'=>'0.01','min'=>'0','max'=>'100']) !!}
+</div>
 
 <!-- bankdetails1 Field -->
 <!-- <div class="form-group col-sm-6">

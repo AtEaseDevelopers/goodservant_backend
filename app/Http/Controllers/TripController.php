@@ -326,6 +326,12 @@ class TripController extends AppBaseController
         }
         $collectionTotal = array_sum($collectionBreakdown);
 
+        // Total Daily Sales is every completed invoice on the trip. Total
+        // Payment is the money actually received: spot payments (everything
+        // except credit) plus credit that was collected during the trip.
+        $dailySalesTotal = $grandTotal;
+        $totalPayment = ($breakdown[1] ?? 0) + ($breakdown[3] ?? 0) + ($breakdown[4] ?? 0) + ($breakdown[5] ?? 0) + $collectionTotal;
+
         // Trip duration
         $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
         $endTime = Carbon::parse($endTrip->getRawOriginal('date') ?? $endTrip->date);
@@ -425,6 +431,7 @@ class TripController extends AppBaseController
         return compact(
             'startTrip', 'endTrip', 'invoices', 'deliveryOrders',
             'breakdown', 'grandTotal', 'paymentLabels',
+            'dailySalesTotal', 'totalPayment',
             'collectionLabels', 'collectionBreakdown', 'collectionTotal',
             'startTime', 'endTime', 'duration',
             'stockMovements'

@@ -88,6 +88,20 @@ class ViewServiceProvider extends ServiceProvider
         View::composer(['inventory_balances.index'], function ($view) {
             $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
+            $stockInProducts = Product::query()
+                ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
+                ->where('products.status', 1)
+                ->where('products.code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
+                ->orderBy('products.sequence')
+                ->orderBy('products.id')
+                ->get([
+                    'products.id',
+                    'products.code',
+                    'products.name',
+                    'products.image_path',
+                    'product_types.name as type_name',
+                ]);
+            $view->with('stockInProducts', $stockInProducts);
         });
         View::composer(['inventory_balances.index'], function ($view) {
             $lorryItems = Lorry::pluck('lorryno','id')->toArray();
@@ -119,16 +133,16 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('invoiceItems', $invoiceItems);
         });
         View::composer(['tasks.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['task']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['tasks.fields'], function ($view) {
             $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();
             $view->with('driverItems', $driverItems);
         });
         View::composer(['invoice_payments.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['invoicePayment']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['invoice_payments.fields'], function ($view) {
             $invoiceItems = Invoice::pluck('invoiceno','id')->toArray();
@@ -159,8 +173,8 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('driverItems', $driverItems);
         });
         View::composer(['invoices.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['invoice']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['assigns.fields','assigns.create_fields','drivers.assign'], function ($view) {
             $customerItems = Customer::where('status',1)->orderBy("company")->pluck('company','id')->toArray();
@@ -179,16 +193,16 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('productItems', $productItems);
         });
         View::composer(['focs.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['foc']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['focs.fields'], function ($view) {
             $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
             $view->with('productItems', $productItems);
         });
         View::composer(['special_prices.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['specialPrice']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['special_prices.fields'], function ($view) {
             $productItems = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->pluck('name','id')->toArray();
@@ -306,8 +320,8 @@ class ViewServiceProvider extends ServiceProvider
         // product lines, mirroring Invoice) as part of the Sales Order -> Delivery
         // Order -> Invoice workflow. Composers below match invoices.fields/invoices.detail.
         View::composer(['sales_orders.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['salesOrder']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['sales_orders.fields'], function ($view) {
             $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();
@@ -331,8 +345,8 @@ class ViewServiceProvider extends ServiceProvider
         });
 
         View::composer(['delivery_orders.fields'], function ($view) {
-            $customerItems = Customer::orderBy("company")->pluck('company','id')->toArray();
-            $view->with('customerItems', $customerItems);
+            $includeId = $view->getData()['deliveryOrder']->customer_id ?? null;
+            $view->with('customerItems', Customer::activeChoices($includeId));
         });
         View::composer(['delivery_orders.fields'], function ($view) {
             $driverItems = Driver::orderBy("name")->pluck('name','id')->toArray();

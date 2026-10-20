@@ -61,6 +61,31 @@
                 <div class="col-lg-6">
                     <div class="card">
                         <div class="card-header">
+                            <strong>Total Daily Sales</strong>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="mb-0">RM {{ number_format($dailySalesTotal, 2) }}</h3>
+                            <p class="text-muted mb-0">Completed invoices on this trip, including credit.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Total Payment</strong>
+                        </div>
+                        <div class="card-body">
+                            <h3 class="mb-0">RM {{ number_format($totalPayment, 2) }}</h3>
+                            <p class="text-muted mb-0">Cash, online banking, e-wallet and cheque taken on the trip, plus credit collected.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
                             <strong>Payment Summary</strong>
                         </div>
                         <div class="card-body">

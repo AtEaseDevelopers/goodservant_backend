@@ -47,10 +47,12 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/driver/task', [App\Http\Controllers\Api\V1\DriverController::class, 'gettask']);
     Route::get('/driver/taskpage', [App\Http\Controllers\Api\V1\DriverController::class, 'gettaskpage']);
     Route::post('/driver/task/start', [App\Http\Controllers\Api\V1\DriverController::class, 'starttask']);
+    Route::post('/driver/task/replace', [App\Http\Controllers\Api\V1\DriverController::class, 'replacetasklist']);
     Route::post('/driver/task/cancel', [App\Http\Controllers\Api\V1\DriverController::class, 'canceltask']);
     //Product
     Route::post('/driver/product', [App\Http\Controllers\Api\V1\DriverController::class, 'getproduct']);
     //Customer
+    Route::get('/driver/customer/today', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomertoday']);
     Route::get('/driver/customer', [App\Http\Controllers\Api\V1\DriverController::class, 'getcustomer']);
     Route::post('/driver/customer/detail', [App\Http\Controllers\Api\V1\DriverController::class, 'customerdetail']);
     Route::post('/driver/customer/makepayment', [App\Http\Controllers\Api\V1\DriverController::class, 'customermakepayment']);

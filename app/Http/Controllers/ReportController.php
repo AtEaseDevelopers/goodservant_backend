@@ -18,6 +18,7 @@ use \Exception;
 use Mockery\Expectation;
 use App\Models\paymentdetail;
 use App\Models\Driver;
+use App\Models\Kelindan;
 use App\Models\Lorry;
 use App\Models\Code;
 use App\Models\DailyInventoryBalance;
@@ -280,6 +281,67 @@ class ReportController extends AppBaseController
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('payment-collection-' . $dateFrom . ($dateFrom !== $dateTo ? '-to-' . $dateTo : '') . '.pdf');
+    }
+
+    public function commissionForm()
+    {
+        return view('reports.commission_filters', [
+            'dateFrom' => request('date_from', date('Y-m-01')),
+            'dateTo' => request('date_to', date('Y-m-d')),
+        ]);
+    }
+
+    public function commissionShow(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $dateFrom = $request->date_from;
+        $dateTo = $request->date_to;
+
+        $salesBy = function (string $column) use ($dateFrom, $dateTo) {
+            return DB::table('invoices')
+                ->join('invoice_details', 'invoice_details.invoice_id', '=', 'invoices.id')
+                ->where('invoices.status', 1)
+                ->whereDate('invoices.date', '>=', $dateFrom)
+                ->whereDate('invoices.date', '<=', $dateTo)
+                ->whereNotNull('invoices.' . $column)
+                ->groupBy('invoices.' . $column)
+                ->select('invoices.' . $column . ' as person_id', DB::raw('SUM(invoice_details.totalprice) as sales'))
+                ->pluck('sales', 'person_id');
+        };
+
+        $driverSales = $salesBy('driver_id');
+        $kelindanSales = $salesBy('kelindan_id');
+
+        $drivers = Driver::orderBy('name')->get()->map(function ($driver) use ($driverSales) {
+            $sales = round((float) ($driverSales[$driver->id] ?? 0), 2);
+            $rate = (float) $driver->commissionrate;
+
+            return [
+                'name' => $driver->name,
+                'code' => $driver->documentCode(),
+                'rate' => $rate,
+                'sales' => $sales,
+                'commission' => round($sales * $rate / 100, 2),
+            ];
+        });
+
+        $kelindans = Kelindan::orderBy('name')->get()->map(function ($kelindan) use ($kelindanSales) {
+            $sales = round((float) ($kelindanSales[$kelindan->id] ?? 0), 2);
+            $rate = (float) $kelindan->commissionrate;
+
+            return [
+                'name' => $kelindan->name,
+                'rate' => $rate,
+                'sales' => $sales,
+                'commission' => round($sales * $rate / 100, 2),
+            ];
+        });
+
+        return view('reports.commission', compact('dateFrom', 'dateTo', 'drivers', 'kelindans'));
     }
 
     public function packingListForm()

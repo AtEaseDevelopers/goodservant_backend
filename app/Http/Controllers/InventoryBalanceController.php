@@ -43,8 +43,11 @@ class InventoryBalanceController extends AppBaseController
 		$lorryIds = $data['lorry_id'] ?? [];  // This will be an array of selected lorry IDs
 		// One or more {product_id, quantity} rows, picked in the modal
 		// instead of repeating the whole form once per product.
-		$products = collect($data['products'] ?? [])->filter(function ($row) {
-			return !empty($row['product_id']) && $row['quantity'] !== null && $row['quantity'] !== '';
+		$fromGrid = collect($data['quantities'] ?? [])->map(function ($qty, $productId) {
+			return ['product_id' => $productId, 'quantity' => $qty];
+		})->values();
+		$products = collect($data['products'] ?? [])->merge($fromGrid)->filter(function ($row) {
+			return !empty($row['product_id']) && (int) $row['quantity'] > 0;
 		});
 
 		if (empty($lorryIds)) {

@@ -402,11 +402,10 @@ class SalesOrderController extends AppBaseController
 
     private function convertToInvoice(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [])
     {
-        if ($paymentterm == self::PAYMENTTERM_CREDIT) {
-            $invoiceno = Code::nextRunningNumber('invoicerunningnumber', 'IV');
-        } else {
-            $invoiceno = Code::nextRunningNumber('cashsalesrunningnumber', 'CS');
-        }
+        $invoiceno = Code::nextDocumentNumber(
+            $paymentterm == self::PAYMENTTERM_CREDIT ? 'IV' : 'CS',
+            $salesOrder->driver_id
+        );
 
         $invoice = new Invoice();
         $invoice->invoiceno = $invoiceno;

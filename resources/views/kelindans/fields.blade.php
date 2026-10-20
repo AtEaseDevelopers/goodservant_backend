@@ -23,10 +23,10 @@
 </div>
 
 <!-- CommissionRate Field -->
-<!-- <div class="form-group col-sm-6">
-    {!! Form::label('commissionrate', 'Commission Rate:') !!}<span class="asterisk"> *</span>
-    {!! Form::number('commissionrate', null, ['class' => 'form-control', 'step' => '0.01', 'min' => '0', 'required' => 'true']) !!}
-</div> -->
+<div class="form-group col-sm-6">
+    {!! Form::label('commissionrate', 'Commission Rate (%)') !!}
+    {!! Form::number('commissionrate', null, ['class' => 'form-control', 'step' => '0.01', 'min' => '0', 'max' => '100']) !!}
+</div>
 
 <!-- bankdetails1 Field -->
 <div class="form-group col-sm-6">

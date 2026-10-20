@@ -39,6 +39,7 @@ class Driver extends Model
         'remark',
         'session',
         'invoice_runningnumber',
+        'doc_code',
         'trip_id',
         'lorry_id',
         // AutoCount Debtor Types this driver covers; drives auto-assignment of
@@ -83,6 +84,8 @@ class Driver extends Model
      */
     public static $rules = [
         'employeeid' => 'required|string|max:20|unique:drivers,employeeid',
+        'doc_code' => 'required|string|max:6|regex:/^[A-Za-z0-9]+$/|unique:drivers,doc_code',
+        'commissionrate' => 'nullable|numeric|min:0|max:100',
         'password' => 'required|string|max:65535',
         'name' => 'required|string|max:255',
         'ic' => 'nullable|string|max:20|unique:drivers,ic',
@@ -101,6 +104,19 @@ class Driver extends Model
         'updated_at' => 'nullable',
         'deleted_at' => 'nullable'
     ];
+
+    /**
+     * Short code printed in this driver's invoice and cash-sale numbers
+     * (IV2610/CODE/0001). Falls back to the employee id when no code is set.
+     */
+    public function documentCode(): string
+    {
+        $raw = $this->doc_code ?: $this->employeeid;
+        $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $raw));
+        $code = substr($code, 0, 6);
+
+        return $code !== '' ? $code : str_pad((string) $this->id, 2, '0', STR_PAD_LEFT);
+    }
 
     public function getFirstVaccineAttribute($value)
     {

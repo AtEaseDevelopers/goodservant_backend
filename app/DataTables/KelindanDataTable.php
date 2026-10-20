@@ -29,7 +29,8 @@ class KelindanDataTable extends DataTable
      */
     public function query(Kelindan $model)
     {
-        return $model->newQuery();
+        return $model->newQuery()
+            ->selectRaw('kelindans.*, (select t.type from trips t where t.kelindan_id = kelindans.id order by t.id desc limit 1) as latest_trip_type');
     }
 
     /**
@@ -73,6 +74,14 @@ class KelindanDataTable extends DataTable
                     [
                     'targets' => 5,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
+                    [
+                    'targets' => 6,
+                    'render' => 'function(data, type){
+                        if(type !== "display") return data;
+                        return data == 1
+                            ? "<span style=\"color:#28a745;font-weight:bold;\">On Trip</span>"
+                            : "<span style=\"color:#6c757d;\">Not Started</span>";
+                    }'],
                 ],
                 'initComplete' => 'function(){
                     var columns = this.api().init().columns;
@@ -121,11 +130,12 @@ class KelindanDataTable extends DataTable
             'name'=> new \Yajra\DataTables\Html\Column(['title' => 'Name',
             'data' => 'name',
             'name' => 'kelindans.name']),
-            'ic',
-            'phone',
-            // 'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission Rate',
-            // 'data' => 'commissionrate',
-            // 'name' => 'commissionrate']),
+            'phone'=> new \Yajra\DataTables\Html\Column(['title' => 'Phone',
+            'data' => 'phone',
+            'name' => 'kelindans.phone']),
+            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission %',
+            'data' => 'commissionrate',
+            'name' => 'kelindans.commissionrate']),
 
             /*'bankdetails1'=> new \Yajra\DataTables\Html\Column(['title' => 'Bank Details 1',
             'data' => 'bankdetails1',
@@ -154,6 +164,12 @@ class KelindanDataTable extends DataTable
             'status'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
             'data' => 'status',
             'name' => 'kelindans.status']),
+
+            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => 'On Trip',
+            'data' => 'latest_trip_type',
+            'name' => 'latest_trip_type',
+            'orderable' => false,
+            'searchable' => false]),
 
             'remark'=> new \Yajra\DataTables\Html\Column(['title' => 'Remark',
             'data' => 'remark',
