@@ -308,7 +308,10 @@ class ReportController extends AppBaseController
             ->with(['customer:id,company', 'invoice.invoicedetail.product:id,code,name'])
             ->get();
 
-        $products = Product::orderBy('id')->get(['id', 'code', 'name']);
+        $products = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get(['id', 'code', 'name']);
 
         $rows = $tasks->map(function ($task) use ($products) {
             $quantities = array_fill_keys($products->pluck('id')->all(), 0);
@@ -341,7 +344,7 @@ class ReportController extends AppBaseController
             'products' => $products,
             'rows' => $rows,
             'totals' => $totals,
-        ])->setPaper('a4', 'landscape');
+        ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('packing-list-' . $driver->name . '-' . $date . '.pdf');
     }

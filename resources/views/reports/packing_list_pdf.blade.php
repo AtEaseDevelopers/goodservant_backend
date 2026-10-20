@@ -3,85 +3,95 @@
 <head>
 <meta charset="UTF-8">
 <style>
+    @page { margin: 14mm 16mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #222; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #000; }
 
-    .title-bar { display: table; width: 100%; margin-bottom: 6px; }
-    .title-bar .driver { display: table-cell; text-align: left; font-weight: bold; font-size: 12px; }
-    .title-bar .title { display: table-cell; text-align: center; font-weight: bold; font-size: 12px; }
+    table.header { width: 100%; margin-bottom: 18px; border-collapse: collapse; }
+    table.header td { font-weight: bold; font-size: 14px; vertical-align: bottom; }
+    table.header td.driver { width: 34%; text-align: left; }
+    table.header td.title { width: 32%; text-align: center; }
+    table.header td.spacer { width: 34%; }
 
-    table.packing-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    table.packing-table th, table.packing-table td {
-        border: 1px solid #333; padding: 2px 4px; font-size: 9px; text-align: center;
-    }
-    table.packing-table th { background: #f6d87a; font-weight: bold; }
-    table.packing-table td.col-no { width: 3%; }
-    table.packing-table td.col-customer, table.packing-table th.col-customer { text-align: left; width: 14%; }
-    table.packing-table tr.total-row td, table.packing-table tr.total-row th { background: #f6d87a; font-weight: bold; }
+    table.stops { width: 100%; border-collapse: collapse; }
+    table.stops td { padding: 6px 0 5px 0; vertical-align: top; border-bottom: 1px solid #000; }
+    table.stops td.name { width: 32%; font-weight: bold; padding-right: 10px; }
+    table.stops td.items { width: 68%; }
+    table.stops td.empty { text-align: center; font-weight: normal; padding: 10px 0; }
 
-    .legend { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    .legend td { font-size: 8px; padding: 1px 6px; vertical-align: top; }
+    .totals-title { text-align: center; font-weight: bold; font-size: 13px; margin: 28px 0 16px 0; }
 
-    .footer { margin-top: 16px; border-top: 1px solid #ccc; padding-top: 6px; text-align: center; font-size: 8px; color: #888; }
+    table.totals { width: 100%; border-collapse: collapse; }
+    table.totals td { width: 20%; font-size: 12px; padding: 3px 10px 3px 0; vertical-align: top; white-space: nowrap; }
+    table.totals td b { padding-left: 8px; }
 </style>
 </head>
 <body>
 
-<div class="title-bar">
-    <div class="driver">DRIVER: {{ strtoupper($driver->name) }}</div>
-    <div class="title">Packing List {{ \Carbon\Carbon::parse($date)->format('d-m-Y') }}</div>
-</div>
-
-<table class="packing-table">
-    <thead>
-        <tr>
-            <th class="col-no">No.</th>
-            <th class="col-customer">Customer/Product</th>
-            @foreach($products as $product)
-                <th>{{ $product->code }}</th>
-            @endforeach
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($rows as $row)
-        <tr>
-            <td class="col-no">{{ $row['customer_id'] }}</td>
-            <td class="col-customer">{{ $row['customer_name'] }}</td>
-            @foreach($products as $product)
-                <td>{{ $row['quantities'][$product->id] > 0 ? $row['quantities'][$product->id] : '' }}</td>
-            @endforeach
-        </tr>
-        @empty
-        <tr><td colspan="{{ $products->count() + 2 }}" style="text-align:center;padding:10px;">No tasks found for this driver on this date.</td></tr>
-        @endforelse
-
-        @if($rows->isNotEmpty())
-        <tr class="total-row">
-            <th class="col-no"></th>
-            <th class="col-customer">Total</th>
-            @foreach($products as $product)
-                <th>{{ $totals[$product->id] }}</th>
-            @endforeach
-        </tr>
-        @endif
-    </tbody>
-</table>
-
-<table class="legend">
+<table class="header">
     <tr>
-        @foreach($products->chunk(ceil(max($products->count(), 1) / 4)) as $chunk)
-        <td>
-            @foreach($chunk as $product)
-                {{ $product->code }} - {{ $product->name }}<br>
-            @endforeach
-        </td>
-        @endforeach
+        <td class="driver">DRIVER: {{ strtoupper($driver->name) }}</td>
+        <td class="title">Packing List {{ \Carbon\Carbon::parse($date)->format('d-m-Y') }}</td>
+        <td class="spacer"></td>
     </tr>
 </table>
 
-<div class="footer">
-    This report was generated automatically &mdash; {{ now()->format('d-m-Y H:i:s') }}
-</div>
+@php
+    $packedRows = collect($rows)->filter(function ($row) {
+        foreach ($row['quantities'] as $qty) {
+            if ($qty > 0) {
+                return true;
+            }
+        }
+        return false;
+    })->values();
+@endphp
+
+<table class="stops">
+    @forelse($packedRows as $row)
+    <tr>
+        <td class="name">{{ $row['customer_name'] }}</td>
+        <td class="items">
+            @php $shown = 0; @endphp
+            @foreach($products as $product)
+                @if(($row['quantities'][$product->id] ?? 0) > 0)
+                    @if($shown > 0), @endif
+                    <b>{{ $row['quantities'][$product->id] }}</b> {{ $product->code }}
+                    @php $shown++; @endphp
+                @endif
+            @endforeach
+        </td>
+    </tr>
+    @empty
+    <tr>
+        <td class="empty" colspan="2">No tasks found for this driver on this date.</td>
+    </tr>
+    @endforelse
+</table>
+
+<div class="totals-title">TOTAL PACKING LIST QUANTITY</div>
+
+@php
+    $productList = collect($products)->values();
+    $columnCount = 5;
+    $productCount = $productList->count();
+    $perColumn = $productCount > 0 ? (int) ceil($productCount / $columnCount) : 0;
+@endphp
+<table class="totals">
+    @for($r = 0; $r < $perColumn; $r++)
+    <tr>
+        @for($c = 0; $c < $columnCount; $c++)
+            @php $index = ($c * $perColumn) + $r; @endphp
+            @if($index < $productCount)
+                @php $product = $productList[$index]; @endphp
+                <td>{{ $product->code }} <b>{{ $totals[$product->id] ?? 0 }}</b></td>
+            @else
+                <td></td>
+            @endif
+        @endfor
+    </tr>
+    @endfor
+</table>
 
 </body>
 </html>

@@ -5771,7 +5771,7 @@ class DriverController extends Controller
                 'products' => $products,
                 'rows' => $rows,
                 'totals' => $totals,
-            ])->setPaper('a4', 'landscape');
+            ])->setPaper('a4', 'portrait');
 
             $filename = 'packing-list-' . $driver->id . '-' . now()->format('YmdHis') . '.pdf';
             $path = 'packing-list-pdf/' . $filename;
