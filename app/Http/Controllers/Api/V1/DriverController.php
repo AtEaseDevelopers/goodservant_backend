@@ -3256,13 +3256,24 @@ class DriverController extends Controller
             // used when requesting stock from another driver.
             $stockDriverId = $request->query('driver_id') ?: $driver->id;
             $trip = Trip::where('driver_id', $stockDriverId)->orderby('date','desc')->first();
-            //process
-            $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id ?? 0)
-            ->leftjoin('products','products.id','=','inventory_balances.product_id')
-            ->leftjoin('product_types','product_types.id','=','products.type_id')
+            // Every active product in its category, including ones this lorry
+            // has never carried (those show quantity 0). Starting from
+            // inventory_balances hid the rest of the category.
+            $lorryId = (int) ($trip->lorry_id ?? 0);
+            $balances = DB::table('inventory_balances')
+                ->select('product_id', DB::raw('SUM(quantity) as quantity'))
+                ->where('lorry_id', $lorryId)
+                ->groupBy('product_id');
+            $inventorybalance = DB::table('products')
+            ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
+            ->leftJoinSub($balances, 'balances', function ($join) {
+                $join->on('balances.product_id', '=', 'products.id');
+            })
+            ->where('products.status', 1)
+            ->whereNull('products.deleted_at')
             ->orderBy('products.sequence')
             ->orderBy('products.id')
-            ->get(['inventory_balances.id','inventory_balances.quantity','inventory_balances.product_id','products.name','products.image_path','products.type_id','product_types.name as type_name'])
+            ->get(['products.id as product_id', DB::raw('COALESCE(balances.quantity, 0) as quantity'), 'products.name', 'products.image_path', 'products.type_id', 'product_types.name as type_name'])
             ->map(function($item){
                 $item->image_url = $item->image_path ? url($item->image_path) : null;
                 return $item;
@@ -6179,11 +6190,8 @@ class DriverController extends Controller
     /**
      * Accept a driver-reordered customer group from the mobile app and
      * persist the new visit order into Assign.sequence for this driver.
-     * Takes effect the next time the driver starts a trip - starttrip()
-     * already builds that trip's Tasks from
-     * Assign::where('driver_id', ...)->orderBy('sequence') (unchanged here),
-     * so no separate task-generation logic is needed. Does not touch any
-     * trip/Task rows already in progress.
+     * Writes Assign.sequence and today's open tasks, so the current trip
+     * and the next one follow this order.
      */
     public function updatecustomergroup(Request $request){
         try{
@@ -6223,12 +6231,7 @@ class DriverController extends Controller
             }
 
             DB::beginTransaction();
-            foreach ($customerIds as $index => $customerId) {
-                Assign::updateOrCreate(
-                    ['driver_id' => $driver->id, 'customer_id' => $customerId],
-                    ['sequence' => $index + 1]
-                );
-            }
+            $this->applyVisitOrder($driver->id, $customerIds);
             DB::commit();
 
             return response()->json([
@@ -6249,6 +6252,64 @@ class DriverController extends Controller
                 'message' => __LINE__.$this->message_separator.$e->getMessage(),
                 'data' => null
             ], 500);
+        }
+    }
+
+    /**
+     * Reorder today's visit list when the driver has customers but no
+     * customer group. Also writes Assign.sequence so the next trip matches.
+     */
+    public function reordertoday(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'customers' => 'required|array|min:1',
+                'customers.*' => 'required|numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            DB::beginTransaction();
+            $this->applyVisitOrder($driver->id, $request->input('customers'));
+            DB::commit();
+            return response()->json([
+                'result' => true,
+                'message' => 'OK',
+                'data' => null
+            ], 200);
+        }
+        catch(Exception $e){
+            DB::rollback();
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    private function applyVisitOrder($driverId, $customerIds){
+        foreach ($customerIds as $index => $customerId) {
+            Assign::updateOrCreate(
+                ['driver_id' => $driverId, 'customer_id' => $customerId],
+                ['sequence' => $index + 1]
+            );
+            Task::where('driver_id', $driverId)
+                ->where('date', date('Y-m-d'))
+                ->where('customer_id', $customerId)
+                ->where('status', '!=', 9)
+                ->update(['sequence' => $index + 1]);
         }
     }
 
