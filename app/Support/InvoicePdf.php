@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Invoice;
+use App\Support\InvoiceDiscount;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,15 @@ class InvoicePdf
             $tableHeaderHeightPt = 20;
             $rowHeightPt = 16;
             $footerHeightPt = 140;
-            $contentHeightPt = $tableHeaderHeightPt + (count($invoice['invoicedetail']) * $rowHeightPt) + $footerHeightPt;
+            $discountProductId = InvoiceDiscount::productId();
+            $doRowCount = $invoice->invoicedetail
+                ->filter(function ($line) use ($discountProductId) {
+                    return (int) ($line->product_id ?? 0) !== (int) $discountProductId;
+                })
+                ->pluck('deliveryorder_id')
+                ->unique()
+                ->count();
+            $contentHeightPt = $tableHeaderHeightPt + ($doRowCount * $rowHeightPt) + $footerHeightPt;
             $totalPages = max(1, (int) ceil($contentHeightPt / $pageUsableHeightPt));
 
             return Pdf::loadView('invoices.print_converted', [
@@ -68,7 +77,7 @@ class InvoicePdf
             ])->setPaper('a4', 'portrait')->setOptions($options);
         }
 
-        $height = (count($invoice['invoicedetail']) * 23) + 450;
+        $height = (count($invoice['invoicedetail']) * 40) + 520;
         if (!empty($invoice['remark'])) {
             // Room for the "Remark : ..." line at the bottom of the receipt.
             $height += 40;

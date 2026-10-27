@@ -49,7 +49,7 @@ class DeliveryOrderController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if (empty($input['dono'])) {
-            $input['dono'] = Code::nextRunningNumber('dorunningnumber', 'DO');
+            $input['dono'] = Code::nextDocumentNumber('DO', $input['driver_id'] ?? null);
         }
 
         $deliveryOrder = $this->deliveryOrderRepository->create($input);

@@ -364,7 +364,7 @@ class SalesOrderController extends AppBaseController
 
     private function convertToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [])
     {
-        $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
+        $dono = Code::nextDocumentNumber('DO', $salesOrder->driver_id);
 
         $deliveryOrder = new DeliveryOrder();
         $deliveryOrder->dono = $dono;

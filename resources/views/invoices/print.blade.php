@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>{{config('app.name')}}</title>
     <style>
+        @include('pdf.cjk_font')
         @page {
             margin-bottom:30px;
             margin-top:30px;
@@ -13,7 +14,7 @@
         body{
             font-size: 14px;
             margin: 0%;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: notosanssc, sans-serif;
         }
         table{
             width: 100%;
@@ -27,7 +28,7 @@
 
         .login-image{
             width: auto;
-            height: 55px;
+            height: 100px;
             margin-bottom: 0.5rem;
         }
         .login-image-cell{
@@ -35,9 +36,11 @@
         }
         .company{
             font-weight: bold;
+            font-size: 15px;
             text-align: center;
         }
         .address{
+            font-size: 12px;
             text-align: center;
         }
         p{
@@ -53,6 +56,16 @@
             text-align: center;
             font-weight: bold;
             color: #394068;
+        }
+        .item-name{
+            font-size: 15px;
+        }
+        .item-calc{
+            font-size: 13px;
+            padding-bottom: 6px;
+        }
+        .rule{
+            border-top: 1px dashed #000;
         }
     </style>
 </head>
@@ -99,18 +112,23 @@
         <tr>
             <td>
                 <br>
+                @php
+                    $paymentTypeLabels = [1 => 'Cash', 2 => 'Credit', 3 => 'Online Banking (QR Code)', 4 => 'E-wallet', 5 => 'Cheque'];
+                    $docTitle = ((int) $invoice['paymentterm'] === 2) ? 'INVOICE' : 'CASH SALE';
+                    $paymentTypeLabel = $paymentTypeLabels[$invoice['paymentterm']] ?? '-';
+                @endphp
                 <table id="header">
                     <tr>
-                        <td width="35%">
-                            <p>Invoice</p>
+                        <td width="42%">
+                            <p style="font-weight:bold;">{{ $docTitle }}</p>
                         </td>
-                        <td width="65%">
+                        <td width="58%">
                             <p class="ta-r">{{ $invoice['invoiceno'] ?? '-' }}</p>
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <p>Invoice Date</p>
+                            <p>Date</p>
                         </td>
                         <td>
                             <p class="ta-r">{{ date_format(date_create($invoice['date']),'d-m-Y') ?? '-' }}</p>
@@ -118,22 +136,10 @@
                     </tr>
                     <tr>
                         <td>
-                            <p>Payment Method</p>
+                            <p>Payment Type</p>
                         </td>
                         <td>
-                            <p class="ta-r">
-                            @if($invoice['paymentterm']==1)
-                                {{ 'Cash' }}
-                            @elseif($invoice['paymentterm']==2)
-                                {{ 'Credit'}}
-                            @elseif($invoice['paymentterm']==3)
-                                {{ 'Online Banking (QR Code)'}}
-                            @elseif($invoice['paymentterm']==4)
-                                {{ 'E-wallet'}}
-                            @elseif($invoice['paymentterm']==5)
-                                {{ 'Cheque'}}
-                            @endif
-                            </p>
+                            <p class="ta-r">{{ $paymentTypeLabel }}</p>
                         </td>
                     </tr>
                     
@@ -151,15 +157,7 @@
                     @endif
                     <tr>
                         <td>
-                            <p>Address</p>
-                        </td>
-                        <td>
-                            <p class="ta-r">{{ $invoice['customer']['address'] ?? '-' }}</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <p>Driver</p>
+                            <p>Salesperson</p>
                         </td>
                         <td>
                             <p class="ta-r">{{ $invoice['driver']['name'] ?? '-' }}</p>
@@ -182,20 +180,6 @@
             <td>
                 <br>
                 <table id="detail">
-                    <tr>
-                        <th>
-                            <p class="ta-l">Product</p>
-                        </th>
-                        <th>
-                            <p class="ta-r">Price <br>(RM)</p>
-                        </th>
-                        <th>
-                            <p class="ta-r">Qty</p>
-                        </th>
-                        <th>
-                            <p class="ta-r">Subtotal</p>
-                        </th>
-                    </tr>
                     @php
                             $totalamount = 0;
                             // The discount is stored as a negative line on a hidden product:
@@ -210,19 +194,21 @@
                         @endif
                         @php
                             $totalamount = ($totalamount ?? 0) + $invoicedetail['totalprice'];
+                            $itemCode = trim($invoicedetail['product']['code'] ?? '');
+                            $itemName = trim($invoicedetail['product']['name'] ?? '');
+                            $itemLabel = trim($itemCode . ' ' . $itemName);
                         @endphp
                         <tr>
                             <td>
-                                <p style="font-size:16px;">{{ $invoicedetail['product']['name'] ?? '-' }}</p>
+                                <p class="item-name">{{ $itemLabel !== '' ? $itemLabel : '-' }}</p>
                             </td>
-                            <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($invoicedetail['price'],2) }}</p>
+                            <td width="32%">
+                                <p class="ta-r item-name">RM{{ number_format($invoicedetail['totalprice'],2) }}</p>
                             </td>
-                            <td>
-                                <p class="ta-r" style="font-size:16px;">{{ $invoicedetail['quantity'] }}</p>
-                            </td>
-                            <td>
-                                <p class="ta-r" style="font-size:16px;">{{ number_format($invoicedetail['totalprice'],2) }}</p>
+                        </tr>
+                        <tr>
+                            <td colspan="2">
+                                <p class="item-calc">{{ number_format($invoicedetail['quantity'], 3) }} x RM{{ number_format($invoicedetail['price'], 2) }}</p>
                             </td>
                         </tr>
                     @endforeach
@@ -265,6 +251,14 @@
                         // total: print what was received and the change due.
                         $cashReceived = optional($invoice->invoicepayment->where('type', 1)->whereNotNull('cash_received')->first())->cash_received;
                     @endphp
+                    <tr>
+                        <td>
+                            <p class="ta-l" style="font-size:16px;">{{ $paymentTypeLabel }}</p>
+                        </td>
+                        <td>
+                            <p class="ta-r" style="font-size:16px;">RM{{ number_format($totalamount,2) }}</p>
+                        </td>
+                    </tr>
                     @if(!empty($cashReceived) && $cashReceived >= $totalamount)
                     <tr>
                         <th>
@@ -283,6 +277,22 @@
                         </th>
                     </tr>
                     @endif
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                @php
+                    $printedAt = $invoice->getRawOriginal('created_at')
+                        ? \Carbon\Carbon::parse($invoice->getRawOriginal('created_at'))->format('d/m/Y H:i')
+                        : date_format(date_create($invoice['date']), 'd/m/Y');
+                @endphp
+                <p class="ta-c" style="text-align:center; margin-top:12px;">Receipt In (RM) Malaysia</p>
+                <table>
+                    <tr>
+                        <td><p>{{ $printedAt }}</p></td>
+                        <td><p class="ta-r">{{ $invoice['invoiceno'] ?? '-' }}</p></td>
+                    </tr>
                 </table>
             </td>
         </tr>

@@ -42,7 +42,7 @@
                                             {{ $product->code }}
                                         </td>
                                         <td>{{ $product->name }}</td>
-                                        <td>{{ $product->productType?->name ?? '-' }}</td>
+                                        <td>{{ $product->productTypes->pluck('name')->filter()->implode(', ') ?: ($product->productType?->name ?? '-') }}</td>
                                         <td>{{ $product->status == 1 ? 'Active' : 'Unactive' }}</td>
                                     </tr>
                                     @endforeach

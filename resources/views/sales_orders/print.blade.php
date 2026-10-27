@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>{{config('app.name')}}</title>
     <style>
+        @include('pdf.cjk_font')
         @page {
             margin-bottom:30px;
             margin-top:30px;
@@ -13,7 +14,7 @@
         body{
             font-size: 14px;
             margin: 0%;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: notosanssc, sans-serif;
         }
         table{
             width: 100%;

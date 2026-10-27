@@ -35,6 +35,9 @@ class InvoiceDiscount
                 $product->status = 0;
                 $product->type_id = (int) ProductType::min('id');
                 $product->save();
+                if (!empty($product->type_id)) {
+                    $product->productTypes()->syncWithoutDetaching([(int) $product->type_id]);
+                }
             }
             self::$productId = (int) $product->id;
         }

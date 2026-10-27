@@ -533,6 +533,7 @@ class DriverController extends Controller
                     $task->customer_id = $assign['customer_id'];
                     $task->sequence = $count;
                     $task->status = 0;
+                    $task->trip_id = $newtrip->id;
                     $task->save();
                     $count = $count + 1;
                 }
@@ -545,6 +546,7 @@ class DriverController extends Controller
                     $task->invoice_id = $invoice['id'];
                     $task->sequence = $count;
                     $task->status = 0;
+                    $task->trip_id = $newtrip->id;
                     $task->save();
                 $count = $count + 1;
                 }
@@ -621,17 +623,16 @@ class DriverController extends Controller
                         'data' => null
                     ], 400);
                 }else{
-                    $newtrip = new Trip();  
-                    $newtrip->driver_id = $driver->id;   
-                    $newtrip->kelindan_id = $data['kelindan_id'];
-                    $newtrip->lorry_id = $data['lorry_id'];
-                    $newtrip->cash = $data['cash'];
-                    $newtrip->advance_amount = $data['advance_amount'] ?? 0;
-                    $newtrip->type = 2;
-                    $newtrip->date = date("Y-m-d H:i:s");
-                    $newtrip->save();
+                    // Finish the trip that was started. Same row, same id.
+                    $trip->kelindan_id = $data['kelindan_id'];
+                    $trip->lorry_id = $data['lorry_id'];
+                    $trip->cash = $data['cash'];
+                    $trip->advance_amount = $data['advance_amount'] ?? 0;
+                    $trip->type = 2;
+                    $trip->ended_at = date("Y-m-d H:i:s");
+                    $trip->save();
                     //cancelled task
-                    $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['trip_id'=>$newtrip->id,'status' => 9]);
+                    $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['trip_id'=>$trip->id,'status' => 9]);
                     foreach(($data["wastage"] ?? []) as $wastage) {
                         $inventorybalance = InventoryBalance::where('lorry_id',$trip->lorry_id)->where('product_id',$wastage['product_id'])->first();
                         if(empty($inventorybalance)){
@@ -653,14 +654,14 @@ class DriverController extends Controller
                         $inventorytransaction->type = 5;
                         $inventorytransaction->date = date('Y-m-d H:i:s');
                         $inventorytransaction->user = $driver->employeeid . " (" . $driver->name . ")";
-                        $inventorytransaction->trip_id = $driver->trip_id;
+                        $inventorytransaction->trip_id = $trip->id;
                         $inventorytransaction->save();
                     }
                     //snapshot lorry stock at end of trip, then clear driver's active trip
                     $endbalances = InventoryBalance::where('lorry_id', $trip->lorry_id)->get();
                     foreach($endbalances as $endbalance){
                         TripInventoryBalance::create([
-                            'trip_id' => $driver->trip_id,
+                            'trip_id' => $trip->id,
                             'driver_id' => $driver->id,
                             'lorry_id' => $trip->lorry_id,
                             'product_id' => $endbalance->product_id,
@@ -694,7 +695,7 @@ class DriverController extends Controller
                     return response()->json([
                         'result' => true,
                         'message' => __LINE__.$this->message_separator.'Trip had been ended successfully',
-                        'data' => $newtrip
+                        'data' => $trip
                     ], 200);
                 }
             }else{
@@ -734,10 +735,15 @@ class DriverController extends Controller
             $startTrip = $latest;
             $until = null;
             if(!empty($latest) && $latest->type == 2){
-                $until = $latest->getRawOriginal('date');
-                $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
-                    ->where('date', '<=', $until)
-                    ->orderby('date','desc')->orderby('id','desc')->first();
+                if(!empty($latest->ended_at)){
+                    $until = $latest->getRawOriginal('ended_at');
+                    $startTrip = $latest;
+                }else{
+                    $until = $latest->getRawOriginal('date');
+                    $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
+                        ->where('date', '<=', $until)
+                        ->orderby('date','desc')->orderby('id','desc')->first();
+                }
             }
             if(empty($startTrip)){
                 return response()->json([
@@ -765,10 +771,10 @@ class DriverController extends Controller
     /**
      * Summary of this driver's most recently ENDED trip (Daily Sales
      * Summary, per the requirement doc: "accessible after performing an
-     * end trip"). Each end-trip() call writes a fresh type=2 Trip row; the
-     * type=1 row immediately before it is the trip that was actually
-     * driven, and its id is what Invoice.trip_id / TripInventoryBalance
-     * rows were tagged with while the trip was active.
+     * end trip"). Ending a trip keeps the same row: date is the start and
+     * ended_at is the finish. Older trips are still a type=2 row whose
+     * start is the type=1 row before it. Invoice.trip_id and the stock
+     * snapshots use that start id.
      */
     public function getlasttripsummary(Request $request){
         try{
@@ -790,9 +796,15 @@ class DriverController extends Controller
                 ], 200);
             }
 
-            $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
-                ->where('date', '<=', $endTrip->getRawOriginal('date'))
-                ->orderby('date','desc')->first();
+            if(!empty($endTrip->ended_at)){
+                $startTrip = $endTrip;
+                $endTimeRaw = $endTrip->getRawOriginal('ended_at');
+            }else{
+                $startTrip = Trip::where('driver_id', $driver->id)->where('type', 1)
+                    ->where('date', '<=', $endTrip->getRawOriginal('date'))
+                    ->orderby('date','desc')->first();
+                $endTimeRaw = $endTrip->getRawOriginal('date');
+            }
             $tripId = $startTrip->id ?? null;
 
             $invoices = Invoice::where('driver_id', $driver->id)
@@ -837,10 +849,8 @@ class DriverController extends Controller
                 });
 
             $duration = null;
-            if($startTrip){
-                $duration = $endTrip->getRawOriginal('date') && $startTrip->getRawOriginal('date')
-                    ? \Carbon\Carbon::parse($startTrip->getRawOriginal('date'))->diffForHumans(\Carbon\Carbon::parse($endTrip->getRawOriginal('date')), true)
-                    : null;
+            if($startTrip && $endTimeRaw && $startTrip->getRawOriginal('date')){
+                $duration = \Carbon\Carbon::parse($startTrip->getRawOriginal('date'))->diffForHumans(\Carbon\Carbon::parse($endTimeRaw), true);
             }
 
             return response()->json([
@@ -851,7 +861,7 @@ class DriverController extends Controller
                         'trip_id' => $tripId,
                         'driver_name' => $driver->name,
                         'start_time' => optional($startTrip)->getRawOriginal('date'),
-                        'end_time' => $endTrip->getRawOriginal('date'),
+                        'end_time' => $endTimeRaw,
                         'trip_duration' => $duration,
                     ],
                     'sales_summary' => [
@@ -960,6 +970,7 @@ class DriverController extends Controller
                         $task->customer_id = $assign['customer_id'];
                         $task->sequence = $count;
                         $task->status = 0;
+                        $task->trip_id = $newtrip->id;
                         $task->save();
                         $count = $count + 1;
                     }
@@ -972,6 +983,7 @@ class DriverController extends Controller
                         $task->invoice_id = $invoice['id'];
                         $task->sequence = $count;
                         $task->status = 0;
+                        $task->trip_id = $newtrip->id;
                         $task->save();
                         $count = $count + 1;
                     }
@@ -1020,6 +1032,7 @@ class DriverController extends Controller
                     $task->customer_id = $assign['customer_id'];
                     $task->sequence = $count;
                     $task->status = 0;
+                    $task->trip_id = $newtrip->id;
                     $task->save();
                     $count = $count + 1;
                 }
@@ -1032,6 +1045,7 @@ class DriverController extends Controller
                     $task->invoice_id = $invoice['id'];
                     $task->sequence = $count;
                     $task->status = 0;
+                    $task->trip_id = $newtrip->id;
                     $task->save();
                     $count = $count + 1;
                 }
@@ -1050,18 +1064,17 @@ class DriverController extends Controller
                         'data' => null
                     ], 401);
                 }else{
-                    $newtrip = new Trip();
-                    $newtrip->driver_id = $driver->id;
-                    $newtrip->kelindan_id = $data['kelindan_id'];
-                    $newtrip->lorry_id = $data['lorry_id'];
-                    $newtrip->type = 2;
-                    $newtrip->date = date("Y-m-d H:i:s");
-                    $newtrip->save();
+                    // Finish the trip that was started. Same row, same id.
+                    $trip->kelindan_id = $data['kelindan_id'];
+                    $trip->lorry_id = $data['lorry_id'];
+                    $trip->type = 2;
+                    $trip->ended_at = date("Y-m-d H:i:s");
+                    $trip->save();
                     //snapshot lorry stock at end of trip, then clear driver's active trip
                     $endbalances = InventoryBalance::where('lorry_id', $data['lorry_id'])->get();
                     foreach($endbalances as $endbalance){
                         TripInventoryBalance::create([
-                            'trip_id' => $driver->trip_id,
+                            'trip_id' => $trip->id,
                             'driver_id' => $driver->id,
                             'lorry_id' => $data['lorry_id'],
                             'product_id' => $endbalance->product_id,
@@ -1087,11 +1100,11 @@ class DriverController extends Controller
                         $endbalance->save();
                     }
                     //cancelled task
-                    $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['status' => 9]);
+                    $task = Task::where('driver_id', $driver->id)->where('date',date('Y-m-d'))->whereIn('status',[0,1])->update(['trip_id' => $trip->id, 'status' => 9]);
                     return response()->json([
                         'result' => true,
                         'message' => __LINE__.$this->message_separator.'api.message.trip_had_been_ended_successfully',
-                        'data' => $newtrip
+                        'data' => $trip
                     ], 200);
                 }
             }else{
@@ -1304,7 +1317,12 @@ class DriverController extends Controller
                 ->where('status', '!=', 9)
                 ->orderBy('sequence', 'asc')
                 ->get();
-            if($sourceTasks->isEmpty()){
+            // A driver who has not started that day has no task rows, but the
+            // customers assigned to them are still their list.
+            $assignedIds = $sourceTasks->isNotEmpty()
+                ? []
+                : Assign::where('driver_id', $source->id)->orderBy('sequence', 'asc')->pluck('customer_id')->all();
+            if($sourceTasks->isEmpty() && empty($assignedIds)){
                 return response()->json([
                     'result' => false,
                     'message' => __LINE__.$this->message_separator.'api.message.task_not_found',
@@ -1318,15 +1336,18 @@ class DriverController extends Controller
                 ->update(['status' => 9]);
             $sequence = 1;
             $seen = [];
-            foreach($sourceTasks as $sourceTask){
-                if(isset($seen[$sourceTask->customer_id])){
+            $customerIds = $sourceTasks->isNotEmpty()
+                ? $sourceTasks->pluck('customer_id')->all()
+                : $assignedIds;
+            foreach($customerIds as $customerId){
+                if(isset($seen[$customerId])){
                     continue;
                 }
-                $seen[$sourceTask->customer_id] = true;
+                $seen[$customerId] = true;
                 $task = new Task();
                 $task->date = date('Y-m-d');
                 $task->driver_id = $driver->id;
-                $task->customer_id = $sourceTask->customer_id;
+                $task->customer_id = $customerId;
                 $task->sequence = $sequence;
                 $task->status = 0;
                 $task->trip_id = $trip->id;
@@ -3961,7 +3982,7 @@ class DriverController extends Controller
                 ], 400);
             }
             //process
-            $driver = Driver::where('id','!=',$trip->driver_id)->get()->toarray();
+            $driver = Driver::where('id','!=',$trip->driver_id)->where('status', 1)->orderBy('name')->get()->toarray();
             if(count($driver) == 0){
                 return response()->json([
                     'result' => false,
@@ -5401,7 +5422,7 @@ class DriverController extends Controller
      */
     private function createDirectDeliveryOrder($customer, $driver, $trip, $lines, $date, $remark, $chequeno){
         $deliveryOrder = new DeliveryOrder();
-        $deliveryOrder->dono = Code::nextRunningNumber('dorunningnumber', 'DO');
+        $deliveryOrder->dono = Code::nextDocumentNumber('DO', $driver->id);
         $deliveryOrder->date = $date;
         $deliveryOrder->customer_id = $customer->id;
         $deliveryOrder->driver_id = $trip->driver_id;
@@ -5433,7 +5454,7 @@ class DriverController extends Controller
     }
 
     private function convertSalesOrderToDeliveryOrder(SalesOrder $salesOrder, $paymentterm, $chequeno, $quantityOverrides = [], $newItems = []){
-        $dono = Code::nextRunningNumber('dorunningnumber', 'DO');
+        $dono = Code::nextDocumentNumber('DO', $salesOrder->driver_id);
 
         $deliveryOrder = new DeliveryOrder();
         $deliveryOrder->dono = $dono;
@@ -5489,17 +5510,21 @@ class DriverController extends Controller
         $invoice->date = date('Y-m-d H:i:s');
         $invoice->customer_id = $salesOrder->customer_id;
         $invoice->driver_id = $salesOrder->driver_id;
-        $invoice->kelindan_id = $salesOrder->kelindan_id;
         $invoice->agent_id = $salesOrder->agent_id;
         $invoice->supervisor_id = $salesOrder->supervisor_id;
         $invoice->paymentterm = $paymentterm;
         $invoice->status = 1;
         $invoice->remark = $salesOrder->remark;
         $invoice->chequeno = $chequeno;
-        $invoice->trip_id = $salesOrder->trip_id;
+        // An order taken before the trip has no trip. The money is collected
+        // now, so the invoice belongs to the trip that is open.
+        $driver = Driver::find($salesOrder->driver_id);
+        $tripId = $salesOrder->trip_id ?: ($driver->trip_id ?? null);
+        $invoice->kelindan_id = $salesOrder->kelindan_id ?: ($tripId ? Trip::where('id', $tripId)->value('kelindan_id') : null);
+        $invoice->trip_id = $tripId;
         $invoice->save();
 
-        $lorryId = optional(Driver::find($salesOrder->driver_id))->lorry_id;
+        $lorryId = optional($driver)->lorry_id;
         $totalprice = 0;
         foreach($salesOrder->salesorderdetail as $line){
             $qty = $quantityOverrides[$line->id] ?? $line->quantity;
@@ -5552,7 +5577,7 @@ class DriverController extends Controller
                 $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
                 $inventorytransaction->date = date('Y-m-d H:i:s');
-                $inventorytransaction->trip_id = $salesOrder->trip_id;
+                $inventorytransaction->trip_id = $tripId;
                 $inventorytransaction->save();
             }
         }
@@ -5591,7 +5616,7 @@ class DriverController extends Controller
                 $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = optional($salesOrder->driver)->employeeid ?? 'system';
                 $inventorytransaction->date = date('Y-m-d H:i:s');
-                $inventorytransaction->trip_id = $salesOrder->trip_id;
+                $inventorytransaction->trip_id = $tripId;
                 $inventorytransaction->save();
             }
         }
@@ -5618,6 +5643,9 @@ class DriverController extends Controller
         }
 
         $salesOrder->invoice_id = $invoice->id;
+        if (empty($salesOrder->trip_id) && $tripId) {
+            $salesOrder->trip_id = $tripId;
+        }
         $salesOrder->save();
 
         return $invoice;
@@ -5971,6 +5999,9 @@ class DriverController extends Controller
             $salesOrderIds = $request->input('sales_order_ids');
 
             $salesOrdersQuery = SalesOrder::where('driver_id', $driver->id)
+                ->whereNull('invoice_id')
+                ->whereNull('deliveryorder_id')
+                ->where('status', '!=', 2)
                 ->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
 
             if (!empty($salesOrderIds) && is_array($salesOrderIds)) {

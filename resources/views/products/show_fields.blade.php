@@ -19,7 +19,7 @@
 <!-- Type Field -->
 <div class="form-group">
     {!! Form::label('type', __('products.type')) !!}:
-    <p>{{ optional($product->productType)->name ?? '-' }}</p>
+    <p>{{ $product->productTypes->pluck('name')->filter()->implode(', ') ?: (optional($product->productType)->name ?? '-') }}</p>
 </div>
 
 

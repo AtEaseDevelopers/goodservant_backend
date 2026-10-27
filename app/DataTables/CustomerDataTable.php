@@ -133,6 +133,7 @@ class CustomerDataTable extends DataTable
                     'customers.id',
                     'customers.code',
                     'customers.company',
+                    'customers.second_description',
                     'customers.paymentterm',
                     'customers.phone',
                     'customers.address',
@@ -237,7 +238,7 @@ class CustomerDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 3,
+                        'targets' => 4,
                         'visible' => true,
                         'render' => 'function(data, type){
                                                             if(data == 1){
@@ -249,11 +250,11 @@ class CustomerDataTable extends DataTable
                                                         }'
                     ],
                     [
-                        'targets' => 5,
+                        'targets' => 6,
                         'className' => "truncate"
                     ],
                     [
-                    'targets' => 6,
+                    'targets' => 7,
                     'render' => 'function(data, type){return data == 1 ? "Active" : "Unactive";}'],
                 ],
                 'initComplete' => 'function(){
@@ -298,6 +299,10 @@ class CustomerDataTable extends DataTable
             'company'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.company'),
             'data' => 'company',
             'name' => 'company']),
+
+            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => 'Second Description',
+            'data' => 'second_description',
+            'name' => 'customers.second_description']),
 
             'paymentterm'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.paymentterm'),
             'data' => 'paymentterm',

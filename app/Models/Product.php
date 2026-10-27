@@ -88,7 +88,8 @@ class Product extends Model
         'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
         'price' => 'required|numeric|numeric',
         'status' => 'required',
-        'type_id' => 'required',
+        'type_ids' => 'required|array|min:1',
+        'type_ids.*' => 'integer|exists:product_types,id',
         'created_at' => 'nullable|nullable',
         'updated_at' => 'nullable|nullable'
     ];
@@ -107,6 +108,11 @@ class Product extends Model
     public function productType()
     {
         return $this->belongsTo(\App\Models\ProductType::class, 'type_id', 'id');
+    }
+
+    public function productTypes()
+    {
+        return $this->belongsToMany(\App\Models\ProductType::class, 'product_product_type', 'product_id', 'product_type_id');
     }
 
     /**

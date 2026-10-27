@@ -122,7 +122,10 @@ class Code extends Model
      */
     public static function nextDocumentNumber(string $prefix, $driverId = null, bool $reuseCancelled = true): string
     {
-        $prefix = strtoupper($prefix) === 'IV' ? 'IV' : 'CS';
+        $prefix = strtoupper($prefix);
+        if (!in_array($prefix, ['IV', 'CS', 'DO'], true)) {
+            $prefix = 'CS';
+        }
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $reuseCancelled) {
             static::lockDocumentCounters($prefix);
@@ -132,7 +135,7 @@ class Code extends Model
             $row = static::documentCounterRow($prefix, $driver->id ?? 0);
             $period = date('ym');
 
-            if ($reuseCancelled) {
+            if ($reuseCancelled && $prefix !== 'DO') {
                 $reused = static::takeCancelledInvoiceNumber($prefix, $period, $docCode);
                 if ($reused !== null) {
                     return $reused;
@@ -195,6 +198,9 @@ class Code extends Model
      */
     protected static function lockDocumentCounters(string $prefix): void
     {
+        if ($prefix === 'DO') {
+            return;
+        }
         $shared = $prefix === 'IV' ? 'invoicerunningnumber' : 'cashsalesrunningnumber';
         static::where('code', $shared)->lockForUpdate()->first();
     }

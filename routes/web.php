@@ -274,6 +274,9 @@ Route::group(['middleware' => ['auth']], function() {
         Route::post('/reports/payment-collection/pdf', [App\Http\Controllers\ReportController::class, 'paymentCollectionPdf'])->name('reports.payment-collection.pdf');
         Route::get('/reports/commission', [App\Http\Controllers\ReportController::class, 'commissionForm'])->name('reports.commission');
         Route::post('/reports/commission', [App\Http\Controllers\ReportController::class, 'commissionShow'])->name('reports.commission.show');
+        Route::get('/reports/do-summary', [App\Http\Controllers\ReportController::class, 'doSummaryForm'])->name('reports.do-summary');
+        Route::post('/reports/do-summary', [App\Http\Controllers\ReportController::class, 'doSummaryShow'])->name('reports.do-summary.show');
+        Route::post('/reports/do-summary/pdf', [App\Http\Controllers\ReportController::class, 'doSummaryPdf'])->name('reports.do-summary.pdf');
         Route::get('/reports/packing-list', [App\Http\Controllers\ReportController::class, 'packingListForm'])->name('reports.packing-list');
         Route::post('/reports/packing-list/pdf', [App\Http\Controllers\ReportController::class, 'packingListPdf'])->name('reports.packing-list.pdf');
         Route::resource('reports', App\Http\Controllers\ReportController::class);
@@ -490,6 +493,9 @@ Route::group(['middleware' => ['auth']], function() {
         Route::resource('taskTransfers', App\Http\Controllers\TaskTransferController::class);
     });
     Route::group(['middleware' => ['permission:trip']], function() {
+        Route::get('trips/{id}/tasks', [App\Http\Controllers\TripController::class, 'tasks'])->name('trips.tasks');
+        Route::post('trips/{id}/tasks', [App\Http\Controllers\TripController::class, 'storeTask'])->name('trips.tasks.store');
+        Route::post('trips/{id}/tasks/sequence', [App\Http\Controllers\TripController::class, 'saveTaskSequence'])->name('trips.tasks.sequence');
         Route::get('trips/{id}/report', [App\Http\Controllers\TripController::class, 'report'])->name('trips.report');
         Route::get('trips/{id}/report/pdf', [App\Http\Controllers\TripController::class, 'reportPdf'])->name('trips.report.pdf');
         Route::resource('trips', App\Http\Controllers\TripController::class);

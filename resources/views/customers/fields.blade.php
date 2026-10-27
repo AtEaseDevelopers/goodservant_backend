@@ -12,6 +12,11 @@
             {!! Form::text('company', null, ['class' => 'form-control', 'maxlength' => 255]) !!} <!-- Removed duplicate maxlength -->
         </div>
 
+        <div class="form-group">
+            {!! Form::label('second_description', 'Second Description') !!}:
+            {!! Form::text('second_description', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
+        </div>
+
         <!-- Paymentterm Field -->
         <div class="form-group">
             {!! Form::label('paymentterm', __('customers.payment_term')) !!}:<span class="asterisk"> *</span>

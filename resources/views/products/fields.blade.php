@@ -29,9 +29,27 @@
 
 <!-- Type Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('type_id', __('products.type')) !!}
-    {{ Form::select('type_id', \App\Models\ProductType::where('status', 1)->orderBy('name')->pluck('name', 'id'), null, ['class' => 'form-control']) }}
-    <small class="form-text text-muted"><a href="{{ route('productTypes.index') }}">Manage product types</a></small>
+    @php
+        $selectedTypeIds = [];
+        if (!empty($product)) {
+            $selectedTypeIds = $product->productTypes()->pluck('product_types.id')->all();
+            if ($selectedTypeIds === [] && $product->type_id) {
+                $selectedTypeIds = [(int) $product->type_id];
+            }
+        }
+        $typeOptions = \App\Models\ProductType::query()
+            ->where(function ($query) use ($selectedTypeIds) {
+                $query->where('status', 1);
+                if ($selectedTypeIds !== []) {
+                    $query->orWhereIn('id', $selectedTypeIds);
+                }
+            })
+            ->orderBy('name')
+            ->pluck('name', 'id');
+    @endphp
+    {!! Form::label('type_ids', __('products.type')) !!}<span class="asterisk"> *</span>
+    {!! Form::select('type_ids[]', $typeOptions, old('type_ids', $selectedTypeIds), ['class' => 'selectpicker form-control', 'multiple' => true, 'data-live-search' => 'true', 'title' => 'Select product types']) !!}
+    <small class="form-text text-muted">Select one or more. <a href="{{ route('productTypes.index') }}">Manage product types</a></small>
 </div>
 
 <!-- Status Field -->
@@ -85,6 +103,9 @@
             }
         });
         $(document).ready(function () {
+            if ($.fn.selectpicker) {
+                $('.selectpicker').selectpicker({ size: 10 });
+            }
             HideLoad();
         });
         document.getElementById('imageInput').addEventListener('change', function(e) {

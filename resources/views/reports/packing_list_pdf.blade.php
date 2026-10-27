@@ -54,18 +54,17 @@
         <td class="name">{{ $row['customer_name'] }}</td>
         <td class="items">
             @php
-                $merged = [];
+                $parts = [];
                 foreach ($products as $product) {
                     $qty = $row['quantities'][$product->id] ?? 0;
                     if ($qty <= 0) {
                         continue;
                     }
-                    $merged[$product->name] = ($merged[$product->name] ?? 0) + $qty;
+                    $label = $product->code !== '' ? $product->code : $product->name;
+                    $parts[] = '<b>' . e($qty) . '</b> ' . e($label);
                 }
             @endphp
-            @foreach($merged as $name => $qty)
-                <div class="item-line"><b>{{ $qty }}</b> {{ $name }}</div>
-            @endforeach
+            <div class="item-line">{!! implode(' &nbsp;&middot;&nbsp; ', $parts) !!}</div>
         </td>
     </tr>
     @empty
@@ -84,7 +83,8 @@
         if ($qty <= 0) {
             continue;
         }
-        $mergedTotals[$product->name] = ($mergedTotals[$product->name] ?? 0) + $qty;
+        $label = $product->code !== '' ? $product->code : $product->name;
+        $mergedTotals[$label] = ($mergedTotals[$label] ?? 0) + $qty;
     }
     $totalList = collect($mergedTotals);
     $columnCount = 3;

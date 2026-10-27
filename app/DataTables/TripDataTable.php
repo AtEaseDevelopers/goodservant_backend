@@ -20,15 +20,15 @@ class TripDataTable extends DataTable
         $dataTable = new EloquentDataTable($query);
 
       return $dataTable->addColumn('action', function ($row) {
+        $buttons = '<a href="' . route('trips.tasks', Crypt::encrypt($row->id)) . '" class="btn btn-sm btn-info">
+                        <i class="fa fa-list"></i> Tasks
+                    </a>';
         if ($row->type == 2) {
-            return '<div class="btn-group">
-                        <a href="' . route('trips.report.pdf', Crypt::encrypt($row->id)) . '" target="_blank" class="btn btn-sm btn-primary">
-                            <i class="fa fa-file-pdf-o"></i> Report
-                        </a>
-                    </div>';
-        } else {
-            return '';
+            $buttons .= ' <a href="' . route('trips.report.pdf', Crypt::encrypt($row->id)) . '" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="fa fa-file-pdf-o"></i> Report
+                    </a>';
         }
+        return '<div class="btn-group">' . $buttons . '</div>';
     })
     ->rawColumns(['action']);
     }

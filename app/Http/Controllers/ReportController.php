@@ -32,6 +32,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceDetail;
 use App\Models\InvoicePayment;
 use App\Models\Customer;
+use App\Models\DeliveryOrder;
 use App\Models\Agent;
 use App\Models\Product;
 use App\Models\Trip;
@@ -342,6 +343,81 @@ class ReportController extends AppBaseController
         });
 
         return view('reports.commission', compact('dateFrom', 'dateTo', 'drivers', 'kelindans'));
+    }
+
+    public function doSummaryForm()
+    {
+        return view('reports.do_summary', [
+            'customers' => Customer::orderBy('company')->pluck('company', 'id'),
+            'customerId' => null,
+            'dateFrom' => date('Y-m-01'),
+            'dateTo' => date('Y-m-d'),
+            'orders' => null,
+        ]);
+    }
+
+    public function doSummaryShow(Request $request)
+    {
+        $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $orders = $this->deliveryOrdersForSummary($request->customer_id, $request->date_from, $request->date_to);
+
+        return view('reports.do_summary', [
+            'customers' => Customer::orderBy('company')->pluck('company', 'id'),
+            'customerId' => (int) $request->customer_id,
+            'dateFrom' => $request->date_from,
+            'dateTo' => $request->date_to,
+            'orders' => $orders,
+        ]);
+    }
+
+    public function doSummaryPdf(Request $request)
+    {
+        $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'do_ids' => 'required|array|min:1',
+            'do_ids.*' => 'integer',
+        ]);
+
+        $orders = $this->deliveryOrdersForSummary($request->customer_id, $request->date_from, $request->date_to)
+            ->whereIn('id', array_map('intval', $request->do_ids))
+            ->values();
+
+        if ($orders->isEmpty()) {
+            Flash::error('Select at least one delivery order.');
+
+            return redirect()->back();
+        }
+
+        $customer = Customer::find($request->customer_id);
+        $pdf = Pdf::loadView('reports.do_summary_pdf', [
+            'customer' => $customer,
+            'dateFrom' => $request->date_from,
+            'dateTo' => $request->date_to,
+            'orders' => $orders,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '-', $customer->company ?? 'customer');
+
+        return $pdf->stream('do-summary-' . $safeName . '-' . $request->date_from . '.pdf');
+    }
+
+    private function deliveryOrdersForSummary($customerId, $dateFrom, $dateTo)
+    {
+        return DeliveryOrder::with(['customer', 'deliveryorderdetail.product'])
+            ->where('customer_id', $customerId)
+            ->where('status', '!=', 2)
+            ->whereDate('date', '>=', $dateFrom)
+            ->whereDate('date', '<=', $dateTo)
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get();
     }
 
     public function packingListForm()

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>{{config('app.name')}}</title>
     <style>
+        @include('pdf.cjk_font')
         @page {
             margin-top: 240px;
             margin-bottom: 60px;
@@ -12,7 +13,7 @@
         }
         body {
             font-size: 11px;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: notosanssc, sans-serif;
             color: #000;
         }
         p { margin: 0; }
@@ -58,13 +59,8 @@
             font-size: 10.5px;
             vertical-align: top;
         }
-        .item-table .col-item { width: 5%; }
-        .item-table .col-desc { width: 38%; }
-        .item-table .col-do { width: 14%; }
-        .item-table .col-qty { width: 8%; text-align: right; }
-        .item-table .col-uom { width: 10%; }
-        .item-table .col-disc { width: 7%; text-align: right; }
-        .item-table .col-total { width: 18%; text-align: right; }
+        .item-table .col-do { width: 70%; }
+        .item-table .col-total { width: 30%; text-align: right; }
         .footer-block { margin-top: 10px; }
         .amount-words-row td { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 4px; vertical-align: top; }
         .total-box { border: 1px solid #000; padding: 4px 8px; font-weight: bold; }
@@ -116,12 +112,7 @@
     <table class="item-table">
         <thead>
             <tr>
-                <th class="col-item">Item</th>
-                <th class="col-desc">Description</th>
                 <th class="col-do">D/O No.</th>
-                <th class="col-qty">Qty</th>
-                <th class="col-uom">UOM</th>
-                <th class="col-disc">Disc.</th>
                 <th class="col-total">Total<br>RM</th>
             </tr>
         </thead>
@@ -131,7 +122,7 @@
                 // The discount is a negative line on a hidden product: listed under the total box instead.
                 $discountProductId = \App\Support\InvoiceDiscount::productId();
                 $discountAmount = 0;
-                $itemNo = 0;
+                $doRows = [];
             @endphp
             @foreach ($invoice['invoicedetail'] as $invoicedetail)
                 @if((int) ($invoicedetail['product_id'] ?? 0) === $discountProductId)
@@ -139,19 +130,18 @@
                     @continue
                 @endif
                 @php
-                    $itemNo++;
                     $totalamount = ($totalamount ?? 0) + $invoicedetail['totalprice'];
-                    $itemLabel = $invoicedetail['product']['name'] ?? '';
-                    $doNo = $invoicedetail['deliveryorder']['dono'] ?? '';
+                    $doNo = $invoicedetail['deliveryorder']['dono'] ?? '-';
+                    if (!isset($doRows[$doNo])) {
+                        $doRows[$doNo] = 0;
+                    }
+                    $doRows[$doNo] += $invoicedetail['totalprice'];
                 @endphp
+            @endforeach
+            @foreach ($doRows as $doNo => $doTotal)
                 <tr>
-                    <td class="col-item">{{ $itemNo }}.</td>
-                    <td class="col-desc">{{ $itemLabel }}</td>
                     <td class="col-do">{{ $doNo }}</td>
-                    <td class="col-qty">{{ $invoicedetail['quantity'] }}</td>
-                    <td class="col-uom">UNIT</td>
-                    <td class="col-disc"></td>
-                    <td class="col-total">{{ number_format($invoicedetail['totalprice'], 2) }}</td>
+                    <td class="col-total">{{ number_format($doTotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>

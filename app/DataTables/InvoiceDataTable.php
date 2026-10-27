@@ -139,12 +139,12 @@ class InvoiceDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 7,
+                        'targets' => 8,
                         'visible' => true,
                         'render' => 'function(data, type){var totalprice = 0; $.each(data,function(index,value){ totalprice=totalprice+parseFloat(value.totalprice) }); return totalprice.toFixed(2);}'
                     ],
                     [
-                    'targets' => 8,
+                    'targets' => 9,
                     'render' => 'function(data, type, row){
                             var paymentTerms = {
                                 1: \'Cash\',
@@ -157,11 +157,11 @@ class InvoiceDataTable extends DataTable
                         }'
                     ],
                     [
-                    'targets' => 9,
+                    'targets' => 10,
                     'render' => 'function(data, type){return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
                     ],
                     [
-                    'targets' => 10,
+                    'targets' => 11,
                     'render' => 'function(data, type, row){
                             var map = {0:"—",1:"Pending",2:"Syncing",3:"Synced",4:"Failed"};
                             var label = map[data] || "—";
@@ -248,6 +248,13 @@ class InvoiceDataTable extends DataTable
                 'title' => trans('invoices.customer'),
                 'data' => 'customer.company',
                 'name' => 'customer.company'
+            ]),
+
+            'second_description' => new \Yajra\DataTables\Html\Column([
+                'title' => 'Second Description',
+                'data' => 'customer.second_description',
+                'name' => 'customer.second_description',
+                'defaultContent' => ''
             ]),
 
             'driver_id' => new \Yajra\DataTables\Html\Column([

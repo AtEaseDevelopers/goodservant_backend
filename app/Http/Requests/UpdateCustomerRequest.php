@@ -37,6 +37,7 @@ class UpdateCustomerRequest extends FormRequest
         $rules = [
             'code' => 'required|string|max:255|unique:customers,code,'.Crypt::decrypt($id),
             'company' => 'required|string|max:255|string|max:255',
+            'second_description' => 'nullable|string|max:255',
             'paymentterm' => 'required',
             'phone' => 'nullable|string|max:20|nullable|string|max:20',
             'address' => 'nullable|string|max:65535|nullable|string|max:65535',

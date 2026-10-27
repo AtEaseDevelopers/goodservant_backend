@@ -140,7 +140,7 @@ class InvoicePaymentDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 3,
+                        'targets' => 4,
                         'render' => 'function(data, type, row){
                                 var paymentTerms = {
                                     1: \'Cash\',
@@ -152,11 +152,11 @@ class InvoicePaymentDataTable extends DataTable
                             }'
                     ],
                     [
-                        'targets' => 8,
+                        'targets' => 9,
                         'render' => 'function(data, type){ if(data != null){return "<a target=\'_blank\' href=\''.config('app.url').'/"+data+"\'>view</a>";}else{return "";}}'
                     ],
                     [
-                        'targets' => 7,
+                        'targets' => 8,
                          'render' => 'function(data, type){
                             if (data == 0) {
                                 return "New";
@@ -229,6 +229,11 @@ class InvoicePaymentDataTable extends DataTable
             'customer_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.customer'),
             'data' => 'customer.company',
             'name' => 'customer.company']),
+
+            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => 'Second Description',
+            'data' => 'customer.second_description',
+            'name' => 'customer.second_description',
+            'defaultContent' => '']),
             
             'type'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.type'),
             'data' => 'type',

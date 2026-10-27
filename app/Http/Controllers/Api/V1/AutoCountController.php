@@ -690,6 +690,12 @@ class AutoCountController extends Controller
             $this->syncProductPrices($product, is_array($row['prices']) ? $row['prices'] : [], $categoryCache);
         }
 
+        // Keep AutoCount's item group on the product without removing extra
+        // types an admin has selected.
+        if (($isNew || array_key_exists('type_id', $attributes)) && !empty($product->type_id)) {
+            $product->productTypes()->syncWithoutDetaching([(int) $product->type_id]);
+        }
+
         return $isNew;
     }
 

@@ -83,7 +83,7 @@ class DeliveryOrderDataTable extends DataTable
                         'render' => 'function(data, type){return "<input type=\'checkbox\' class=\'checkboxselect\' checkboxid=\'"+data+"\'/>";}'
                     ],
                     [
-                        'targets' => 5,
+                        'targets' => 6,
                         'render' => 'function(data, type){
                                 var paymentTerms = {
                                     1: \'Cash\',
@@ -96,7 +96,7 @@ class DeliveryOrderDataTable extends DataTable
                             }'
                     ],
                     [
-                        'targets' => 6,
+                        'targets' => 7,
                         'render' => 'function(data, type){return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
                     ],
                 ],
@@ -151,6 +151,13 @@ class DeliveryOrderDataTable extends DataTable
                 'title' => 'Customer',
                 'data' => 'customer.company',
                 'name' => 'customer.company'
+            ]),
+
+            'second_description' => new \Yajra\DataTables\Html\Column([
+                'title' => 'Second Description',
+                'data' => 'customer.second_description',
+                'name' => 'customer.second_description',
+                'defaultContent' => ''
             ]),
 
             'driver_id' => new \Yajra\DataTables\Html\Column([

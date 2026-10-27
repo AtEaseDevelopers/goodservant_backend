@@ -34,6 +34,7 @@ class Customer extends Model
     public $fillable = [
         'code',
         'company',
+        'second_description',
         'chinese_name',
         'paymentterm',
         'is_do_customer',
@@ -70,6 +71,7 @@ class Customer extends Model
         'id' => 'integer',
         'code' => 'string',
         'company' => 'string',
+        'second_description' => 'string',
         'paymentterm' => 'integer',
         'is_do_customer' => 'boolean',
         'group' => 'string',
@@ -91,6 +93,7 @@ class Customer extends Model
     public static $rules = [
         'code' => 'required|string|max:255|unique:customers,code',
         'company' => 'required|string|max:255|string|max:255',
+        'second_description' => 'nullable|string|max:255',
         'paymentterm' => 'required',
         'phone' => 'nullable|string|max:20|nullable|string|max:20',
         'address' => 'nullable|string|max:65535|nullable|string|max:65535',

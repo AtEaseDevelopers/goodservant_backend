@@ -94,7 +94,12 @@ class ProductController extends AppBaseController
             $input['image_path'] = '/' . $imagePath;
         }
 
+        $typeIds = $this->productTypeIds($request);
+        $input['type_id'] = $typeIds[0];
+        unset($input['type_ids']);
+
         $product = $this->productRepository->create($input);
+        $product->productTypes()->sync($typeIds);
 
         Flash::success($input['code'].__('products.saved_successfully'));
 
@@ -107,7 +112,7 @@ class ProductController extends AppBaseController
      */
     public function arrange()
     {
-        $products = Product::with('productType:id,name')
+        $products = Product::with('productType:id,name', 'productTypes:id,name')
             ->where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
             ->orderBy('sequence')
             ->orderBy('id')
@@ -246,7 +251,12 @@ class ProductController extends AppBaseController
             $input['image_path'] = '/' . $imagePath;
         }
 
+        $typeIds = $this->productTypeIds($request);
+        $input['type_id'] = $typeIds[0];
+        unset($input['type_ids']);
+
         $product = $this->productRepository->update($input, $id);
+        $product->productTypes()->sync($typeIds);
 
         Flash::success($product->code.__('products.updated_successfully'));
 
@@ -386,6 +396,11 @@ class ProductController extends AppBaseController
      *
      * @return array
      */
+    private function productTypeIds(Request $request): array
+    {
+        return array_values(array_unique(array_map('intval', (array) $request->input('type_ids', []))));
+    }
+
     protected function getClassificationOptions()
     {
         return \App\Models\ClassificationCode::orderBy('code')->get()->mapWithKeys(function ($code) {

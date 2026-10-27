@@ -40,6 +40,8 @@ class UpdateProductRequest extends FormRequest
             'name' => 'required|string|max:255|string|max:255',
             'price' => 'required|numeric|numeric',
             'status' => 'required',
+            'type_ids' => 'required|array|min:1',
+            'type_ids.*' => 'integer|exists:product_types,id',
             'created_at' => 'nullable|nullable',
             'updated_at' => 'nullable|nullable'
         ];

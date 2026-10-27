@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\InventoryTransaction;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Trip;
@@ -20,6 +21,24 @@ class TripPaymentSummary
     {
         $from = $startTrip->getRawOriginal('date');
         $until = $until ?: date('Y-m-d H:i:s');
+
+        // Orders taken before the trip used to convert into invoices with no
+        // trip, so the cash never appeared here. Attach those to this trip.
+        $orphans = Invoice::where('driver_id', $startTrip->driver_id)
+            ->where('status', 1)
+            ->whereNull('trip_id')
+            ->where('date', '>=', $from)
+            ->where('date', '<=', $until)
+            ->whereHas('invoicedetail', function ($q) {
+                $q->whereNotNull('sales_order_id');
+            })
+            ->get(['id', 'invoiceno']);
+        if ($orphans->isNotEmpty()) {
+            Invoice::whereIn('id', $orphans->pluck('id'))->update(['trip_id' => $startTrip->id]);
+            InventoryTransaction::whereNull('trip_id')
+                ->whereIn('remark', $orphans->pluck('invoiceno')->filter()->all())
+                ->update(['trip_id' => $startTrip->id]);
+        }
 
         // Same rule as the admin Daily Sales Report: invoices made by converting a
         // DO are paperwork for an earlier delivery, not a sale of this trip.

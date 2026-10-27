@@ -8,6 +8,7 @@ use App\Models\ProductType;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ProductTypeController extends AppBaseController
@@ -83,7 +84,7 @@ class ProductTypeController extends AppBaseController
             return redirect(route('productTypes.index'));
         }
 
-        if (Product::where('type_id', $id)->exists()) {
+        if (Product::where('type_id', $id)->exists() || DB::table('product_product_type')->where('product_type_id', $id)->exists()) {
             Flash::error('Unable to delete ' . $productType->name . ', it is being used by one or more products.');
             return redirect(route('productTypes.index'));
         }

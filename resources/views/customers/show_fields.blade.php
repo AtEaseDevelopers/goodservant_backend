@@ -10,6 +10,11 @@
     <p>{{ $customer->company }}</p>
 </div>
 
+<div class="form-group">
+    {!! Form::label('second_description', 'Second Description') !!}:
+    <p>{{ $customer->second_description }}</p>
+</div>
+
 @php
     if($customer->paymentterm == 1){
         $paymentterm = __('customers.payment_term_cash');

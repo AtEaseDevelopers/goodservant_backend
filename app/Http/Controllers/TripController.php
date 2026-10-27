@@ -14,7 +14,10 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Trip;
+use App\Models\Task;
+use App\Models\Customer;
 use App\Models\Invoice;
+use Illuminate\Http\Request;
 use App\Models\InvoicePayment;
 use App\Models\DeliveryOrder;
 use App\Models\TripInventoryBalance;
@@ -260,15 +263,22 @@ class TripController extends AppBaseController
     {
         $id = Crypt::decrypt($id);
 
-        // The clicked row is the end trip (type=2)
+        // The clicked row is the end trip (type=2). A current trip is one row:
+        // date is the start and ended_at is the finish. Older trips are a
+        // type=2 row whose matching start is the type=1 row just before it.
         $endTrip = Trip::with(['driver', 'kelindan', 'lorry'])->findOrFail($id);
 
-        // Find the corresponding start trip (type=1) for this driver immediately before the end trip
-        $startTrip = Trip::where('driver_id', $endTrip->driver_id)
-            ->where('type', 1)
-            ->where('id', '<', $endTrip->id)
-            ->orderBy('id', 'desc')
-            ->first();
+        if (!empty($endTrip->ended_at)) {
+            $startTrip = $endTrip;
+            $endAt = $endTrip->getRawOriginal('ended_at');
+        } else {
+            $startTrip = Trip::where('driver_id', $endTrip->driver_id)
+                ->where('type', 1)
+                ->where('id', '<', $endTrip->id)
+                ->orderBy('id', 'desc')
+                ->first();
+            $endAt = $endTrip->getRawOriginal('date');
+        }
 
         // Invoices created during this trip. Excludes invoices produced by converting/
         // combining a DO - those are just paperwork done later against the source DO's
@@ -314,7 +324,7 @@ class TripController extends AppBaseController
             $collections = InvoicePayment::where('driver_id', $endTrip->driver_id)
                 ->where('status', 1)
                 ->where('created_at', '>=', $startTrip->getRawOriginal('date'))
-                ->where('created_at', '<=', $endTrip->getRawOriginal('date'))
+                ->where('created_at', '<=', $endAt)
                 ->whereHas('invoice', function ($q) {
                     $q->where('paymentterm', '!=', 1);
                 })
@@ -334,7 +344,7 @@ class TripController extends AppBaseController
 
         // Trip duration
         $startTime = $startTrip ? Carbon::parse($startTrip->getRawOriginal('date') ?? $startTrip->date) : null;
-        $endTime = Carbon::parse($endTrip->getRawOriginal('date') ?? $endTrip->date);
+        $endTime = Carbon::parse($endAt);
         $duration = $startTime ? $startTime->diff($endTime) : null;
 
         // ── Stock Movement Table ───────────────────────────────────────────────
@@ -436,5 +446,111 @@ class TripController extends AppBaseController
             'startTime', 'endTime', 'duration',
             'stockMovements'
         );
+    }
+
+    /**
+     * Stops on this trip, in the order the driver will visit them.
+     */
+    public function tasks($id)
+    {
+        $trip = $this->findTrip($id);
+        $tasks = $this->tasksForTrip($trip);
+
+        return view('trips.tasks', [
+            'trip' => $trip,
+            'tasks' => $tasks,
+            'customers' => Customer::activeChoices(),
+            'tripKey' => Crypt::encrypt($trip->id),
+        ]);
+    }
+
+    public function storeTask(Request $request, $id)
+    {
+        $trip = $this->findTrip($id);
+        $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+        ]);
+
+        $tasks = $this->tasksForTrip($trip);
+        $next = ((int) $tasks->max('sequence')) + 1;
+        $day = substr((string) $trip->getRawOriginal('date'), 0, 10);
+
+        $task = new Task();
+        $task->date = $day;
+        $task->trip_id = $trip->id;
+        $task->driver_id = $trip->driver_id;
+        $task->customer_id = $request->customer_id;
+        $task->sequence = $next;
+        $task->status = 0;
+        $task->based = 0;
+        $task->save();
+
+        Flash::success('Task added.');
+
+        return redirect(route('trips.tasks', Crypt::encrypt($trip->id)));
+    }
+
+    public function saveTaskSequence(Request $request, $id)
+    {
+        $trip = $this->findTrip($id);
+        $ids = $request->input('tasks', []);
+        if (!is_array($ids) || count($ids) === 0) {
+            Flash::error('Nothing to save.');
+
+            return redirect(route('trips.tasks', Crypt::encrypt($trip->id)));
+        }
+
+        $allowed = $this->tasksForTrip($trip)->pluck('id')->map(function ($taskId) {
+            return (int) $taskId;
+        })->all();
+
+        $sequence = 1;
+        foreach ($ids as $taskId) {
+            $taskId = (int) $taskId;
+            if (!in_array($taskId, $allowed, true)) {
+                continue;
+            }
+            Task::where('id', $taskId)->update([
+                'sequence' => $sequence,
+                'trip_id' => $trip->id,
+            ]);
+            $sequence++;
+        }
+
+        Flash::success('Task sequence saved.');
+
+        return redirect(route('trips.tasks', Crypt::encrypt($trip->id)));
+    }
+
+    private function findTrip($id)
+    {
+        $tripId = Crypt::decrypt($id);
+        $trip = Trip::with(['driver', 'kelindan', 'lorry'])->find($tripId);
+        if (empty($trip)) {
+            abort(404);
+        }
+
+        return $trip;
+    }
+
+    private function tasksForTrip(Trip $trip)
+    {
+        $tasks = Task::with('customer')
+            ->where('trip_id', $trip->id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            $day = substr((string) $trip->getRawOriginal('date'), 0, 10);
+            $tasks = Task::with('customer')
+                ->where('driver_id', $trip->driver_id)
+                ->whereDate('date', $day)
+                ->orderBy('sequence')
+                ->orderBy('id')
+                ->get();
+        }
+
+        return $tasks;
     }
 }

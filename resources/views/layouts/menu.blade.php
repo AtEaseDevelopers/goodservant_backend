@@ -174,6 +174,8 @@
 </li>
 @endcanany
 
+{{-- Task list is opened from the trip, not from its own menu. --}}
+@if(false)
 @canany(['task'])
 <li class="nav-item {{ Request::is('tasks*','taskTransfers*') ? 'open' : '' }}">
     <a class="nav-link {{ Request::is('tasks*','taskTransfers*') ? 'active' : '' }}" href="{{ route('tasks.index') }}">
@@ -182,6 +184,7 @@
     </a>
 </li>
 @endcanany
+@endif
 
 @canany(['task'])
 <li class="nav-item {{ Request::is('trips*') ? 'active' : '' }}">

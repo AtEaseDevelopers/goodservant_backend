@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Models\Product;
 use App\Models\ProductType;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 
@@ -35,7 +36,7 @@ class ProductDataTable extends DataTable
             // the hidden system product behind invoice discounts
             ->where('products.code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)
             ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
-            ->addSelect('product_types.name as type_name');
+            ->addSelect(DB::raw("COALESCE((SELECT GROUP_CONCAT(pt.name ORDER BY pt.name SEPARATOR ', ') FROM product_product_type ppt INNER JOIN product_types pt ON pt.id = ppt.product_type_id WHERE ppt.product_id = products.id), product_types.name) as type_name"));
     }
 
     /**
