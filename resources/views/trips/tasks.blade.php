@@ -16,7 +16,7 @@
                             <strong>Trip #{{ $trip->id }}</strong>
                             — {{ $trip->driver->name ?? 'Driver' }}
                             <span class="text-muted">{{ $trip->date }}</span>
-                            <span class="text-muted">({{ $tasks->count() }} stops)</span>
+                            <span class="text-muted" id="task-stop-count">({{ $tasks->count() }} stops)</span>
                         </div>
                         <div class="card-body">
                             <form method="POST" action="{{ route('trips.tasks.store', $tripKey) }}" class="mb-4">
@@ -44,7 +44,20 @@
                             @else
                                 <form method="POST" action="{{ route('trips.tasks.sequence', $tripKey) }}">
                                     @csrf
-                                    <p class="text-muted">Drag the rows into the order the driver should follow, then save.</p>
+                                    <div class="form-row align-items-end mb-3">
+                                        <div class="form-group col-sm-4 mb-0">
+                                            <label for="task-status-filter">Status</label>
+                                            <select id="task-status-filter" class="form-control">
+                                                <option value="">All</option>
+                                                <option value="0">New</option>
+                                                <option value="1">In-Progress</option>
+                                                <option value="8">Completed</option>
+                                                <option value="9">Cancelled</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted">Drag the rows into the order the driver should follow, then save. A status filter only hides other stops. Save still keeps the full order.</p>
+                                    <p class="text-muted d-none" id="task-filter-empty">No tasks with this status.</p>
                                     <table class="table table-striped table-bordered" id="sortable-table">
                                         <thead>
                                             <tr>
@@ -55,11 +68,11 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            @php
+                                                $statusLabels = [0 => 'New', 1 => 'In-Progress', 8 => 'Completed', 9 => 'Cancelled'];
+                                            @endphp
                                             @foreach($tasks as $index => $task)
-                                                @php
-                                                    $statusLabels = [0 => 'New', 1 => 'In-Progress', 8 => 'Completed', 9 => 'Cancelled'];
-                                                @endphp
-                                                <tr>
+                                                <tr data-status="{{ (int) $task->status }}">
                                                     <td class="text-center"><span class="drag-handle" draggable="true">☰</span></td>
                                                     <td class="sequence-cell">{{ $index + 1 }}</td>
                                                     <td>
@@ -107,6 +120,38 @@
                 return;
             }
             var dragged = null;
+            var filter = document.getElementById('task-status-filter');
+            var countEl = document.getElementById('task-stop-count');
+            var emptyEl = document.getElementById('task-filter-empty');
+
+            function visible(row) {
+                return row.style.display !== 'none';
+            }
+
+            function applyFilter() {
+                var value = filter ? filter.value : '';
+                var rows = tbody.querySelectorAll('tr');
+                var shown = 0;
+                for (var i = 0; i < rows.length; i++) {
+                    var match = value === '' || rows[i].getAttribute('data-status') === value;
+                    rows[i].style.display = match ? '' : 'none';
+                    if (match) {
+                        shown++;
+                    }
+                }
+                if (countEl) {
+                    countEl.textContent = value === ''
+                        ? '(' + rows.length + ' stops)'
+                        : '(' + shown + ' of ' + rows.length + ' stops)';
+                }
+                if (emptyEl) {
+                    emptyEl.classList.toggle('d-none', shown !== 0);
+                }
+            }
+
+            if (filter) {
+                filter.addEventListener('change', applyFilter);
+            }
 
             function renumber() {
                 var rows = tbody.querySelectorAll('tr');
@@ -138,7 +183,7 @@
                 }
                 event.preventDefault();
                 var row = event.target.closest('tr');
-                if (!row || row === dragged || row.parentNode !== tbody) {
+                if (!row || row === dragged || row.parentNode !== tbody || !visible(row)) {
                     return;
                 }
                 var rect = row.getBoundingClientRect();
