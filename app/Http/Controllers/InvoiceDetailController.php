@@ -259,17 +259,6 @@ class InvoiceDetailController extends AppBaseController
      */
     private function resolveCustomerPrice(Product $product, $customerId)
     {
-        $categoryId = $customerId ? Customer::where('id', $customerId)->value('product_price_category_id') : null;
-
-        if ($categoryId) {
-            $categoryPrice = ProductPrice::where('product_id', $product->id)
-                ->where('product_price_category_id', $categoryId)
-                ->value('price');
-            if ($categoryPrice !== null) {
-                return $categoryPrice;
-            }
-        }
-
-        return $product->price;
+        return Product::priceForCustomer($product->id, $product->price, $customerId);
     }
 }

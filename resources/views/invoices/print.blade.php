@@ -65,7 +65,13 @@
             padding-bottom: 6px;
         }
         .rule{
-            border-top: 1px dashed #000;
+            margin: 6px 0 4px;
+            font-size: 8px;
+            line-height: 8px;
+            letter-spacing: 2px;
+            overflow: hidden;
+            white-space: nowrap;
+            color: #000;
         }
     </style>
 </head>
@@ -173,6 +179,9 @@
                             <p class="ta-r" style="font-size:16px; font-weight:bold;">{{ $invoice['customer']['company'] ?? '-' }}</p>
                         </td>
                     </tr>
+                    <tr>
+                        <td colspan="2"><p class="rule">................................................................................................</p></td>
+                    </tr>
                 </table>
             </td>
         </tr>
@@ -212,12 +221,14 @@
                             </td>
                         </tr>
                     @endforeach
+                    <tr>
+                        <td colspan="2"><p class="rule">................................................................................................</p></td>
+                    </tr>
                 </table>
             </td>
         </tr>
         <tr>
             <td>
-                <br>
                 <table id="total">
                     @if($discountAmount > 0)
                     <tr>

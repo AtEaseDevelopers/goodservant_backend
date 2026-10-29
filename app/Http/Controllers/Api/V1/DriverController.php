@@ -1422,14 +1422,9 @@ class DriverController extends Controller
                     if(asset($t['customer']['id'])){
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
-                        $task[$c]['customer']['product'] = DB::table('products')
-                            ->leftJoin('product_prices', function($join) use($t)
-                                {
-                                    $join->on('product_prices.product_id', '=', 'products.id');
-                                    $join->on('product_prices.product_price_category_id', '=', DB::raw("'".($t['customer']['product_price_category_id'] ?? 0)."'"));
-                                })
+                        $task[$c]['customer']['product'] = $this->withCustomerPrice(DB::table('products'), $t['customer']['id'])
                             ->where('products.status','1')
-                            ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
+                            ->select('products.id','products.code','products.name',$this->customerPriceSelect())
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
                             ->get();
@@ -1531,14 +1526,9 @@ class DriverController extends Controller
                     if(asset($t['customer']['id'])){
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
-                        $task[$c]['customer']['product'] = DB::table('products')
-                            ->leftJoin('product_prices', function($join) use($t)
-                                {
-                                    $join->on('product_prices.product_id', '=', 'products.id');
-                                    $join->on('product_prices.product_price_category_id', '=', DB::raw("'".($t['customer']['product_price_category_id'] ?? 0)."'"));
-                                })
+                        $task[$c]['customer']['product'] = $this->withCustomerPrice(DB::table('products'), $t['customer']['id'])
                             ->where('products.status','1')
-                            ->select('products.id','products.code','products.name',DB::raw('coalesce(product_prices.price,products.price) as "price"'))
+                            ->select('products.id','products.code','products.name',$this->customerPriceSelect())
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
                             ->get();
@@ -1777,21 +1767,16 @@ class DriverController extends Controller
             }
             //process
             if(isset($data['customer_id'])){
-                $priceCategoryId = Customer::where('id', $data['customer_id'])->value('product_price_category_id') ?? 0;
                 $product = DB::table('products')
-                ->leftJoin('product_prices', function($join) use($priceCategoryId)
-                    {
-                        $join->on('product_prices.product_id', '=', 'products.id');
-                        $join->on('product_prices.product_price_category_id', '=', DB::raw("'".$priceCategoryId."'"));
-                    })
                 ->leftJoin('product_types', 'product_types.id', '=', 'products.type_id')
                 ->leftJoin('inventory_balances', function($join) use($driver)
                     {
                         $join->on('inventory_balances.product_id', '=', 'products.id');
                         $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
-                    })
+                    });
+                $product = $this->withCustomerPrice($product, $data['customer_id'])
                 ->where('products.status','1')
-                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('coalesce(product_prices.price,products.price) as "price"'))
+                ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),$this->customerPriceSelect())
                 ->orderBy('products.sequence')
                 ->orderBy('products.id')
                 ->get()
@@ -4995,8 +4980,9 @@ class DriverController extends Controller
                 $detail->sales_order_id = $salesOrder->id;
                 $detail->product_id = $line['product_id'];
                 $detail->quantity = $line['quantity'];
-                $detail->price = $line['price'];
-                $detail->totalprice = $line['quantity'] * $line['price'];
+                $price = !empty($line['foc']) ? 0 : Product::priceForCustomer($product->id, $product->price, $salesOrder->customer_id);
+                $detail->price = $price;
+                $detail->totalprice = $line['quantity'] * $price;
                 $detail->remark = $line['foc'] ? 'FOC' : null;
                 $detail->save();
             }
@@ -5101,8 +5087,9 @@ class DriverController extends Controller
                         $detail->sales_order_id = $salesOrder->id;
                         $detail->product_id = $line['product_id'];
                         $detail->quantity = $line['quantity'];
-                        $detail->price = $line['price'];
-                        $detail->totalprice = $line['quantity'] * $line['price'];
+                        $price = !empty($line['foc']) ? 0 : Product::priceForCustomer($product->id, $product->price, $salesOrder->customer_id);
+                        $detail->price = $price;
+                        $detail->totalprice = $line['quantity'] * $price;
                         $detail->remark = $line['foc'] ? 'FOC' : null;
                         $detail->save();
                     }
@@ -5141,6 +5128,55 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * An order is still open for packing when it has not been cancelled and
+     * has not become a delivery order or a live invoice. The invoice link is
+     * sometimes only on invoice_details, so that counts too.
+     */
+    private function whereSalesOrderStillOpen($query)
+    {
+        return $query
+            ->whereNull('sales_orders.invoice_id')
+            ->whereNull('sales_orders.deliveryorder_id')
+            ->where('sales_orders.status', '!=', 2)
+            ->whereNotExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('invoice_details')
+                    ->join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                    ->whereColumn('invoice_details.sales_order_id', 'sales_orders.id')
+                    ->where('invoices.status', '!=', 2);
+            });
+    }
+
+    /**
+     * Copy a missing invoice_id onto the sales order when a live invoice
+     * already has lines for it. Until that column is set, the driver app
+     * treats the order as open and keeps it on the packing list.
+     */
+    private function attachMissingInvoiceLinks($driverId)
+    {
+        $links = DB::table('invoice_details as d')
+            ->join('invoices as i', function ($join) {
+                $join->on('i.id', '=', 'd.invoice_id')->where('i.status', '!=', 2);
+            })
+            ->join('sales_orders as so', 'so.id', '=', 'd.sales_order_id')
+            ->where('so.driver_id', $driverId)
+            ->whereNull('so.invoice_id')
+            ->whereNull('so.deliveryorder_id')
+            ->where('so.status', '!=', 2)
+            ->whereNotNull('d.sales_order_id')
+            ->groupBy('d.sales_order_id')
+            ->select('d.sales_order_id', DB::raw('MAX(d.invoice_id) as invoice_id'))
+            ->get();
+
+        foreach ($links as $link) {
+            SalesOrder::where('id', $link->sales_order_id)
+                ->whereNull('invoice_id')
+                ->whereNull('deliveryorder_id')
+                ->update(['invoice_id' => $link->invoice_id]);
+        }
+    }
+
     public function getsalesorder(Request $request){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
@@ -5151,9 +5187,17 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
+            // Some converted SOs only have the link on the invoice line. Put
+            // it on the order itself so the app can tell history from packing.
+            $this->attachMissingInvoiceLinks($driver->id);
             // Converted SOs are included (the app shows them as read-only history
             // with the DO/invoice they became); convert/cancel still reject them.
-            $salesOrders = SalesOrder::where('driver_id', $driver->id)
+            // unconverted=1 is the packing list, which must not include them.
+            $salesOrders = SalesOrder::where('driver_id', $driver->id);
+            if ($request->boolean('unconverted')) {
+                $salesOrders = $this->whereSalesOrderStillOpen($salesOrders);
+            }
+            $salesOrders = $salesOrders
                 ->with('customer', 'salesorderdetail.product', 'deliveryorder:id,dono', 'invoice:id,invoiceno')
                 ->orderby('date','desc')
                 ->get();
@@ -5369,17 +5413,8 @@ class DriverController extends Controller
                                 'data' => null
                             ], 400);
                         }
-                        // Price comes from the customer's price category, never the client.
-                        $price = $product->price;
-                        $priceCategoryId = Customer::where('id', $salesOrder->customer_id)->value('product_price_category_id');
-                        if ($priceCategoryId) {
-                            $categoryPrice = ProductPrice::where('product_id', $product->id)
-                                ->where('product_price_category_id', $priceCategoryId)
-                                ->value('price');
-                            if ($categoryPrice !== null) {
-                                $price = $categoryPrice;
-                            }
-                        }
+                        // Price comes from the customer's price, never the client.
+                        $price = Product::priceForCustomer($product->id, $product->price, $salesOrder->customer_id);
                         $newItems[] = [
                             'product_id' => $product->id,
                             'quantity' => $item['quantity'],
@@ -5501,8 +5536,12 @@ class DriverController extends Controller
             $detail->save();
         }
 
+        // Record the link on its own. A full model save also writes `date`,
+        // which this model formats for display.
+        SalesOrder::where('id', $salesOrder->id)->update([
+            'deliveryorder_id' => $deliveryOrder->id,
+        ]);
         $salesOrder->deliveryorder_id = $deliveryOrder->id;
-        $salesOrder->save();
 
         return $deliveryOrder;
     }
@@ -5647,11 +5686,15 @@ class DriverController extends Controller
             $invoicepayment->save();
         }
 
-        $salesOrder->invoice_id = $invoice->id;
+        $updates = ['invoice_id' => $invoice->id];
         if (empty($salesOrder->trip_id) && $tripId) {
+            $updates['trip_id'] = $tripId;
             $salesOrder->trip_id = $tripId;
         }
-        $salesOrder->save();
+        // Record the link on its own. A full model save also writes `date`,
+        // which this model formats for display.
+        SalesOrder::where('id', $salesOrder->id)->update($updates);
+        $salesOrder->invoice_id = $invoice->id;
 
         return $invoice;
     }
@@ -6003,11 +6046,12 @@ class DriverController extends Controller
             $groupId = $request->input('customer_group_id');
             $salesOrderIds = $request->input('sales_order_ids');
 
-            $salesOrdersQuery = SalesOrder::where('driver_id', $driver->id)
-                ->whereNull('invoice_id')
-                ->whereNull('deliveryorder_id')
-                ->where('status', '!=', 2)
-                ->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
+            $this->attachMissingInvoiceLinks($driver->id);
+            // Always drop converted and cancelled orders, even when the app
+            // sends specific ids. A converted SO is already on an invoice or DO.
+            $salesOrdersQuery = $this->whereSalesOrderStillOpen(
+                SalesOrder::where('driver_id', $driver->id)
+            )->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
 
             if (!empty($salesOrderIds) && is_array($salesOrderIds)) {
                 // Driver picked specific SOs (e.g. from the packing list
@@ -6333,6 +6377,31 @@ class DriverController extends Controller
                 'data' => null
             ], 500);
         }
+    }
+
+    /**
+     * Special price, then the customer's price category, then the product
+     * price. A category price of 0 is treated as "not set".
+     */
+    private function withCustomerPrice($query, $customerId)
+    {
+        $categoryId = (int) (Customer::where('id', $customerId)->value('product_price_category_id') ?? 0);
+
+        return $query
+            ->leftJoin('product_prices', function ($join) use ($categoryId) {
+                $join->on('product_prices.product_id', '=', 'products.id')
+                    ->where('product_prices.product_price_category_id', '=', $categoryId);
+            })
+            ->leftJoin('special_prices', function ($join) use ($customerId) {
+                $join->on('special_prices.product_id', '=', 'products.id')
+                    ->where('special_prices.customer_id', '=', (int) $customerId)
+                    ->where('special_prices.status', '=', 1);
+            });
+    }
+
+    private function customerPriceSelect()
+    {
+        return DB::raw('CASE WHEN special_prices.price > 0 THEN special_prices.price WHEN product_prices.price > 0 THEN product_prices.price ELSE products.price END as price');
     }
 
     private function applyVisitOrder($driverId, $customerIds){

@@ -124,4 +124,35 @@ class Product extends Model
     {
         return $this->hasMany(\App\Models\ProductPrice::class, 'product_id', 'id');
     }
+
+    /**
+     * Price for one customer. A special price wins, then that customer's price
+     * category. A missing price or a 0 (AutoCount writes 0 when that category
+     * has no price) falls back to the product's own price. A category stored
+     * as 0 used to hide the real price for some customers only.
+     */
+    public static function priceForCustomer($productId, $basePrice, $customerId)
+    {
+        if ($customerId) {
+            $special = SpecialPrice::where('product_id', $productId)
+                ->where('customer_id', $customerId)
+                ->where('status', 1)
+                ->value('price');
+            if ($special !== null && (float) $special > 0) {
+                return (float) $special;
+            }
+
+            $categoryId = Customer::where('id', $customerId)->value('product_price_category_id');
+            if ($categoryId) {
+                $categoryPrice = ProductPrice::where('product_id', $productId)
+                    ->where('product_price_category_id', $categoryId)
+                    ->value('price');
+                if ($categoryPrice !== null && (float) $categoryPrice > 0) {
+                    return (float) $categoryPrice;
+                }
+            }
+        }
+
+        return (float) $basePrice;
+    }
 }
