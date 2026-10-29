@@ -1742,6 +1742,49 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * A product can belong to several types. The legacy type_id / type_name
+     * stay as the first type so older apps keep working. `types` is every
+     * type, so the product shows under each category the admin selected.
+     */
+    private function attachProductTypes($products)
+    {
+        $products = collect($products);
+        $ids = $products->map(function ($item) {
+            return $item->id ?? $item->product_id ?? null;
+        })->filter()->unique()->values();
+
+        $grouped = collect();
+        if ($ids->isNotEmpty()) {
+            $grouped = DB::table('product_product_type as ppt')
+                ->join('product_types as pt', 'pt.id', '=', 'ppt.product_type_id')
+                ->whereIn('ppt.product_id', $ids)
+                ->orderBy('pt.name')
+                ->get(['ppt.product_id', 'pt.id as type_id', 'pt.name'])
+                ->groupBy(function ($row) {
+                    return (int) $row->product_id;
+                });
+        }
+
+        return $products->map(function ($item) use ($grouped) {
+            $productId = (int) ($item->id ?? $item->product_id ?? 0);
+            $types = collect($grouped->get($productId, []))->map(function ($type) {
+                return [
+                    'id' => (int) $type->type_id,
+                    'name' => $type->name,
+                ];
+            })->values();
+            if ($types->isEmpty() && !empty($item->type_name)) {
+                $types = collect([[
+                    'id' => (int) ($item->type_id ?? 0),
+                    'name' => $item->type_name,
+                ]]);
+            }
+            $item->types = $types->all();
+            return $item;
+        })->values();
+    }
+
     public function getproduct(Request $request){
         try{
             $data = $request->all();
@@ -1784,6 +1827,7 @@ class DriverController extends Controller
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
                     return $item;
                 });
+                $product = $this->attachProductTypes($product);
                 return response()->json([
                     'result' => true,
                     'message' => __LINE__.$this->message_separator.'api.message.product_found',
@@ -1806,6 +1850,7 @@ class DriverController extends Controller
                     $item->image_url = $item->image_path ? url($item->image_path) : null;
                     return $item;
                 });
+                $product = $this->attachProductTypes($product);
                 return response()->json([
                     'result' => true,
                     'message' => __LINE__.$this->message_separator.'api.message.product_found',
@@ -3288,8 +3333,8 @@ class DriverController extends Controller
             ->map(function($item){
                 $item->image_url = $item->image_path ? url($item->image_path) : null;
                 return $item;
-            })
-            ->toarray();
+            });
+            $inventorybalance = $this->attachProductTypes($inventorybalance)->all();
             if(count($inventorybalance) == 0){
                 return response()->json([
                     'result' => false,

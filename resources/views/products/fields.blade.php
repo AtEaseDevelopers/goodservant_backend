@@ -48,7 +48,7 @@
             ->pluck('name', 'id');
     @endphp
     {!! Form::label('type_ids', __('products.type')) !!}<span class="asterisk"> *</span>
-    {!! Form::select('type_ids[]', $typeOptions, old('type_ids', $selectedTypeIds), ['class' => 'selectpicker form-control', 'multiple' => true, 'data-live-search' => 'true', 'title' => 'Select product types']) !!}
+    {!! Form::select('type_ids[]', $typeOptions, old('type_ids', $selectedTypeIds), ['class' => 'selectpicker form-control', 'multiple' => true, 'data-live-search' => 'true', 'data-actions-box' => 'true', 'data-selected-text-format' => 'count > 3', 'title' => 'Select product types']) !!}
     <small class="form-text text-muted">Select one or more. <a href="{{ route('productTypes.index') }}">Manage product types</a></small>
 </div>
 

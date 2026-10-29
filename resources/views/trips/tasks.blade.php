@@ -16,6 +16,7 @@
                             <strong>Trip #{{ $trip->id }}</strong>
                             — {{ $trip->driver->name ?? 'Driver' }}
                             <span class="text-muted">{{ $trip->date }}</span>
+                            <span class="text-muted">({{ $tasks->count() }} stops)</span>
                         </div>
                         <div class="card-body">
                             <form method="POST" action="{{ route('trips.tasks.store', $tripKey) }}" class="mb-4">
@@ -59,11 +60,11 @@
                                                     $statusLabels = [0 => 'New', 1 => 'In-Progress', 8 => 'Completed', 9 => 'Cancelled'];
                                                 @endphp
                                                 <tr>
-                                                    <td class="text-center"><span class="drag-handle">☰</span></td>
+                                                    <td class="text-center"><span class="drag-handle" draggable="true">☰</span></td>
                                                     <td class="sequence-cell">{{ $index + 1 }}</td>
                                                     <td>
                                                         <input type="hidden" name="tasks[]" value="{{ $task->id }}">
-                                                        {{ $task->customer->company ?? '-' }}
+                                                        {{ $task->customer_company ?: '-' }}
                                                     </td>
                                                     <td>{{ $statusLabels[$task->status] ?? $task->status }}</td>
                                                 </tr>
@@ -92,28 +93,71 @@
     <style>
         #sortable-table tbody tr { cursor: move; }
         .sortable-placeholder { background-color: #f0f0f0; border: 2px dashed #ccc; height: 42px; }
-        .drag-handle { cursor: move; color: #999; font-size: 18px; }
+        .drag-handle { cursor: move; color: #999; font-size: 18px; user-select: none; }
+        #sortable-table tr.dragging { opacity: 0.5; }
     </style>
 @endpush
 
 @push('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script>
-        $(document).ready(function () {
-            if ($('#sortable-table tbody tr').length) {
-                $('#sortable-table tbody').sortable({
-                    update: function () {
-                        $('#sortable-table tbody tr').each(function (index) {
-                            $(this).find('.sequence-cell').text(index + 1);
-                        });
-                    },
-                    cursor: 'move',
-                    opacity: 0.6,
-                    placeholder: 'sortable-placeholder',
-                    tolerance: 'pointer'
-                });
+        HideLoad();
+        (function () {
+            var tbody = document.querySelector('#sortable-table tbody');
+            if (!tbody) {
+                return;
             }
-            HideLoad();
-        });
+            var dragged = null;
+
+            function renumber() {
+                var rows = tbody.querySelectorAll('tr');
+                for (var i = 0; i < rows.length; i++) {
+                    var cell = rows[i].querySelector('.sequence-cell');
+                    if (cell) {
+                        cell.textContent = String(i + 1);
+                    }
+                }
+            }
+
+            tbody.addEventListener('dragstart', function (event) {
+                var handle = event.target.closest('.drag-handle');
+                if (!handle) {
+                    return;
+                }
+                dragged = handle.closest('tr');
+                if (!dragged) {
+                    return;
+                }
+                dragged.classList.add('dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', dragged.querySelector('input[name="tasks[]"]').value);
+            });
+
+            tbody.addEventListener('dragover', function (event) {
+                if (!dragged) {
+                    return;
+                }
+                event.preventDefault();
+                var row = event.target.closest('tr');
+                if (!row || row === dragged || row.parentNode !== tbody) {
+                    return;
+                }
+                var rect = row.getBoundingClientRect();
+                var after = event.clientY > rect.top + rect.height / 2;
+                tbody.insertBefore(dragged, after ? row.nextSibling : row);
+            });
+
+            tbody.addEventListener('drop', function (event) {
+                event.preventDefault();
+                renumber();
+            });
+
+            tbody.addEventListener('dragend', function () {
+                if (dragged) {
+                    dragged.classList.remove('dragging');
+                }
+                dragged = null;
+                renumber();
+            });
+        })();
     </script>
 @endpush

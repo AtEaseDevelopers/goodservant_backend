@@ -535,22 +535,35 @@ class TripController extends AppBaseController
 
     private function tasksForTrip(Trip $trip)
     {
-        $tasks = Task::with('customer')
-            ->where('trip_id', $trip->id)
-            ->orderBy('sequence')
-            ->orderBy('id')
-            ->get();
+        $tasks = $this->taskRows($trip->id, null, null);
 
         if ($tasks->isEmpty()) {
             $day = substr((string) $trip->getRawOriginal('date'), 0, 10);
-            $tasks = Task::with('customer')
-                ->where('driver_id', $trip->driver_id)
-                ->whereDate('date', $day)
-                ->orderBy('sequence')
-                ->orderBy('id')
-                ->get();
+            $tasks = $this->taskRows(null, $trip->driver_id, $day);
         }
 
         return $tasks;
+    }
+
+    /**
+     * Task rows for this screen. The company name comes from a join so the
+     * customer model (and its per-row group lookup) is never loaded.
+     */
+    private function taskRows($tripId, $driverId, $day)
+    {
+        $query = Task::query()
+            ->leftJoin('customers', 'customers.id', '=', 'tasks.customer_id')
+            ->select('tasks.*', 'customers.company as customer_company')
+            ->orderBy('tasks.sequence')
+            ->orderBy('tasks.id');
+
+        if ($tripId !== null) {
+            $query->where('tasks.trip_id', $tripId);
+        } else {
+            $query->where('tasks.driver_id', $driverId)
+                ->whereDate('tasks.date', $day);
+        }
+
+        return $query->get();
     }
 }
