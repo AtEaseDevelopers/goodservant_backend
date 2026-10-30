@@ -18,6 +18,11 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('CronJob:updatedo')
         ->everyMinute();
+
+        // Keep only this month and last month of api_logs.
+        $schedule->command('CronJob:pruneapilogs')
+        ->lastDayOfMonth('23:00')
+        ->withoutOverlapping();
     }
 
     /**
