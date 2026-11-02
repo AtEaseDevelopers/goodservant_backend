@@ -1226,11 +1226,19 @@ class DriverController extends Controller
                 ], 200);
             }
             $customers = Customer::whereIn('id', $tasks->pluck('customer_id'))->get()->keyBy('id');
+            // Any open SO, including one just created today. A previous-day
+            // cutoff hid the dot until the next morning.
             $pending = SalesOrder::where('driver_id', $driver->id)
                 ->where('status', '!=', 2)
                 ->whereNull('deliveryorder_id')
                 ->whereNull('invoice_id')
-                ->where('date', '<', date('Y-m-d'))
+                ->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('invoice_details')
+                        ->join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                        ->whereColumn('invoice_details.sales_order_id', 'sales_orders.id')
+                        ->where('invoices.status', '!=', 2);
+                })
                 ->pluck('customer_id')
                 ->unique();
             $rows = [];
@@ -1885,15 +1893,15 @@ class DriverController extends Controller
             // only appear via invoices (no assign row) come last, by name.
             // Customers another driver transferred to me today are added, and
             // the ones I transferred away today are hidden (task_transfers).
-            // has_pending_so: the customer still has an SO from a previous day
-            // that was neither converted nor cancelled - the app shows a red
-            // dot on the customer card so the driver notices overnight orders.
+            // has_pending_so: the customer still has an SO that was neither
+            // converted nor cancelled, including one created today. The app
+            // shows a red dot on that customer.
             // credit: sum of what is still owed on each non-cancelled invoice
             // (invoice total minus payments recorded on that invoice). Same
             // invoices the pay screen lists. A customer-level payment total
             // used to wipe this to 0 while an invoice still had a balance,
             // and status 0 (new) invoices were left out entirely.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND so.date < CURDATE()) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM invoice_details d INNER JOIN invoices inv ON inv.id = d.invoice_id AND inv.status != 2 WHERE d.sales_order_id = so.id)) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -2951,9 +2959,8 @@ class DriverController extends Controller
     /**
      * PDF for one of this driver's own Delivery Orders, for the mobile
      * "View Delivery Order PDF" button. Mirrors invoicepdf()'s Storage+
-     * url() pattern. Uses delivery_orders.print, which is a checklist-style
-     * layout (product + qty only, no price) - the packing/picking format
-     * requested for DO, distinct from sales_orders.print's priced layout.
+     * url() pattern. Uses delivery_orders.print, the same receipt layout as
+     * the invoice, with quantity and unit instead of a price.
      */
     public function dopdf(Request $request){
         try{
@@ -2987,9 +2994,12 @@ class DriverController extends Controller
                 abort('404');
             }
 
-            $min = 450;
-            $each = 23;
+            $min = 620;
+            $each = 48;
             $height = (count($deliveryOrder['deliveryorderdetail']) * $each) + $min;
+            if (!empty($deliveryOrder['remark'])) {
+                $height += 40;
+            }
 
             $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);
             $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
@@ -4987,30 +4997,34 @@ class DriverController extends Controller
             DB::beginTransaction();
             $extsalesorder = SalesOrder::where('id',$data['sales_order_id'] ?? null)->where('status','!=',2)
                 ->whereNull('deliveryorder_id')->whereNull('invoice_id')->first();
-            $sono = null;
-            $id = null;
+            $header = [
+                'date' => $data['date'] ?? date('Y-m-d H:i:s'),
+                'customer_id' => $data['customer_id'],
+                'driver_id' => $driver->id,
+                'kelindan_id' => $hasActiveTrip ? $trip->kelindan_id : null,
+                'agent_id' => $customer->agent_id,
+                'supervisor_id' => $customer->supervisor_id,
+                'status' => 0,
+                'remark' => $data['remark'] ?? null,
+                'trip_id' => $hasActiveTrip ? $driver->trip_id : null,
+            ];
             if(!empty($extsalesorder)){
-                $sono = $extsalesorder->sono;
-                $id = $extsalesorder->id;
+                // Replace the lines on this order. A new SalesOrder with the
+                // same id is an insert, and MySQL rejects the duplicate key
+                // (the app shows HTTP 500). The query builder also skips the
+                // date accessor, which would write the display format back.
                 SalesOrderDetail::where('sales_order_id',$extsalesorder->id)->delete();
+                SalesOrder::where('id',$extsalesorder->id)->update($header);
+                $salesOrderId = $extsalesorder->id;
             }else{
-                $sono = Code::nextRunningNumber('sorunningnumber', 'SO');
+                $salesOrder = new SalesOrder();
+                $salesOrder->sono = Code::nextRunningNumber('sorunningnumber', 'SO');
+                foreach($header as $column => $value){
+                    $salesOrder->{$column} = $value;
+                }
+                $salesOrder->save();
+                $salesOrderId = $salesOrder->id;
             }
-            $salesOrder = new SalesOrder();
-            if($id != null){
-                $salesOrder->id = $id;
-            }
-            $salesOrder->sono = $sono;
-            $salesOrder->date = $data['date'] ?? date('Y-m-d H:i:s');
-            $salesOrder->customer_id = $data['customer_id'];
-            $salesOrder->driver_id = $driver->id;
-            $salesOrder->kelindan_id = $hasActiveTrip ? $trip->kelindan_id : null;
-            $salesOrder->agent_id = $customer->agent_id;
-            $salesOrder->supervisor_id = $customer->supervisor_id;
-            $salesOrder->status = 0;
-            $salesOrder->remark = $data['remark'] ?? null;
-            $salesOrder->trip_id = $hasActiveTrip ? $driver->trip_id : null;
-            $salesOrder->save();
             foreach($data['salesorderdetail'] as $line){
                 $product = Product::where('id',$line['product_id'])->first();
                 if(empty($product)){
@@ -5022,10 +5036,10 @@ class DriverController extends Controller
                     ], 400);
                 }
                 $detail = new SalesOrderDetail();
-                $detail->sales_order_id = $salesOrder->id;
+                $detail->sales_order_id = $salesOrderId;
                 $detail->product_id = $line['product_id'];
                 $detail->quantity = $line['quantity'];
-                $price = !empty($line['foc']) ? 0 : Product::priceForCustomer($product->id, $product->price, $salesOrder->customer_id);
+                $price = !empty($line['foc']) ? 0 : Product::priceForCustomer($product->id, $product->price, $data['customer_id']);
                 $detail->price = $price;
                 $detail->totalprice = $line['quantity'] * $price;
                 $detail->remark = $line['foc'] ? 'FOC' : null;
@@ -5033,7 +5047,7 @@ class DriverController extends Controller
             }
             Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
             DB::commit();
-            $so = SalesOrder::where('id',$salesOrder->id)->with('salesorderdetail.product')->first();
+            $so = SalesOrder::where('id',$salesOrderId)->with('salesorderdetail.product')->first();
             return response()->json([
                 'result' => true,
                 'message' => __LINE__.$this->message_separator.'api.message.sales_order_add_successfully',

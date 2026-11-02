@@ -380,12 +380,10 @@ class DeliveryOrderController extends AppBaseController
             abort('404');
         }
 
-        $min = 450;
-        $each = 23;
+        $min = 620;
+        $each = 48;
         $height = (count($deliveryOrder['deliveryorderdetail']) * $each) + $min;
         if (!empty($deliveryOrder['remark'])) {
-            // Extra room for the "Remark : ..." line appended at the bottom
-            // of the print layout.
             $height += 40;
         }
 
