@@ -13,7 +13,6 @@
         }
         body {
             font-size: 11px;
-            font-family: notosanssc, sans-serif;
             color: #000;
         }
         p { margin: 0; }
@@ -43,7 +42,7 @@
         }
         .info-boxes td { border: 1px solid #000; vertical-align: top; padding: 4px 6px; }
         .customer-box p { margin-bottom: 2px; }
-        .customer-box .name { font-weight: bold; }
+        .customer-box .name { font-weight: normal; font-family: notosanssc, sans-serif; }
         .meta-box table td { border: none; padding: 1px 0; font-size: 10.5px; }
         .meta-box .label { width: 90px; }
         .meta-box .colon { width: 10px; }
@@ -91,7 +90,7 @@
             <tr>
                 <td width="55%" class="customer-box">
                     <p class="name">{{ $invoice['customer']['company'] ?? '-' }}</p>
-                    @if(!empty($invoice['customer']['address']))<p>{{ $invoice['customer']['address'] }}</p>@endif
+                    @if(!empty($invoice['customer']['address']))<p style="font-weight:normal; font-family: notosanssc, sans-serif;">{{ $invoice['customer']['address'] }}</p>@endif
                     @if(!empty($invoice['customer']['phone']))<p>TEL: {{ $invoice['customer']['phone'] }}</p>@endif
                 </td>
                 <td width="45%" class="meta-box">

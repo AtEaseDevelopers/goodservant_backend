@@ -2931,7 +2931,7 @@ class DriverController extends Controller
             $height = (count($salesOrder['salesorderdetail']) * $each) + $min;
 
             $pdf = Pdf::loadView('sales_orders.print', ['salesOrder' => $salesOrder]);
-            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
+            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
 
             // sono contains a "/" (e.g. "SO2609/0011") - sanitize so it
             // doesn't get read as a subdirectory in the storage path/URL.
@@ -3002,7 +3002,7 @@ class DriverController extends Controller
             }
 
             $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);
-            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
+            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
 
             // dono contains a "/" (e.g. "DO2609/0008") - sanitize so it
             // doesn't get read as a subdirectory in the storage path/URL.
@@ -3279,7 +3279,7 @@ class DriverController extends Controller
             ));
 
     
-            $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true]);
+            $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
             
             $invoiceFilename = 'payment-' . $invoice->id . '.pdf';
             $path = 'payments/' . $invoiceFilename;

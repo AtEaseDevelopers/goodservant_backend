@@ -15,7 +15,6 @@
         body {
             font-size: 14px;
             margin: 0%;
-            font-family: notosanssc, sans-serif;
         }
 
         table {
@@ -66,6 +65,8 @@
             font-size: 20px;
             padding-top: 8px;
             padding-bottom: 8px;
+            font-weight: normal;
+            font-family: notosanssc, sans-serif;
         }
 
         .rule {
@@ -183,7 +184,7 @@
                             <p>Driver</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $deliveryOrder['driver']['name'] ?? '-' }}</p>
+                            <p class="ta-r cjk">{{ $deliveryOrder['driver']['name'] ?? '-' }}</p>
                         </td>
                     </tr>
 
@@ -219,17 +220,7 @@
                             $product = $deliveryorderdetail['product'] ?? [];
                             $itemName = trim($product['name'] ?? '');
                             $itemLabel = $itemName;
-                            // Pack size sits at the end of the name, e.g. "MEE POK - 1KG"
-                            // or "KULIT WANTAN - 400G". A 1KG pack prints as KG; any
-                            // other pack keeps its size so 400G is not shown as G.
-                            $unit = '';
-                            if (preg_match('/-\s*(\d+(?:\.\d+)?)\s*([A-Za-z]+)\s*$/u', $itemName, $unitMatch)) {
-                                $unit = ((float) $unitMatch[1] == 1.0)
-                                    ? strtoupper($unitMatch[2])
-                                    : strtoupper($unitMatch[1] . $unitMatch[2]);
-                            }
-                            $qtyText = rtrim(rtrim(number_format((float) $deliveryorderdetail['quantity'], 3, '.', ''), '0'), '.');
-                            $qtyLabel = trim($qtyText . ($unit !== '' ? ' ' . $unit : ''));
+                            $qtyLabel = rtrim(rtrim(number_format((float) $deliveryorderdetail['quantity'], 3, '.', ''), '0'), '.');
                         @endphp
                         <tr>
                             <td>
@@ -259,7 +250,7 @@
         @if (!empty($deliveryOrder['remark']))
             <tr>
                 <td>
-                    <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark
+                    <p class="cjk" style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark
                         : {{ $deliveryOrder['remark'] }}</p>
                 </td>
             </tr>

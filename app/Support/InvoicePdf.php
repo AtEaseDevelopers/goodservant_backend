@@ -74,7 +74,7 @@ class InvoicePdf
                 'invoice' => $invoice,
                 'sourceDoNo' => $sourceDoNo,
                 'totalPages' => $totalPages,
-            ])->setPaper('a4', 'portrait')->setOptions($options);
+            ])->setPaper('a4', 'portrait')->setOptions($options, true);
         }
 
         $height = (count($invoice['invoicedetail']) * 40) + 520;
@@ -89,6 +89,6 @@ class InvoicePdf
 
         return Pdf::loadView('invoices.print', ['invoice' => $invoice])
             ->setPaper([0, 0, 300, $height], 'portrait')
-            ->setOptions($options);
+            ->setOptions($options, true);
     }
 }

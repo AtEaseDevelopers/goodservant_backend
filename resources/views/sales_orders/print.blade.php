@@ -14,7 +14,6 @@
         body{
             font-size: 14px;
             margin: 0%;
-            font-family: notosanssc, sans-serif;
         }
         table{
             width: 100%;
@@ -122,7 +121,7 @@
                             <p>Address</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $salesOrder['customer']['address'] ?? '-' }}</p>
+                            <p class="ta-r" style="font-weight:normal; font-family: notosanssc, sans-serif;">{{ $salesOrder['customer']['address'] ?? '-' }}</p>
                         </td>
                     </tr>
                     <tr>
@@ -130,7 +129,7 @@
                             <p>Driver</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $salesOrder['driver']['name'] ?? '-' }}</p>
+                            <p class="ta-r cjk">{{ $salesOrder['driver']['name'] ?? '-' }}</p>
                         </td>
                     </tr>
 
@@ -140,7 +139,7 @@
                             <p style="font-size:16px; font-weight:bold;">Customer</p>
                         </td>
                         <td>
-                            <p class="ta-r" style="font-size:16px; font-weight:bold;">{{ $salesOrder['customer']['company'] ?? '-' }}</p>
+                            <p class="ta-r" style="font-size:16px; font-weight:normal; font-family: notosanssc, sans-serif;">{{ $salesOrder['customer']['company'] ?? '-' }}</p>
                         </td>
                     </tr>
                 </table>
@@ -173,7 +172,7 @@
                         @endphp
                         <tr>
                             <td>
-                                <p style="font-size:16px;">{{ $salesorderdetail['product']['name'] ?? '-' }}</p>
+                                <p style="font-size:16px; font-weight:normal; font-family: notosanssc, sans-serif;">{{ $salesorderdetail['product']['name'] ?? '-' }}</p>
                             </td>
                             <td>
                                 <p class="ta-r" style="font-size:16px;">{{ number_format($salesorderdetail['price'],2) }}</p>

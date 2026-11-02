@@ -14,7 +14,6 @@
         body{
             font-size: 14px;
             margin: 0%;
-            font-family: notosanssc, sans-serif;
         }
         table{
             width: 100%;
@@ -153,7 +152,7 @@
                             <p>Address</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $invoice['customer']['address'] ?? '-' }}</p>
+                            <p class="ta-r" style="font-weight:normal; font-family: notosanssc, sans-serif;">{{ $invoice['customer']['address'] ?? '-' }}</p>
                         </td>
                     </tr>
                     <tr>
@@ -161,7 +160,7 @@
                             <p>Customer</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $invoice['customer']['company'] ?? '-' }}</p>
+                            <p class="ta-r" style="font-weight:normal; font-family: notosanssc, sans-serif;">{{ $invoice['customer']['company'] ?? '-' }}</p>
                         </td>
                     </tr>
                     <tr>

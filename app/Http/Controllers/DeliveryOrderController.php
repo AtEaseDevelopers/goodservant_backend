@@ -391,9 +391,9 @@ class DeliveryOrderController extends AppBaseController
             $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);
 
             if ($function == 'download') {
-                return $pdf->setPaper([0, 0, 300, $height], 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');
+                return $pdf->setPaper([0, 0, 300, $height], 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)->download('download.pdf');
             } elseif ($function == 'view') {
-                return $pdf->setPaper([0, 0, 300, $height], 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->stream('view.pdf');
+                return $pdf->setPaper([0, 0, 300, $height], 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)->stream('view.pdf');
             }
         } catch (Exception $e) {
             abort(404);

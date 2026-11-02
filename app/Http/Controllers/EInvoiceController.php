@@ -763,7 +763,7 @@ class EInvoiceController extends Controller
                     ]);
 
                     return $pdf->setPaper(array(0, 0, 300, $height), 'portrait')
-                        ->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])
+                        ->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)
                         ->stream($einvoice->sku . '.pdf');
                 } catch (\Exception $e) {
                     Log::error('E-Invoice PDF Generation Failed', [
@@ -1080,7 +1080,7 @@ class EInvoiceController extends Controller
                     ]);
 
                     return $pdf->setPaper(array(0, 0, 300, $height), 'portrait')
-                        ->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])
+                        ->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)
                         ->stream($consolidatedEinvoice->sku . '.pdf');
 
                 } catch (\Exception $e) {

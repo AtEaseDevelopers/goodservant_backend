@@ -15,7 +15,6 @@
         body {
             font-size: 14px;
             margin: 0%;
-            font-family: notosanssc, sans-serif;
         }
 
         table {
@@ -71,6 +70,8 @@
 
         .item-name {
             font-size: 15px;
+            font-weight: normal;
+            font-family: notosanssc, sans-serif;
         }
 
         .item-calc {
@@ -196,7 +197,7 @@
                             <p>Salesperson</p>
                         </td>
                         <td>
-                            <p class="ta-r">{{ $invoice['driver']['name'] ?? '-' }}</p>
+                            <p class="ta-r cjk">{{ $invoice['driver']['name'] ?? '-' }}</p>
                         </td>
                     </tr>
 
@@ -358,7 +359,7 @@
         @if (!empty($invoice['remark']))
             <tr>
                 <td>
-                    <p style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark
+                    <p class="cjk" style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 8px; font-size: 14px;">Remark
                         : {{ $invoice['remark'] }}</p>
                 </td>
             </tr>

@@ -572,9 +572,9 @@ class InvoicePaymentController extends AppBaseController
             ));
 
             if($function == 'download'){
-                return $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->download('download.pdf');
+                return $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)->download('download.pdf');
             }elseif($function == 'view'){
-                return $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true])->stream('view.pdf');
+                return $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true)->stream('view.pdf');
             }
         }
         catch(Exception $e){
