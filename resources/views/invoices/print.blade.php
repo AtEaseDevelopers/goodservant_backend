@@ -343,7 +343,7 @@
                         ? \Carbon\Carbon::parse($invoice->getRawOriginal('created_at'))->format('d/m/Y H:i')
                         : date_format(date_create($invoice['date']), 'd/m/Y');
                 @endphp
-                <p class="ta-c" style="text-align:center; margin-top:12px;">{{ (int) $invoice['paymentterm'] === 2 ? 'Receipt In (RM) Malaysia' : 'Terima kasih atas sokongan anda' }}</p>
+                <p class="ta-c" style="text-align:center; margin-top:12px;">Terima kasih atas sokongan anda</p>
                 <table>
                     <tr>
                         <td>
