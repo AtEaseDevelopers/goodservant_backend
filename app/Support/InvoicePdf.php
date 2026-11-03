@@ -77,7 +77,7 @@ class InvoicePdf
             ])->setPaper('a4', 'portrait')->setOptions($options, true);
         }
 
-        $height = (count($invoice['invoicedetail']) * 40) + 520;
+        $height = (count($invoice['invoicedetail']) * 48) + 400;
         if (!empty($invoice['remark'])) {
             // Room for the "Remark : ..." line at the bottom of the receipt.
             $height += 40;

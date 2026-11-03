@@ -2994,7 +2994,7 @@ class DriverController extends Controller
                 abort('404');
             }
 
-            $min = 620;
+            $min = 500;
             $each = 48;
             $height = (count($deliveryOrder['deliveryorderdetail']) * $each) + $min;
             if (!empty($deliveryOrder['remark'])) {

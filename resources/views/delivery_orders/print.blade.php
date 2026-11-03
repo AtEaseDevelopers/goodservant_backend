@@ -6,10 +6,10 @@
     <title>{{ config('app.name') }}</title>
     <style>
         @include('pdf.cjk_font') @page {
-            margin-bottom: 30px;
-            margin-top: 30px;
-            margin-left: 30px;
-            margin-right: 30px;
+            margin-bottom: 8px;
+            margin-top: 6px;
+            margin-left: 12px;
+            margin-right: 12px;
         }
 
         body {
@@ -29,9 +29,9 @@
         }
 
         .login-image {
-            width: auto;
-            height: 100px;
-            margin-bottom: 0.5rem;
+            width: 168px;
+            height: 106px;
+            margin-bottom: 2px;
         }
 
         .login-image-cell {
@@ -86,7 +86,7 @@
         <tr>
             <td class="login-image-cell">
                 <img class="login-image"
-                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
+                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo-receipt.png'))) }}">
             </td>
         </tr>
         <tr>
@@ -124,7 +124,6 @@
 
         <tr>
             <td>
-                <br>
                 @php
                     $paymentTypeLabels = [
                         1 => 'Cash',
@@ -213,7 +212,6 @@
         </tr>
         <tr>
             <td>
-                <br>
                 <table id="detail">
                     @foreach ($deliveryOrder['deliveryorderdetail'] as $deliveryorderdetail)
                         @php

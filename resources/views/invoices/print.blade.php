@@ -6,10 +6,10 @@
     <title>{{ config('app.name') }}</title>
     <style>
         @include('pdf.cjk_font') @page {
-            margin-bottom: 30px;
-            margin-top: 30px;
-            margin-left: 30px;
-            margin-right: 30px;
+            margin-bottom: 8px;
+            margin-top: 6px;
+            margin-left: 12px;
+            margin-right: 12px;
         }
 
         body {
@@ -26,13 +26,13 @@
         table th,
         table td {
             /* border: 1px solid black; */
-            font-size: 12px;
+            font-size: 14px;
         }
 
         .login-image {
-            width: auto;
-            height: 100px;
-            margin-bottom: 0.5rem;
+            width: 168px;
+            height: 106px;
+            margin-bottom: 2px;
         }
 
         .login-image-cell {
@@ -69,14 +69,14 @@
         }
 
         .item-name {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: normal;
             font-family: notosanssc, sans-serif;
         }
 
         .item-calc {
-            font-size: 13px;
-            padding-bottom: 6px;
+            font-size: 15px;
+            padding-bottom: 4px;
         }
 
         .rule {
@@ -96,7 +96,7 @@
         <tr>
             <td class="login-image-cell">
                 <img class="login-image"
-                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
+                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo-receipt.png'))) }}">
             </td>
         </tr>
         <tr>
@@ -134,7 +134,6 @@
 
         <tr>
             <td>
-                <br>
                 @php
                     $paymentTypeLabels = [
                         1 => 'Cash',
@@ -202,7 +201,7 @@
                     </tr>
 
                     <tr>
-                        <td height="15">&nbsp;</td>
+                        <td height="6">&nbsp;</td>
                     </tr>
                     <tr>
                         <td>
@@ -226,7 +225,6 @@
         </tr>
         <tr>
             <td>
-                <br>
                 <table id="detail">
                     @php
                         $totalamount = 0;
@@ -343,7 +341,7 @@
                         ? \Carbon\Carbon::parse($invoice->getRawOriginal('created_at'))->format('d/m/Y H:i')
                         : date_format(date_create($invoice['date']), 'd/m/Y');
                 @endphp
-                <p class="ta-c" style="text-align:center; margin-top:12px;">Terima kasih atas sokongan anda</p>
+                <p class="ta-c" style="text-align:center; margin-top:4px;">Terima kasih atas sokongan anda</p>
                 <table>
                     <tr>
                         <td>

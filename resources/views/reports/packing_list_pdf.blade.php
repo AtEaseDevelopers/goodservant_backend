@@ -3,20 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <style>
+    @include('pdf.cjk_font')
     @page { margin: 14mm 16mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #000; }
 
     table.header { width: 100%; margin-bottom: 18px; border-collapse: collapse; }
     table.header td { font-weight: bold; font-size: 14px; vertical-align: bottom; }
-    table.header td.driver { width: 34%; text-align: left; }
+    table.header td.driver { width: 34%; text-align: left; font-family: notosanssc, sans-serif; font-weight: normal; }
     table.header td.title { width: 32%; text-align: center; }
     table.header td.spacer { width: 34%; }
 
     table.stops { width: 100%; border-collapse: collapse; }
     table.stops td { padding: 8px 0 7px 0; vertical-align: top; border-bottom: 1px solid #000; }
-    table.stops td.name { width: 32%; font-weight: bold; font-size: 16px; padding-right: 10px; }
-    table.stops td.items { width: 68%; font-size: 15px; }
+    table.stops td.name { width: 32%; font-weight: normal; font-size: 16px; padding-right: 10px; font-family: notosanssc, sans-serif; }
+    table.stops td.items { width: 68%; font-size: 15px; font-family: notosanssc, sans-serif; font-weight: normal; }
     .item-line { margin: 0 0 3px 0; }
     table.stops td.empty { text-align: center; font-weight: normal; padding: 10px 0; }
 
