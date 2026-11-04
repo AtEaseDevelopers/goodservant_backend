@@ -2319,7 +2319,8 @@ class DriverController extends Controller
             $invoice->status = 1;
             $invoice->chequeno = $data['cheque_no'];
             $invoice->remark = $data['remark'];
-            $invoice->trip_id = $driver->trip_id;
+            // Always the open trip row, not drivers.trip_id which can lag behind.
+            $invoice->trip_id = $trip->id;
             $invoice->save();
             $totalprice = 0;
             foreach($data['invoicedetail'] as $id){
@@ -2384,6 +2385,7 @@ class DriverController extends Controller
                 $inventorytransaction->remark = $invoice->invoiceno;
                 $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
                 $inventorytransaction->date = date('Y-m-d H:i:s');
+                $inventorytransaction->trip_id = $trip->id;
                 $inventorytransaction->save();
             }
             // Discount (e.g. RM 15.40 -> RM 15.00): one negative line, so the
@@ -2544,7 +2546,7 @@ class DriverController extends Controller
                     $invoice->status = 1;
                     $invoice->chequeno = $item['cheque_no'] ?? null;
                     $invoice->remark = $item['remark'] ?? null;
-                    $invoice->trip_id = $driver->trip_id;
+                    $invoice->trip_id = $trip->id;
                     $invoice->save();
 
                     $totalprice = 0;
@@ -2603,7 +2605,7 @@ class DriverController extends Controller
                         $inventorytransaction->remark = $invoice->invoiceno;
                         $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
                         $inventorytransaction->date = date('Y-m-d H:i:s');
-                        $inventorytransaction->trip_id = $driver->trip_id;
+                        $inventorytransaction->trip_id = $trip->id;
                         $inventorytransaction->save();
                     }
 
@@ -5006,7 +5008,7 @@ class DriverController extends Controller
                 'supervisor_id' => $customer->supervisor_id,
                 'status' => 0,
                 'remark' => $data['remark'] ?? null,
-                'trip_id' => $hasActiveTrip ? $driver->trip_id : null,
+                'trip_id' => $hasActiveTrip ? $trip->id : null,
             ];
             if(!empty($extsalesorder)){
                 // Replace the lines on this order. A new SalesOrder with the
@@ -5134,7 +5136,7 @@ class DriverController extends Controller
                     $salesOrder->supervisor_id = $customer->supervisor_id;
                     $salesOrder->status = 0;
                     $salesOrder->remark = $item['remark'] ?? null;
-                    $salesOrder->trip_id = $driver->trip_id;
+                    $salesOrder->trip_id = $trip->id;
                     $salesOrder->save();
 
                     foreach($item['salesorderdetail'] as $line){
@@ -5532,7 +5534,7 @@ class DriverController extends Controller
         $deliveryOrder->status = 0;
         $deliveryOrder->remark = $remark;
         $deliveryOrder->chequeno = $chequeno;
-        $deliveryOrder->trip_id = $driver->trip_id;
+        $deliveryOrder->trip_id = $trip->id;
         $deliveryOrder->save();
 
         foreach($lines as $line){
@@ -5619,10 +5621,15 @@ class DriverController extends Controller
         $invoice->status = 1;
         $invoice->remark = $salesOrder->remark;
         $invoice->chequeno = $chequeno;
-        // An order taken before the trip has no trip. The money is collected
-        // now, so the invoice belongs to the trip that is open.
+        // Money collected now belongs to the open trip. Prefer that over an
+        // old SO.trip_id from a previous day, or End Trip shows RM 0.
         $driver = Driver::find($salesOrder->driver_id);
-        $tripId = $salesOrder->trip_id ?: ($driver->trip_id ?? null);
+        $openTrip = Trip::where('driver_id', $salesOrder->driver_id)->where('type', 1)->orderby('date', 'desc')->orderby('id', 'desc')->first();
+        $tripId = optional($openTrip)->id ?: ($driver->trip_id ?: $salesOrder->trip_id);
+        if ($driver && $openTrip && (int) $driver->trip_id !== (int) $openTrip->id) {
+            Driver::where('id', $driver->id)->update(['trip_id' => $openTrip->id]);
+            $driver->trip_id = $openTrip->id;
+        }
         $invoice->kelindan_id = $salesOrder->kelindan_id ?: ($tripId ? Trip::where('id', $tripId)->value('kelindan_id') : null);
         $invoice->trip_id = $tripId;
         $invoice->save();

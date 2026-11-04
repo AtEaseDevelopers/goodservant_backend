@@ -22,21 +22,26 @@ class TripPaymentSummary
         $from = $startTrip->getRawOriginal('date');
         $until = $until ?: date('Y-m-d H:i:s');
 
-        // Orders taken before the trip used to convert into invoices with no
-        // trip, so the cash never appeared here. Attach those to this trip.
+        // Sales made during this trip window that still have no trip, or still
+        // point at an older trip, never show on End Trip. Attach them here.
+        // DO-converted invoices stay excluded below (paperwork, not this trip's sale).
         $orphans = Invoice::where('driver_id', $startTrip->driver_id)
             ->where('status', 1)
-            ->whereNull('trip_id')
             ->where('date', '>=', $from)
             ->where('date', '<=', $until)
-            ->whereHas('invoicedetail', function ($q) {
-                $q->whereNotNull('sales_order_id');
+            ->where(function ($q) use ($startTrip) {
+                $q->whereNull('trip_id')->orWhere('trip_id', '!=', $startTrip->id);
+            })
+            ->whereDoesntHave('invoicedetail', function ($q) {
+                $q->whereNotNull('deliveryorder_id');
             })
             ->get(['id', 'invoiceno']);
         if ($orphans->isNotEmpty()) {
             Invoice::whereIn('id', $orphans->pluck('id'))->update(['trip_id' => $startTrip->id]);
-            InventoryTransaction::whereNull('trip_id')
-                ->whereIn('remark', $orphans->pluck('invoiceno')->filter()->all())
+            InventoryTransaction::whereIn('remark', $orphans->pluck('invoiceno')->filter()->all())
+                ->where(function ($q) use ($startTrip) {
+                    $q->whereNull('trip_id')->orWhere('trip_id', '!=', $startTrip->id);
+                })
                 ->update(['trip_id' => $startTrip->id]);
         }
 
