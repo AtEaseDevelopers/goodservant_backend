@@ -110,7 +110,7 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
-        $assign = Assign::with('customer')->where('driver_id',$id)->get()->toArray();
+        $assign = Assign::with('customer')->where('driver_id', $id)->orderBy('sequence')->orderBy('id')->get()->toArray();
         return view('drivers.show')->with('driver', $driver)->with('assign',$assign)->with('id',$id);
     }
 
@@ -371,6 +371,45 @@ class DriverController extends AppBaseController
         Flash::success(__('drivers.assign_deleted_successfully'));
 
         return redirect(route('drivers.show',encrypt($assign->driver_id)));
+    }
+
+    public function saveAssignSequence($id, Request $request)
+    {
+        $id = Crypt::decrypt($id);
+        $driver = $this->driverRepository->find($id);
+
+        if (empty($driver)) {
+            Flash::error(__('drivers.driver_not_found'));
+
+            return redirect(route('drivers.index'));
+        }
+
+        $ids = $request->input('assigns', []);
+        if (!is_array($ids) || count($ids) === 0) {
+            Flash::error('Nothing to save.');
+
+            return redirect(route('drivers.show', encrypt($id)));
+        }
+
+        $allowed = Assign::where('driver_id', $id)->pluck('id')->map(function ($assignId) {
+            return (int) $assignId;
+        })->all();
+
+        $sequence = 1;
+        foreach ($ids as $assignId) {
+            $assignId = (int) $assignId;
+            if (!in_array($assignId, $allowed, true)) {
+                continue;
+            }
+            Assign::where('id', $assignId)->where('driver_id', $id)->update([
+                'sequence' => $sequence,
+            ]);
+            $sequence++;
+        }
+
+        Flash::success('Customer sequence saved.');
+
+        return redirect(route('drivers.show', encrypt($id)));
     }
 
 }

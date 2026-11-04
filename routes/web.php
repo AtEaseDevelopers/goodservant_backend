@@ -322,6 +322,7 @@ Route::group(['middleware' => ['auth']], function() {
     Route::group(['middleware' => ['permission:driver']], function() {
         Route::get('/drivers/{id}/assign', [App\Http\Controllers\DriverController::class, 'assign'])->name('drivers.assign');
         Route::post('/drivers/{id}/addassign', [App\Http\Controllers\DriverController::class, 'addassign'])->name('drivers.addassign');
+        Route::post('/drivers/{id}/assign-sequence', [App\Http\Controllers\DriverController::class, 'saveAssignSequence'])->name('drivers.assign.sequence');
         Route::delete('/drivers/{id}/deleteassign', [App\Http\Controllers\DriverController::class, 'deleteassign'])->name('drivers.deleteassign');
         Route::resource('drivers', App\Http\Controllers\DriverController::class);
         Route::post('/drivers/massdestroy', [App\Http\Controllers\DriverController::class, 'massdestroy']);
