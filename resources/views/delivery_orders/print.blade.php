@@ -86,7 +86,7 @@
         <tr>
             <td class="login-image-cell">
                 <img class="login-image"
-                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo-receipt.png'))) }}">
+                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
             </td>
         </tr>
         <tr>
@@ -241,8 +241,9 @@
         </tr>
         <tr>
             <td>
-                <p style="margin-top:22px; font-size:16px;">Received by:</p>
-                <p style="margin-top:28px;">______________________________</p>
+                <p style="margin-top:28px; font-size:16px;">Received by:</p>
+                <p style="margin-top:70px;">________________________________________</p>
+                <p style="margin-top:36px;">&nbsp;</p>
             </td>
         </tr>
         @if (!empty($deliveryOrder['remark']))

@@ -8,14 +8,12 @@ use App\Services\DebtorTypeAssignmentService;
 class DriverObserver
 {
     /**
-     * Whenever a driver's debtor_types change (including on create), re-assign
-     * the matching customers.
+     * Keep debtor-type assigns current on every driver save. Matching only on
+     * debtor_types changes left a driver short when customers were added later
+     * and the driver was never re-saved with a type change.
      */
     public function saved(Driver $driver): void
     {
-        // wasChanged() is empty right after an insert, so cover creation too.
-        if ($driver->wasRecentlyCreated || $driver->wasChanged('debtor_types')) {
-            DebtorTypeAssignmentService::syncDriver($driver);
-        }
+        DebtorTypeAssignmentService::syncDriver($driver);
     }
 }

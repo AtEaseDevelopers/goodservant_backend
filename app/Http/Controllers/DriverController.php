@@ -25,6 +25,7 @@ use App\Models\InventoryTransfer;
 use App\Models\DriverLocation;
 use App\Models\Assign;
 use App\Models\Customer;
+use App\Services\DebtorTypeAssignmentService;
 
 class DriverController extends AppBaseController
 {
@@ -110,8 +111,23 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
-        $assign = Assign::with('customer')->where('driver_id', $id)->orderBy('sequence')->orderBy('id')->get()->toArray();
-        return view('drivers.show')->with('driver', $driver)->with('assign',$assign)->with('id',$id);
+        // Debtor-type rows only refresh when types change. Opening the page
+        // fills any customers that were added later (same types as another
+        // driver, but this driver's assign list never caught up).
+        DebtorTypeAssignmentService::syncDriver($driver);
+
+        $assign = Assign::with('customer')
+            ->where('driver_id', $id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->filter(function ($row) {
+                return !empty($row->customer);
+            })
+            ->values()
+            ->toArray();
+
+        return view('drivers.show')->with('driver', $driver)->with('assign', $assign)->with('id', $id);
     }
 
     /**

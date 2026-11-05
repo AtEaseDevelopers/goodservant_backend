@@ -73,9 +73,24 @@ class DebtorTypeAssignmentService
     {
         $type = trim((string) ($customer->debtor_type ?? ''));
 
+        // Filter in PHP: MySQL JSON_CONTAINS can miss a driver when the JSON
+        // was written with different quoting/spacing than whereJsonContains
+        // expects, which left one driver short of another with the same types.
         $desiredDriverIds = $type === ''
             ? collect()
-            : Driver::whereJsonContains('debtor_types', $type)->pluck('id');
+            : Driver::query()
+                ->whereNotNull('debtor_types')
+                ->get(['id', 'debtor_types'])
+                ->filter(function (Driver $driver) use ($type) {
+                    $types = array_map(
+                        static fn ($value) => trim((string) $value),
+                        (array) ($driver->debtor_types ?? [])
+                    );
+
+                    return in_array($type, $types, true);
+                })
+                ->pluck('id')
+                ->values();
 
         DB::transaction(function () use ($customer, $desiredDriverIds) {
             // Drop auto rows to drivers no longer covering this type.

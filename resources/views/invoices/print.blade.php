@@ -96,7 +96,7 @@
         <tr>
             <td class="login-image-cell">
                 <img class="login-image"
-                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo-receipt.png'))) }}">
+                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
             </td>
         </tr>
         <tr>

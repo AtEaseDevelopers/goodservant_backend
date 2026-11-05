@@ -54,12 +54,18 @@
                                         </thead>
                                         <tbody>
                                             @foreach($assign as $i => $ass)
-                                                <tr data-id="{{ $ass['id'] }}" data-code="{{ $ass['customer']['code'] ?? '' }}" data-name="{{ $ass['customer']['company'] ?? '' }}">
+                                                @php
+                                                    $customer = $ass['customer'] ?? null;
+                                                    if (empty($customer)) {
+                                                        continue;
+                                                    }
+                                                @endphp
+                                                <tr data-id="{{ $ass['id'] }}" data-code="{{ $customer['code'] ?? '' }}" data-name="{{ $customer['company'] ?? '' }}">
                                                     <td class="text-center"><span class="drag-handle" draggable="true">☰</span></td>
-                                                    <td>{{ $ass['customer']['code'] ?? '-' }}</td>
-                                                    <td>{{ $ass['customer']['company'] ?? '-' }}</td>
-                                                    <td>{{ $ass['customer']['phone'] ?? '-' }}</td>
-                                                    <td class="truncate">{{ $ass['customer']['address'] ?? '-' }}</td>
+                                                    <td>{{ $customer['code'] ?? '-' }}</td>
+                                                    <td>{{ $customer['company'] ?? '-' }}</td>
+                                                    <td>{{ $customer['phone'] ?? '-' }}</td>
+                                                    <td class="truncate">{{ $customer['address'] ?? '-' }}</td>
                                                     <td class="sequence-cell">{{ $i + 1 }}</td>
                                                     <td>
                                                     {!! Form::open(['route' => ['drivers.deleteassign', Crypt::encrypt($ass['id'])], 'method' => 'delete']) !!}
