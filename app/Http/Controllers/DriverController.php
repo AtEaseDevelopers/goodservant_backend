@@ -111,6 +111,31 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
+        return view('drivers.show', $this->driverSequenceData($driver, $id));
+    }
+
+    /**
+     * Customer task sequence for this driver, without the rest of the detail page.
+     */
+    public function sequence($id)
+    {
+        $id = Crypt::decrypt($id);
+        $driver = $this->driverRepository->find($id);
+
+        if (empty($driver)) {
+            Flash::error(__('drivers.driver_not_found'));
+
+            return redirect(route('drivers.index'));
+        }
+
+        return view('drivers.sequence', array_merge(
+            $this->driverSequenceData($driver, $id),
+            ['sequenceTitle' => $driver->name.' — Task sequence']
+        ));
+    }
+
+    private function driverSequenceData($driver, $id)
+    {
         // Debtor-type rows only refresh when types change. Opening the page
         // fills any customers that were added later (same types as another
         // driver, but this driver's assign list never caught up).
@@ -127,7 +152,11 @@ class DriverController extends AppBaseController
             ->values()
             ->toArray();
 
-        return view('drivers.show')->with('driver', $driver)->with('assign', $assign)->with('id', $id);
+        return [
+            'driver' => $driver,
+            'assign' => $assign,
+            'id' => $id,
+        ];
     }
 
     /**
@@ -329,7 +358,30 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
-        return view('drivers.assign')->with('id', $id);
+        $usedSequences = Assign::with('customer')
+            ->where('driver_id', $id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($row) {
+                $customer = $row->customer;
+                $label = $customer
+                    ? trim(($customer->code ?? '').' '.($customer->company ?? ''))
+                    : '';
+
+                return [
+                    'sequence' => (int) $row->sequence,
+                    'label' => $label !== '' ? $label : 'Customer',
+                ];
+            })
+            ->values();
+
+        $nextSequence = ((int) $usedSequences->max('sequence')) + 1;
+
+        return view('drivers.assign')
+            ->with('id', $id)
+            ->with('usedSequences', $usedSequences)
+            ->with('nextSequence', $nextSequence);
     }
 
     public function addassign($id , Request $request)
@@ -359,6 +411,15 @@ class DriverController extends AppBaseController
             return redirect(route('drivers.index'));
         }
 
+        $sequenceTaken = Assign::where('driver_id', $id)
+            ->where('sequence', (int) $input['sequence'])
+            ->exists();
+        if ($sequenceTaken) {
+            return Redirect::back()
+                ->withErrors(['sequence' => 'Sequence '.$input['sequence'].' is already used.'])
+                ->withInput();
+        }
+
         $assign = new Assign();
         $assign->driver_id = $id;
         $assign->customer_id = $input['customer_id'];
@@ -386,7 +447,7 @@ class DriverController extends AppBaseController
 
         Flash::success(__('drivers.assign_deleted_successfully'));
 
-        return redirect(route('drivers.show',encrypt($assign->driver_id)));
+        return redirect()->back();
     }
 
     public function saveAssignSequence($id, Request $request)
@@ -404,7 +465,7 @@ class DriverController extends AppBaseController
         if (!is_array($ids) || count($ids) === 0) {
             Flash::error('Nothing to save.');
 
-            return redirect(route('drivers.show', encrypt($id)));
+            return redirect()->back();
         }
 
         $allowed = Assign::where('driver_id', $id)->pluck('id')->map(function ($assignId) {
@@ -425,7 +486,7 @@ class DriverController extends AppBaseController
 
         Flash::success('Customer sequence saved.');
 
-        return redirect(route('drivers.show', encrypt($id)));
+        return redirect()->back();
     }
 
 }

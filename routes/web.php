@@ -320,6 +320,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::post('/servicedetails/getFireExtinguisherServiceInfo', [App\Http\Controllers\servicedetailsController::class, 'getFireExtinguisherServiceInfo']);
     });
     Route::group(['middleware' => ['permission:driver']], function() {
+        Route::get('/drivers/{id}/sequence', [App\Http\Controllers\DriverController::class, 'sequence'])->name('drivers.sequence');
         Route::get('/drivers/{id}/assign', [App\Http\Controllers\DriverController::class, 'assign'])->name('drivers.assign');
         Route::post('/drivers/{id}/addassign', [App\Http\Controllers\DriverController::class, 'addassign'])->name('drivers.addassign');
         Route::post('/drivers/{id}/assign-sequence', [App\Http\Controllers\DriverController::class, 'saveAssignSequence'])->name('drivers.assign.sequence');

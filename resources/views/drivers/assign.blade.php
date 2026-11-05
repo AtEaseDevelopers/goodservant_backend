@@ -35,7 +35,17 @@
                                     <!-- Sequence Field -->
                                     <div class="form-group col-sm-6">
                                         {!! Form::label('sequence', 'Sequence:') !!}<span class="asterisk"> *</span>
-                                        {!! Form::number('sequence', null, ['class' => 'form-control', 'min' => 0]) !!}
+                                        {!! Form::number('sequence', old('sequence', $nextSequence), ['class' => 'form-control', 'min' => 1, 'id' => 'sequence']) !!}
+                                        @if($usedSequences->isEmpty())
+                                            <small class="form-text text-muted">No sequence is used yet.</small>
+                                        @else
+                                            <small class="form-text text-muted">Used sequences. Pick a number that is not in this list.</small>
+                                            <div class="border rounded p-2 mt-2" style="max-height: 220px; overflow: auto;">
+                                                @foreach($usedSequences as $used)
+                                                    <div>{{ $used['sequence'] }} — {{ $used['label'] }}</div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <!-- Submit Field -->
@@ -53,6 +63,14 @@
                                             });
                                             $(document).ready(function () {
                                                 HideLoad();
+                                                var usedSequences = @json($usedSequences->pluck('sequence')->all());
+                                                $('form').on('submit', function (event) {
+                                                    var sequence = parseInt($('#sequence').val(), 10);
+                                                    if (usedSequences.indexOf(sequence) !== -1) {
+                                                        event.preventDefault();
+                                                        alert('Sequence ' + sequence + ' is already used. Pick another number.');
+                                                    }
+                                                });
                                             });
                                         </script>
                                     @endpush

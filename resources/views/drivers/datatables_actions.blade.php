@@ -1,5 +1,8 @@
 {!! Form::open(['route' => ['drivers.destroy', Crypt::encrypt($id)], 'method' => 'delete']) !!}
 <div class='btn-group'>
+    <a href="{{ route('drivers.sequence', Crypt::encrypt($id)) }}" class='btn btn-ghost-info' title="Task sequence">
+       <i class="fa fa-list"></i>
+    </a>
     <a href="{{ route('drivers.show', Crypt::encrypt($id)) }}" class='btn btn-ghost-success'>
        <i class="fa fa-eye"></i>
     </a>
