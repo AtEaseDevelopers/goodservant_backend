@@ -129,6 +129,25 @@
                 return Array.prototype.slice.call(tbody.querySelectorAll('tr[data-id]'));
             }
 
+            var savedOrder = rows().map(function (row) {
+                return row.getAttribute('data-id');
+            }).join(',');
+            var allowLeave = false;
+
+            function sequenceChanged() {
+                var order = rows().map(function (row) {
+                    return row.getAttribute('data-id');
+                }).join(',');
+                return order !== savedOrder;
+            }
+
+            function confirmLeave() {
+                if (!sequenceChanged()) {
+                    return true;
+                }
+                return confirm('The customer sequence has not been saved. Leave this page?');
+            }
+
             function renumber() {
                 rows().forEach(function (row, index) {
                     var cell = row.querySelector('.sequence-cell');
@@ -297,6 +316,7 @@
             });
 
             form.addEventListener('submit', function () {
+                allowLeave = true;
                 form.querySelectorAll('input[name="assigns[]"]').forEach(function (input) {
                     input.remove();
                 });
@@ -308,6 +328,43 @@
                     form.appendChild(input);
                 });
             });
+
+            window.addEventListener('beforeunload', function (event) {
+                if (allowLeave || !sequenceChanged()) {
+                    return;
+                }
+                event.preventDefault();
+                event.returnValue = '';
+            });
+
+            document.addEventListener('click', function (event) {
+                var link = event.target.closest('a[href]');
+                if (!link || link.target === '_blank') {
+                    return;
+                }
+                var href = link.getAttribute('href') || '';
+                if (href === '' || href.charAt(0) === '#') {
+                    return;
+                }
+                if (!confirmLeave()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                allowLeave = true;
+            }, true);
+
+            document.addEventListener('submit', function (event) {
+                if (event.target === form) {
+                    return;
+                }
+                if (!confirmLeave()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                allowLeave = true;
+            }, true);
         })();
     </script>
 @endpush
