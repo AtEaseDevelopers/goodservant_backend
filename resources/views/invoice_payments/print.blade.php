@@ -60,7 +60,7 @@
     <table class="invoice">
         <tr>
             <td>
-                <img class="login-image" src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
+                <img class="login-image" src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('receipts_logo.png'))) }}">
             </td>
         </tr>
         <tr>

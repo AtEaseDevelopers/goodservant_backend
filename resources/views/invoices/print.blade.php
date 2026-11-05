@@ -80,13 +80,11 @@
         }
 
         .rule {
-            margin: 6px 0 4px;
-            font-size: 8px;
-            line-height: 8px;
-            letter-spacing: 2px;
-            overflow: hidden;
-            white-space: nowrap;
-            color: #000;
+            border-top: 3px solid #000;
+            margin: 10px 0 8px;
+            height: 0;
+            line-height: 0;
+            font-size: 0;
         }
     </style>
 </head>
@@ -96,7 +94,7 @@
         <tr>
             <td class="login-image-cell">
                 <img class="login-image"
-                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('logo.png'))) }}">
+                    src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('receipts_logo.png'))) }}">
             </td>
         </tr>
         <tr>
@@ -215,9 +213,7 @@
                     </tr>
                     <tr>
                         <td colspan="2">
-                            <p class="rule">
-                                ................................................................................................
-                            </p>
+                            <p class="rule"></p>
                         </td>
                     </tr>
                 </table>
@@ -259,9 +255,7 @@
                     @endforeach
                     <tr>
                         <td colspan="2">
-                            <p class="rule">
-                                ................................................................................................
-                            </p>
+                            <p class="rule"></p>
                         </td>
                     </tr>
                 </table>
