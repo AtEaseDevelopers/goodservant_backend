@@ -97,6 +97,11 @@ class TripPaymentSummary
                 'total' => round(array_sum($collected), 2),
             ],
             'credit_collected' => round($creditPaid->sum('amount'), 2),
+            // Split for the End Trip screen (app 1.0.68+): Cash Sales paid in
+            // cash, and credit customers paying old invoices in cash. Together
+            // they equal collected.cash, which older apps still show.
+            'cash_sales_cash' => round($sales[1], 2),
+            'credit_collected_cash' => round($creditPaid->where('type', 1)->sum('amount'), 2),
             'invoice_count' => $invoices->count(),
         ];
     }
