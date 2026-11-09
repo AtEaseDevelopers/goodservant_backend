@@ -23,6 +23,19 @@ class CustomerDataTable extends DataTable
             return $customer->is_do_customer ? 'Yes' : 'No';
         });
 
+        // The column holds 1/0 but shows Yes/No, so the default LIKE search
+        // never matched. The header filter is a Yes/No select sending 1/0.
+        $dataTable->filterColumn('customers.is_do_customer', function ($query, $keyword) {
+            $keyword = strtolower(trim($keyword));
+            if (in_array($keyword, ['1', 'yes'], true)) {
+                $query->where('customers.is_do_customer', 1);
+            } elseif (in_array($keyword, ['0', 'no'], true)) {
+                $query->where(function ($q) {
+                    $q->where('customers.is_do_customer', 0)->orWhereNull('customers.is_do_customer');
+                });
+            }
+        });
+
         $dataTable->addColumn('price_category', function ($customer) {
             return $customer->productPriceCategory->name ?? '';
         });
@@ -268,6 +281,10 @@ class CustomerDataTable extends DataTable
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Unactive</option></select>\';
                             }else if(columns[index].title == \'Payment Term\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Cash</option><option value="2">Credit Note</option></select>\';
+                            }else if(columns[index].title == \'DO Customer\'){
+                                var saved = String(column.search() || \'\').toLowerCase();
+                                var current = (saved == \'1\' || saved == \'yes\') ? \'1\' : ((saved == \'0\' || saved == \'no\') ? \'0\' : \'\');
+                                var input = $(\'<select class="border-0" style="width: 100%;"><option value="">All</option><option value="1">Yes</option><option value="0">No</option></select>\').val(current);
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
                             }
