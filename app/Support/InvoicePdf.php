@@ -87,8 +87,10 @@ class InvoicePdf
             $height += 50;
         }
 
-        return Pdf::loadView('invoices.print', ['invoice' => $invoice])
-            ->setPaper([0, 0, 300, $height], 'portrait')
-            ->setOptions($options, true);
+        return ReceiptPdf::fit(function ($pageHeight) use ($invoice, $options) {
+            return Pdf::loadView('invoices.print', ['invoice' => $invoice])
+                ->setPaper([0, 0, 300, $pageHeight], 'portrait')
+                ->setOptions($options, true);
+        }, $height);
     }
 }

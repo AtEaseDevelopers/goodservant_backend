@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\InvoicePdf;
+use App\Support\ReceiptPdf;
 use Illuminate\Support\Facades\Storage;
 use Datetime;
 use App\Models\Driver;
@@ -2936,8 +2937,10 @@ class DriverController extends Controller
             $each = 23;
             $height = (count($salesOrder['salesorderdetail']) * $each) + $min;
 
-            $pdf = Pdf::loadView('sales_orders.print', ['salesOrder' => $salesOrder]);
-            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            $pdf = ReceiptPdf::fit(function ($pageHeight) use ($salesOrder) {
+                return Pdf::loadView('sales_orders.print', ['salesOrder' => $salesOrder])
+                    ->setPaper(array(0, 0, 300, $pageHeight), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            }, $height);
 
             // sono contains a "/" (e.g. "SO2609/0011") - sanitize so it
             // doesn't get read as a subdirectory in the storage path/URL.
@@ -3007,8 +3010,10 @@ class DriverController extends Controller
                 $height += 40;
             }
 
-            $pdf = Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder]);
-            $pdf->setPaper(array(0, 0, 300, $height), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            $pdf = ReceiptPdf::fit(function ($pageHeight) use ($deliveryOrder) {
+                return Pdf::loadView('delivery_orders.print', ['deliveryOrder' => $deliveryOrder])
+                    ->setPaper(array(0, 0, 300, $pageHeight), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            }, $height);
 
             // dono contains a "/" (e.g. "DO2609/0008") - sanitize so it
             // doesn't get read as a subdirectory in the storage path/URL.
@@ -3278,14 +3283,13 @@ class DriverController extends Controller
             ->select('companies.*')
             ->first() ?? null;
             
-            $pdf = Pdf::loadView('invoice_payments.print', array(
-                'invoice' => $invoice,
-                'batchPayments' => $batchPayments,
-                'batchTotal' => $batchTotal,
-            ));
-
-    
-            $pdf->setPaper(array(0, 0, 300, $min), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            $pdf = ReceiptPdf::fit(function ($pageHeight) use ($invoice, $batchPayments, $batchTotal) {
+                return Pdf::loadView('invoice_payments.print', array(
+                    'invoice' => $invoice,
+                    'batchPayments' => $batchPayments,
+                    'batchTotal' => $batchTotal,
+                ))->setPaper(array(0, 0, 300, $pageHeight), 'portrait')->setOptions(['isPhpEnabled' => true, 'isRemoteEnabled' => true], true);
+            }, $min);
             
             $invoiceFilename = 'payment-' . $invoice->id . '.pdf';
             $path = 'payments/' . $invoiceFilename;
