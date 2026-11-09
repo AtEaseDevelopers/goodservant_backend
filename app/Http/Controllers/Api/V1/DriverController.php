@@ -1338,9 +1338,13 @@ class DriverController extends Controller
                 ], 400);
             }
             DB::beginTransaction();
+            // The new list replaces the whole of today's list, including the
+            // customers already visited today (status 8) - kept, they were
+            // mixed in between the new list's customers. The visits stay
+            // recorded on their invoices / sales orders / delivery orders.
             Task::where('driver_id', $driver->id)
                 ->where('date', date('Y-m-d'))
-                ->whereIn('status', [0, 1])
+                ->whereIn('status', [0, 1, 8])
                 ->update(['status' => 9]);
             $sequence = 1;
             $seen = [];
@@ -2262,7 +2266,7 @@ class DriverController extends Controller
             DB::beginTransaction();
             if($customer->is_do_customer && (int) $data['type'] === 2){
                 $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $data['invoicedetail'], $data['date'] ?? date('Y-m-d H:i:s'), $data['remark'] ?? null, $data['cheque_no'] ?? null);
-                Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
                 DB::commit();
                 return response()->json([
                     'result' => true,
@@ -2410,7 +2414,7 @@ class DriverController extends Controller
                 }
                 $invoicepayment->save();
             }
-            $task = Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
+            $task = Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
             $this->storePaymentAttachments($request, $invoice);
             DB::commit();
             $iv = Invoice::where('id',$invoice->id)->with('invoicedetail.product', 'paymentAttachments')->get()->first();
@@ -2519,7 +2523,7 @@ class DriverController extends Controller
 
                     if($customer->is_do_customer && (int) $item['type'] === 2){
                         $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $item['invoicedetail'], $item['date'] ?? date('Y-m-d H:i:s'), $item['remark'] ?? null, $item['cheque_no'] ?? null);
-                        Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                        Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
                         DB::commit();
                         $created[] = [
                             'client_ref' => $item['client_ref'],
@@ -2628,7 +2632,7 @@ class DriverController extends Controller
                         $invoicepayment->save();
                     }
 
-                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
 
                     DB::commit();
 
@@ -5047,7 +5051,7 @@ class DriverController extends Controller
                 $detail->remark = $line['foc'] ? 'FOC' : null;
                 $detail->save();
             }
-            Task::where('customer_id', $data['customer_id'])->where('driver_id',$driver->id)->update(['status' => 8]);
+            Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
             DB::commit();
             $so = SalesOrder::where('id',$salesOrderId)->with('salesorderdetail.product')->first();
             return response()->json([
@@ -5155,7 +5159,7 @@ class DriverController extends Controller
                         $detail->save();
                     }
 
-                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->update(['status' => 8]);
+                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
 
                     DB::commit();
 
