@@ -24,12 +24,6 @@ class Kernel extends ConsoleKernel
         ->lastDayOfMonth('23:00')
         ->withoutOverlapping();
 
-        // Each morning, forward yesterday's off-day orders into normal,
-        // deliverable orders for the new day.
-        $schedule->command('offday:forward')
-        ->dailyAt('00:05')
-        ->timezone('Asia/Kuala_Lumpur')
-        ->withoutOverlapping();
     }
 
     /**

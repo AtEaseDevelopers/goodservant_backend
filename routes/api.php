@@ -75,6 +75,8 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::post('/driver/salesOrder/convert', [App\Http\Controllers\Api\V1\DriverController::class, 'convertsalesorder']);
     Route::post('/driver/salesOrder/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'sopdf']);
     Route::post('/driver/salesOrder/bulk', [App\Http\Controllers\Api\V1\DriverController::class, 'addsalesorderbulk']);
+    Route::post('/driver/salesOrder/offday/normal', [App\Http\Controllers\Api\V1\DriverController::class, 'convertoffdaysalesorders']);
+    Route::post('/driver/customer/offday', [App\Http\Controllers\Api\V1\DriverController::class, 'setcustomeroffday']);
 
     //Delivery Order
     Route::get('/driver/deliveryOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'getdeliveryorder']);

@@ -35,6 +35,15 @@
             </div>
         </div>
 
+        <!-- Off Day Field -->
+        <div class="form-group">
+            <div class="checkbox">
+                <label>
+                    {!! Form::checkbox('off_day', 1, null) !!} Off Day (shop closed - packing list shows No Order, new sales orders become Off Day SOs)
+                </label>
+            </div>
+        </div>
+
         <!-- Group Field -->
         <div class="form-group">
             {!! Form::label('group', __('customers.group')) !!}:

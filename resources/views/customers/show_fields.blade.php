@@ -39,6 +39,12 @@
     <p>{{ $customer->is_do_customer ? 'Yes' : 'No' }}</p>
 </div>
 
+<!-- Off Day Field -->
+<div class="form-group">
+    {!! Form::label('off_day', 'Off Day') !!}:
+    <p>{{ $customer->off_day ? 'Yes' : 'No' }}</p>
+</div>
+
 <!-- Group Field -->
 <div class="form-group">
     {!! Form::label('group', __('customers.group')) !!}:

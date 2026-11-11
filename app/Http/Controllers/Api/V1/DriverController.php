@@ -1263,6 +1263,7 @@ class DriverController extends Controller
                     'address' => $customer->address,
                     'is_do_customer' => $customer->is_do_customer ? 1 : 0,
                     'has_pending_so' => $pending->contains($customer->id) ? 1 : 0,
+                    'off_day' => $customer->off_day ? 1 : 0,
                     'credit' => 0,
                 ];
             }
@@ -5033,6 +5034,9 @@ class DriverController extends Controller
                 foreach($header as $column => $value){
                     $salesOrder->{$column} = $value;
                 }
+                // Made while the shop is on Off Day: held as an Off Day SO
+                // until the driver converts it. Editing an SO keeps its kind.
+                $salesOrder->off_day = (bool) $customer->off_day;
                 $salesOrder->save();
                 $salesOrderId = $salesOrder->id;
             }
@@ -5146,6 +5150,7 @@ class DriverController extends Controller
                     $salesOrder->status = 0;
                     $salesOrder->remark = $item['remark'] ?? null;
                     $salesOrder->trip_id = $trip->id;
+                    $salesOrder->off_day = (bool) $customer->off_day;
                     $salesOrder->save();
 
                     foreach($item['salesorderdetail'] as $line){
@@ -5209,7 +5214,7 @@ class DriverController extends Controller
             ->whereNull('sales_orders.invoice_id')
             ->whereNull('sales_orders.deliveryorder_id')
             ->where('sales_orders.status', '!=', 2)
-            ->where('sales_orders.off_day', false) // off-day orders are not delivered today
+            // Off Day SOs stay in: the packing list shows them as "No Order".
             ->whereNotExists(function ($sub) {
                 $sub->select(DB::raw(1))
                     ->from('invoice_details')
@@ -6096,6 +6101,103 @@ class DriverController extends Controller
         }
     }
 
+    // ── Off Day ──────────────────────────────────────────────────────────────
+
+    /**
+     * Turn a customer's Off Day status on or off (the swipe button in the
+     * driver app). It stays until someone changes it again.
+     */
+    public function setcustomeroffday(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'customer_id' => 'required|numeric',
+                'off_day' => 'required|boolean',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $customer = Customer::where('id', $request->input('customer_id'))->first();
+            if(empty($customer)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_customer',
+                    'data' => null
+                ], 400);
+            }
+            $customer->off_day = $request->boolean('off_day');
+            $customer->save();
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.update_success',
+                'data' => ['customer_id' => $customer->id, 'off_day' => $customer->off_day ? 1 : 0]
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Move the driver's ticked Off Day SOs to the Normal SO list. Only open
+     * SOs of this driver change; anything converted or cancelled is skipped.
+     */
+    public function convertoffdaysalesorders(Request $request){
+        try{
+            $driver = Driver::where('session', $request->header('session'))->first();
+            if(empty($driver)){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
+                    'data' => null
+                ], 401);
+            }
+            $validator = Validator::make($request->all(), [
+                'sales_order_ids' => 'required|array|min:1',
+                'sales_order_ids.*' => 'numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
+                    'data' => null
+                ], 400);
+            }
+            $count = $this->whereSalesOrderStillOpen(
+                SalesOrder::where('driver_id', $driver->id)
+                    ->whereIn('id', $request->input('sales_order_ids'))
+                    ->where('off_day', true)
+            )->update(['off_day' => false]);
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.update_success',
+                'data' => ['count' => $count]
+            ], 200);
+        }
+        catch(Exception $e){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
     // ── Packing List ─────────────────────────────────────────────────────────
 
     /**
@@ -6127,7 +6229,7 @@ class DriverController extends Controller
             // sends specific ids. A converted SO is already on an invoice or DO.
             $salesOrdersQuery = $this->whereSalesOrderStillOpen(
                 SalesOrder::where('driver_id', $driver->id)
-            )->with(['customer:id,company', 'salesorderdetail.product:id,code,name']);
+            )->with(['customer:id,company,off_day', 'salesorderdetail.product:id,code,name']);
 
             if (!empty($salesOrderIds) && is_array($salesOrderIds)) {
                 // Driver picked specific SOs (e.g. from the packing list
@@ -6166,10 +6268,20 @@ class DriverController extends Controller
                         }
                     }
                     $first = $orders->first();
+                    // Off Day customer, or only Off Day SOs: nothing to pack
+                    // for this stop. Shown as "No Order", left out of totals.
+                    $noOrder = (bool) ($first->customer->off_day ?? false)
+                        || $orders->every(function ($order) {
+                            return (bool) $order->off_day;
+                        });
+                    if ($noOrder) {
+                        $quantities = array_fill_keys(array_keys($quantities), 0);
+                    }
                     return [
                         'customer_id' => $first->customer_id,
                         'customer_name' => $first->customer?->company ?? '-',
                         'quantities' => $quantities,
+                        'no_order' => $noOrder,
                     ];
                 })
                 ->sortBy(function ($row) use ($taskSequences) {

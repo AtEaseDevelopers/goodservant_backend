@@ -40,6 +40,10 @@
 
 @php
     $packedRows = collect($rows)->filter(function ($row) {
+        // Off Day stops stay on the list, marked "No Order".
+        if (!empty($row['no_order'])) {
+            return true;
+        }
         foreach ($row['quantities'] as $qty) {
             if ($qty > 0) {
                 return true;
@@ -54,6 +58,9 @@
     <tr>
         <td class="name">{{ $row['customer_name'] }}</td>
         <td class="items">
+            @if(!empty($row['no_order']))
+            <div class="item-line"><b>No Order</b></div>
+            @else
             @php
                 $parts = [];
                 foreach ($products as $product) {
@@ -66,6 +73,7 @@
                 }
             @endphp
             <div class="item-line">{!! implode(' &nbsp;&middot;&nbsp; ', $parts) !!}</div>
+            @endif
         </td>
     </tr>
     @empty

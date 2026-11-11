@@ -10,12 +10,11 @@ use Tests\TestCase;
 
 /**
  * Covers DriverController::getsalesorder() with unconverted=1 — the driver
- * "packing list" — and its whereSalesOrderStillOpen() helper, which now
- * excludes off-day orders (sales_orders.off_day = false).
+ * "packing list" — and its whereSalesOrderStillOpen() helper.
  *
- * An off-day order is placed but held back from today's delivery, so it must
- * NOT appear on today's packing list, while it SHOULD still appear in the full
- * (history) listing. A normal open order must appear on both.
+ * Off Day SOs stay on the packing list (the PDF prints them as "No Order")
+ * and in the full listing, until the driver converts them to a normal SO or
+ * an invoice. Also covers the driver Off Day actions.
  *
  * Exercises the real HTTP endpoint (GET /api/v1/driver/salesOrder) with a
  * driver session header. Uses DatabaseTransactions so the configured dev DB
@@ -79,7 +78,7 @@ class OffDayPackingListTest extends TestCase
     }
 
     /** @test */
-    public function the_packing_list_excludes_off_day_orders_but_keeps_normal_open_orders(): void
+    public function the_packing_list_keeps_normal_and_off_day_open_orders(): void
     {
         $normal = $this->makeOrder(false);
         $offDay = $this->makeOrder(true);
@@ -87,7 +86,50 @@ class OffDayPackingListTest extends TestCase
         $ids = $this->fetchIds(true); // unconverted=1 → packing list
 
         $this->assertContains($normal->id, $ids, 'a normal open order must appear on the packing list');
-        $this->assertNotContains($offDay->id, $ids, 'an off-day order must NOT appear on the packing list');
+        $this->assertContains($offDay->id, $ids, 'an off-day order stays on the packing list as "No Order"');
+    }
+
+    /** @test */
+    public function the_driver_can_turn_a_customers_off_day_on_and_off(): void
+    {
+        $this->withHeaders(['session' => $this->driver->session])
+            ->postJson('/api/v1/driver/customer/offday', ['customer_id' => $this->customer->id, 'off_day' => true])
+            ->assertOk()->assertJson(['result' => true]);
+        $this->assertTrue((bool) $this->customer->fresh()->off_day);
+
+        $this->withHeaders(['session' => $this->driver->session])
+            ->postJson('/api/v1/driver/customer/offday', ['customer_id' => $this->customer->id, 'off_day' => false])
+            ->assertOk();
+        $this->assertFalse((bool) $this->customer->fresh()->off_day);
+    }
+
+    /** @test */
+    public function ticked_off_day_orders_become_normal_and_nothing_else_changes(): void
+    {
+        $offDay = $this->makeOrder(true);
+        $otherOffDay = $this->makeOrder(true);
+        $cancelled = $this->makeOrder(true);
+        $cancelled->forceFill(['status' => 2])->save();
+
+        $this->withHeaders(['session' => $this->driver->session])
+            ->postJson('/api/v1/driver/salesOrder/offday/normal', ['sales_order_ids' => [$offDay->id, $cancelled->id]])
+            ->assertOk()->assertJson(['result' => true, 'data' => ['count' => 1]]);
+
+        $this->assertFalse((bool) $offDay->fresh()->off_day, 'the ticked open order becomes normal');
+        $this->assertTrue((bool) $otherOffDay->fresh()->off_day, 'an unticked order stays off-day');
+        $this->assertTrue((bool) $cancelled->fresh()->off_day, 'a cancelled order is left alone');
+    }
+
+    /** @test */
+    public function an_off_day_order_is_never_forwarded_automatically(): void
+    {
+        $order = $this->makeOrder(true);
+        $order->forceFill(['date' => now()->subDays(3)])->save();
+
+        $this->fetchIds(true);
+        $this->fetchIds(false);
+
+        $this->assertTrue((bool) $order->fresh()->off_day, 'it stays off-day until the driver converts it');
     }
 
     /** @test */
