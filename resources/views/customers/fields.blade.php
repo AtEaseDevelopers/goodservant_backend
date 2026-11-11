@@ -54,6 +54,13 @@
             {!! Form::select('supervisor_id', $supervisorItems, null, ['class' => 'form-control', 'placeholder' => 'Pick a Operation...']) !!}
         </div>
 
+        <!-- SO Default Driver Field (optional) -->
+        <div class="form-group">
+            {!! Form::label('so_default_driver_id', 'SO Default Driver') !!}:
+            {!! Form::select('so_default_driver_id', $driverItems, null, ['class' => 'form-control selectpicker', 'data-live-search' => 'true', 'data-size' => '10', 'placeholder' => 'No default driver']) !!}
+            <small class="form-text text-muted">New Sales Orders for this customer use this driver when none is set.</small>
+        </div>
+
         <!-- Phone Field -->
         <div class="form-group ">
             {!! Form::label('phone', __('customers.phone')) !!}:

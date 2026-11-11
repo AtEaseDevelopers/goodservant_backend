@@ -6,13 +6,20 @@ use Eloquent as Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Models\Code;
+use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 
-class Customer extends Model
+// Implements Authenticatable so a Customer can back the 'customer' session guard
+// that powers the ordering portal (login via admin impersonation for now). No
+// password/remember-token is used — the customer is logged in programmatically.
+class Customer extends Model implements AuthenticatableContract
 {
     // use SoftDeletes;
 
     use HasFactory;
+    use AuthenticatableTrait;
 
     public $table = 'customers';
 
@@ -31,6 +38,44 @@ class Customer extends Model
         'GroupDescription',
     ];
 
+    // The ordering-portal "magic login" token is a bearer credential: keep it
+    // out of any array/JSON serialisation of a Customer.
+    protected $hidden = [
+        'portal_token',
+    ];
+
+    /**
+     * Give every new customer a random portal_token so their ordering link
+     * exists the moment the record is created (existing rows were backfilled by
+     * migration). Not mass-assignable — it is never set from request input.
+     */
+    protected static function booted()
+    {
+        static::creating(function (self $customer) {
+            if (empty($customer->portal_token)) {
+                $customer->portal_token = Str::random(48);
+            }
+        });
+    }
+
+    /**
+     * Rotate this customer's portal_token, invalidating any previously shared
+     * ordering link while leaving every other customer's link untouched.
+     */
+    public function regeneratePortalToken(): string
+    {
+        $this->portal_token = Str::random(48);
+        $this->save();
+
+        return $this->portal_token;
+    }
+
+    /** The customer's passwordless ordering-portal login link. */
+    public function portalLoginUrl(): string
+    {
+        return route('portal.login', ['token' => $this->portal_token]);
+    }
+
     public $fillable = [
         'code',
         'company',
@@ -41,6 +86,9 @@ class Customer extends Model
         'group',
         'agent_id',
         'supervisor_id',
+        // Optional default driver: Sales Orders created for this customer with
+        // no driver fall back to this one (SalesOrder::booted).
+        'so_default_driver_id',
         'phone',
         'address',
         'status',
@@ -77,12 +125,14 @@ class Customer extends Model
         'group' => 'string',
         'agent_id' => 'integer',
         'supervisor_id' => 'integer',
+        'so_default_driver_id' => 'integer',
         'phone' => 'string',
         'address' => 'string',
         'status' => 'integer',
         'product_price_category_id' => 'integer',
         'sst' => 'string',
-        'tin' => 'string'
+        'tin' => 'string',
+        'portal_token' => 'string',
     ];
 
     /**
@@ -100,6 +150,7 @@ class Customer extends Model
         'status' => 'required',
         'sst' => 'nullable|string|max:255',
         'tin' => 'nullable|string|max:255',
+        'so_default_driver_id' => 'nullable|exists:drivers,id',
     ];
 
     /**
@@ -141,6 +192,12 @@ class Customer extends Model
         return $this->belongsTo(\App\Models\Supervisor::class, 'supervisor_id', 'id');
     }
 
+    // Optional default driver for this customer's Sales Orders.
+    public function soDefaultDriver()
+    {
+        return $this->belongsTo(\App\Models\Driver::class, 'so_default_driver_id', 'id');
+    }
+
     public function foc(){
         return $this->hasMany(\App\Models\foc::class, 'customer_id', 'id');
     }
@@ -151,6 +208,11 @@ class Customer extends Model
 
     public function productPriceCategory(){
         return $this->belongsTo(\App\Models\ProductPriceCategory::class, 'product_price_category_id', 'id');
+    }
+
+    // Ordering-portal cart (server-side, persists across devices).
+    public function cartItems(){
+        return $this->hasMany(\App\Models\CartItem::class, 'customer_id', 'id');
     }
 
     // Retained but dormant: special prices are no longer used for pricing (the

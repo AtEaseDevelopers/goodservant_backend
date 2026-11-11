@@ -57,6 +57,12 @@
     <p>{{ $customer->supervisor->name ?? '' }}</p>
 </div>
 
+<!-- SO Default Driver Field -->
+<div class="form-group">
+    {!! Form::label('so_default_driver_id', 'SO Default Driver') !!}:
+    <p>{{ $customer->soDefaultDriver->name ?? '—' }}</p>
+</div>
+
 <!-- Phone Field -->
 <div class="form-group">
     {!! Form::label('phone', __('customers.phone')) !!}:

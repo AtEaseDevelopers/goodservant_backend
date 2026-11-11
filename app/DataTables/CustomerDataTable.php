@@ -40,7 +40,16 @@ class CustomerDataTable extends DataTable
             return $customer->productPriceCategory->name ?? '';
         });
 
-        return $dataTable->addColumn('action', 'customers.datatables_actions');
+        return $dataTable->addColumn('action', function ($customer) {
+            return view('customers.datatables_actions', [
+                'id'              => $customer->id,
+                // portal_token is hidden from serialisation; read it directly.
+                'portal_login_url' => $customer->portal_token
+                    ? route('portal.login', ['token' => $customer->portal_token])
+                    : null,
+                'reset_portal_url' => route('customers.reset-portal-link', \Crypt::encrypt($customer->id)),
+            ])->render();
+        });
     }
 
     /**

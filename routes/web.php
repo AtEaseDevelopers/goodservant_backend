@@ -181,6 +181,42 @@ Route::get('/scheduler/checkkelindanpermit', [App\Http\Controllers\scheduler::cl
 // Route::resource('userHasRoles', App\Http\Controllers\UserHasRoleController::class);
 // Route::resource('roles', App\Http\Controllers\RoleController::class);
 // Route::resource('roleHasPermissions', App\Http\Controllers\RoleHasPermissionController::class);
+// Customer-facing ordering portal (separate 'customer' guard). Only the Order
+// page exists for now; My Orders / Cart / checkout come later.
+Route::prefix('portal')->name('portal.')->group(function () {
+    // Passwordless "fast login" link the admin copies from the customer listing
+    // and shares with the real customer. The token is a per-customer random
+    // secret (customers.portal_token): unguessable, stable so the customer can
+    // bookmark and reorder, and revocable by rotating the token (admin "reset
+    // link") without breaking any other customer's link.
+    Route::get('/login/{token}', [App\Http\Controllers\Portal\OrderController::class, 'magicLogin'])
+        ->name('login');
+
+    Route::middleware('auth:customer')->group(function () {
+        Route::get('/', function () {
+            return redirect()->route('portal.order');
+        });
+        Route::get('/order', [App\Http\Controllers\Portal\OrderController::class, 'index'])->name('order');
+        Route::get('/products', [App\Http\Controllers\Portal\OrderController::class, 'products'])->name('products');
+
+        // My Orders (history + details). Static paths are declared before the
+        // {order} wildcard so they aren't captured as an order token.
+        Route::get('/my-orders', [App\Http\Controllers\Portal\OrderController::class, 'orders'])->name('orders');
+        Route::get('/my-orders/feed', [App\Http\Controllers\Portal\OrderController::class, 'ordersBatch'])->name('orders.feed');
+        Route::get('/my-orders/{order}', [App\Http\Controllers\Portal\OrderController::class, 'show'])->name('orders.show');
+        Route::get('/my-orders/{order}/pdf/{function}', [App\Http\Controllers\Portal\OrderController::class, 'salesOrderPdf'])->name('orders.pdf');
+
+        // Cart (server-side, persisted) + checkout into a SalesOrder.
+        Route::get('/cart', [App\Http\Controllers\Portal\CartController::class, 'index'])->name('cart');
+        Route::post('/cart/add', [App\Http\Controllers\Portal\CartController::class, 'add'])->name('cart.add');
+        Route::post('/cart/update', [App\Http\Controllers\Portal\CartController::class, 'update'])->name('cart.update');
+        Route::post('/cart/remove', [App\Http\Controllers\Portal\CartController::class, 'remove'])->name('cart.remove');
+        Route::post('/cart/submit', [App\Http\Controllers\Portal\CartController::class, 'submit'])->name('cart.submit');
+
+        Route::post('/logout', [App\Http\Controllers\Portal\OrderController::class, 'logout'])->name('logout');
+    });
+});
+
 Route::group(['middleware' => ['auth']], function() {
     Route::get('/', [App\Http\Controllers\InvoiceController::class, 'index']);
     Route::get('/home', [App\Http\Controllers\InvoiceController::class, 'index'])->name('home');
@@ -368,6 +404,8 @@ Route::group(['middleware' => ['auth']], function() {
     });
     Route::group(['middleware' => ['permission:customer']], function() {
         Route::get('/customers/sync-xero', [App\Http\Controllers\CustomerController::class, 'syncXero']);
+        Route::get('/customers/{id}/portal-login', [App\Http\Controllers\CustomerController::class, 'portalLogin'])->name('customers.portal-login');
+        Route::post('/customers/{id}/reset-portal-link', [App\Http\Controllers\CustomerController::class, 'resetPortalLink'])->name('customers.reset-portal-link');
         Route::resource('customers', App\Http\Controllers\CustomerController::class);
         Route::post('/customers/massdestroy', [App\Http\Controllers\CustomerController::class, 'massdestroy']);
         Route::post('/customers/massupdatestatus', [App\Http\Controllers\CustomerController::class, 'massupdatestatus']);

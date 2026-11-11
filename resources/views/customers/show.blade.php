@@ -16,6 +16,9 @@
                              <div class="card-header">
                                  <strong>{{ __('customers.detail')}}</strong>
                                   <a href="{{ route('customers.index') }}" class="btn btn-light">Back</a>
+                                  <a href="{{ route('customers.portal-login', \Crypt::encrypt($customer->id)) }}" target="_blank" rel="noopener" class="btn btn-primary float-right">
+                                      <i class="fa fa-external-link"></i> Open Customer Portal
+                                  </a>
                              </div>
                              <div class="card-body">
                                  @include('customers.show_fields')

@@ -11,6 +11,7 @@ use Flash;
 use App\Http\Controllers\AppBaseController;
 use Response;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,8 @@ class CustomerController extends AppBaseController
         $input = $request->all();
         $input['group'] = implode(",",$input['group'] ?? []);
         $input['is_do_customer'] = $request->has('is_do_customer');
+        // Empty "No default driver" select submits '' — store as null.
+        $input['so_default_driver_id'] = $request->input('so_default_driver_id') ?: null;
 
         $customer = $this->customerRepository->create($input);
 
@@ -132,6 +135,64 @@ class CustomerController extends AppBaseController
     }
 
     /**
+     * Impersonate a customer and drop into the ordering portal as them. Used
+     * from the customer master-data page. Logs into the separate 'customer'
+     * guard so the admin's own ('web') session is untouched.
+     *
+     * @param string $id Encrypted customer id (same convention as show/edit).
+     */
+    public function portalLogin(Request $request, $id)
+    {
+        try {
+            $id = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            Flash::error(__('customers.customer_not_found'));
+
+            return redirect(route('customers.index'));
+        }
+
+        $customer = $this->customerRepository->find($id);
+
+        if (empty($customer) || (int) $customer->status !== 1) {
+            Flash::error(__('customers.customer_not_found'));
+
+            return redirect(route('customers.index'));
+        }
+
+        Auth::guard('customer')->login($customer);
+        // Fresh session id for the impersonated login (prevents session
+        // fixation), matching the public magic-login path.
+        $request->session()->regenerate();
+
+        return redirect()->route('portal.order');
+    }
+
+    /**
+     * Rotate a customer's ordering-portal token, revoking any previously shared
+     * link. The next copied link uses the new token.
+     *
+     * @param string $id Encrypted customer id (same convention as show/edit).
+     */
+    public function resetPortalLink($id)
+    {
+        try {
+            $id = Crypt::decrypt($id);
+        } catch (DecryptException $e) {
+            return response()->json(['message' => __('customers.customer_not_found')], 404);
+        }
+
+        $customer = $this->customerRepository->find($id);
+
+        if (empty($customer)) {
+            return response()->json(['message' => __('customers.customer_not_found')], 404);
+        }
+
+        $customer->regeneratePortalToken();
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
      * Show the form for editing the specified Customer.
      *
      * @param int $id
@@ -176,6 +237,8 @@ class CustomerController extends AppBaseController
         $input = $request->all();
         $input['group'] = implode(",",$input['group'] ?? []);
         $input['is_do_customer'] = $request->has('is_do_customer');
+        // Empty "No default driver" select submits '' — store as null.
+        $input['so_default_driver_id'] = $request->input('so_default_driver_id') ?: null;
 
         $customer = $this->customerRepository->update($input, $id);
 

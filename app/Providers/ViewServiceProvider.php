@@ -221,6 +221,10 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('groups', $groups);
         });
         View::composer(['customers.fields'], function ($view) {
+            $driverItems = \App\Models\Driver::orderBy('name')->pluck('name','id')->toArray();
+            $view->with('driverItems', $driverItems);
+        });
+        View::composer(['customers.fields'], function ($view) {
             $countryOptions = \App\Models\CountryCode::orderBy('country')->get()->mapWithKeys(function ($country) {
                 return [$country->code => $country->code . ' - ' . $country->country];
             })->toArray();

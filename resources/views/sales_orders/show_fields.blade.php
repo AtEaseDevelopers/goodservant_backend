@@ -10,6 +10,18 @@
     <p>{{ $salesOrder->date }}</p>
 </div>
 
+<!-- Source Field -->
+<div class="form-group">
+    {!! Form::label('source', 'Source') !!}:
+    <p>
+        @if($salesOrder->is_portal_order)
+            <span class="badge badge-info">Customer Portal</span>
+        @else
+            <span class="badge badge-secondary">Admin / App</span>
+        @endif
+    </p>
+</div>
+
 <!-- Customer Id Field -->
 <div class="form-group">
     {!! Form::label('customer_id', __('sales_orders.customer')) !!}:<span class="asterisk"> *</span>

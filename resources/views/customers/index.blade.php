@@ -34,9 +34,53 @@
         $(document).keyup(function(e) {
             if(e.altKey && e.keyCode == 78){
                 $('.card .card-header a')[0].click();
-            } 
+            }
         });
-        
+
+        // Copy a customer's passwordless ordering link to the clipboard so it can
+        // be sent to the real customer.
+        $(document).on("click", ".copy-portal-link", function(e){
+            e.preventDefault();
+            var link = $(this).data('link');
+            function done(){ noti('s','Copied','Ordering link copied to clipboard'); }
+            function fail(){ window.prompt('Copy this ordering link:', link); }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link).then(done, fail);
+            } else {
+                fail();
+            }
+        });
+
+        // Rotate a customer's ordering token so any previously shared link stops
+        // working. The next copied link uses the new token.
+        $(document).on("click", ".reset-portal-link", function(e){
+            e.preventDefault();
+            var url = $(this).data('url');
+            $.confirm({
+                title: 'Reset ordering link',
+                content: 'The current ordering link for this customer will stop working. Continue?',
+                buttons: {
+                    Yes: function() {
+                        ShowLoad();
+                        $.ajax({
+                            url: url,
+                            type: "POST",
+                            data: { _token: "{{ csrf_token() }}" },
+                            success: function(){
+                                $('.buttons-reload').click();
+                                noti('s','Link reset','Old ordering link disabled. Copy the new link to share it.');
+                            },
+                            error: function(error){
+                                HideLoad();
+                                noti('e','Please contact your administrator', error.responseJSON ? error.responseJSON.message : 'Could not reset the link.');
+                            }
+                        });
+                    },
+                    No: function(){}
+                }
+            });
+        });
+
         $(document).on("click", "#masssave", function(e){
             var m = "";
             if(window.checkboxid.length == 0){
