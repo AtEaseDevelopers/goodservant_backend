@@ -29,6 +29,14 @@
         <div class="bg-white p-5">
             <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Order Number</p>
             <p class="mt-1 font-semibold text-slate-900">{{ $order->sono }}</p>
+            @if($order->off_day)
+                <span class="mt-1.5 flex w-fit items-center gap-1 rounded-md border border-blue-200 bg-blue-600/5 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-blue-600">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/>
+                    </svg>
+                    Off day
+                </span>
+            @endif
         </div>
         <div class="bg-white p-5">
             <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Order Date</p>

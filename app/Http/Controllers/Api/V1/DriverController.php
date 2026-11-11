@@ -1231,6 +1231,7 @@ class DriverController extends Controller
             // cutoff hid the dot until the next morning.
             $pending = SalesOrder::where('driver_id', $driver->id)
                 ->where('status', '!=', 2)
+                ->where('off_day', false) // off-day orders are not delivered today
                 ->whereNull('deliveryorder_id')
                 ->whereNull('invoice_id')
                 ->whereNotExists(function ($sub) {
@@ -1906,7 +1907,7 @@ class DriverController extends Controller
             // invoices the pay screen lists. A customer-level payment total
             // used to wipe this to 0 while an invoice still had a balance,
             // and status 0 (new) invoices were left out entirely.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM invoice_details d INNER JOIN invoices inv ON inv.id = d.invoice_id AND inv.status != 2 WHERE d.sales_order_id = so.id)) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.off_day = 0 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM invoice_details d INNER JOIN invoices inv ON inv.id = d.invoice_id AND inv.status != 2 WHERE d.sales_order_id = so.id)) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -5208,6 +5209,7 @@ class DriverController extends Controller
             ->whereNull('sales_orders.invoice_id')
             ->whereNull('sales_orders.deliveryorder_id')
             ->where('sales_orders.status', '!=', 2)
+            ->where('sales_orders.off_day', false) // off-day orders are not delivered today
             ->whereNotExists(function ($sub) {
                 $sub->select(DB::raw(1))
                     ->from('invoice_details')

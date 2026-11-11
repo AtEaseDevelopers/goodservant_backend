@@ -94,7 +94,12 @@ class CartController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
-        $order = DB::transaction(function () use ($customer) {
+        // "Off day": the customer places an order but does not want it delivered
+        // today. The driver sees no order for them today; a daily job forwards it
+        // to the next day as a normal order.
+        $offDay = $request->boolean('off_day');
+
+        $order = DB::transaction(function () use ($customer, $offDay) {
             // Lock this customer's cart rows for the duration of checkout. A
             // second concurrent/duplicate submit (another tab, double-click,
             // retry) blocks here, then finds an empty cart once the first one
@@ -121,6 +126,7 @@ class CartController extends Controller
             $order->driver_id = $customer->so_default_driver_id;
             $order->status = 0; // New / "Submitted" in the portal
             $order->is_portal_order = true; // placed by the customer via the portal
+            $order->off_day = $offDay; // deliver tomorrow, not today
             $order->save();
 
             foreach ($items as $item) {

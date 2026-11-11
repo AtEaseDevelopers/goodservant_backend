@@ -29,6 +29,30 @@
 
     {{-- Cart --}}
     <div id="cart-wrap" class="{{ $items->isEmpty() ? 'hidden' : '' }}">
+        {{-- Off day: order is placed but not delivered today --}}
+        <label for="off-day"
+               class="group mb-4 flex cursor-pointer items-center gap-4 rounded-xl border-2 border-slate-200 bg-white p-4 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2">
+            <input id="off-day" type="checkbox" class="sr-only">
+
+            {{-- Icon badge --}}
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 transition-colors group-has-[:checked]:bg-blue-600 group-has-[:checked]:text-white">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/>
+                </svg>
+            </span>
+
+            {{-- Copy --}}
+            <span class="min-w-0 flex-1">
+                <span class="block text-sm font-semibold text-slate-900">Off day — don't deliver today</span>
+                <span class="mt-0.5 block text-sm text-slate-500">Submit this order but skip today's delivery. It will be delivered the next day.</span>
+            </span>
+
+            {{-- Toggle switch --}}
+            <span class="relative h-6 w-11 shrink-0 rounded-full bg-slate-200 transition-colors group-has-[:checked]:bg-blue-600">
+                <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform group-has-[:checked]:translate-x-5"></span>
+            </span>
+        </label>
+
         <div id="cart-items" class="space-y-3">
             @foreach($items as $item)
                 @include('portal._cart_row', ['item' => $item])
@@ -84,6 +108,7 @@
         var emptyEl = document.getElementById('cart-empty');
         var submitBtn = document.getElementById('submit-order');
         var submitSpinner = document.getElementById('submit-spinner');
+        var offDayEl = document.getElementById('off-day');
         var toast = document.getElementById('cart-toast');
         var toastTimer;
 
@@ -177,7 +202,7 @@
             fetch(SUBMIT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
-                body: '{}'
+                body: JSON.stringify({ off_day: offDayEl ? offDayEl.checked : false })
             })
                 .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
                 .then(function (res) {

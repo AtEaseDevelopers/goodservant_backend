@@ -22,8 +22,14 @@ class SalesOrderDataTable extends DataTable
             return '-';
         });
 
+        $dataTable->addColumn('off_day_label', function ($salesOrder) {
+            return $salesOrder->off_day
+                ? '<span class="badge badge-info">Off Day</span>'
+                : '-';
+        });
+
         return $dataTable->addColumn('action', 'sales_orders.datatables_actions')
-            ->rawColumns(['converted_to', 'action']);
+            ->rawColumns(['converted_to', 'off_day_label', 'action']);
     }
 
     public function query(SalesOrder $model)
@@ -187,6 +193,13 @@ class SalesOrderDataTable extends DataTable
                 'data' => 'converted_to',
                 'name' => 'converted_to',
                 'orderable' => false,
+                'searchable' => false
+            ]),
+
+            'off_day' => new \Yajra\DataTables\Html\Column([
+                'title' => 'Off Day',
+                'data' => 'off_day_label',
+                'name' => 'sales_orders.off_day',
                 'searchable' => false
             ]),
         ];

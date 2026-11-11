@@ -263,6 +263,6 @@ class OrderController extends Controller
     {
         Auth::guard('customer')->logout();
 
-        return redirect()->route('login');
+        return redirect()->route('portal.signed-out');
     }
 }

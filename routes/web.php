@@ -192,6 +192,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/login/{token}', [App\Http\Controllers\Portal\OrderController::class, 'magicLogin'])
         ->name('login');
 
+    // Post-logout landing. Public (no 'customer' guard) so a just-signed-out
+    // customer lands here instead of the admin login page.
+    Route::view('/signed-out', 'portal.signed-out')->name('signed-out');
+
     Route::middleware('auth:customer')->group(function () {
         Route::get('/', function () {
             return redirect()->route('portal.order');
