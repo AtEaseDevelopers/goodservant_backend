@@ -6248,11 +6248,17 @@ class DriverController extends Controller
 
             $salesOrders = $salesOrdersQuery->get();
 
-            // Preserve today's planned visit order where available, so the
-            // packing list still lines up with the driver's route sequence.
+            // Rows follow the driver's customer sequence: today's task order
+            // when the trip has built it, otherwise the saved Customer
+            // Sequence (assigns.sequence). Off Day and normal customers are
+            // sorted together in that one order.
             $taskSequences = Task::where('driver_id', $driver->id)
                 ->where('date', $date)
+                ->where('status', '!=', 9)
                 ->pluck('sequence', 'customer_id');
+            $assignSequences = Assign::where('driver_id', $driver->id)
+                ->pluck('sequence', 'customer_id');
+            $customerSequences = $taskSequences->isNotEmpty() ? $taskSequences : $assignSequences;
 
             $products = Product::where('code', '!=', \App\Support\InvoiceDiscount::PRODUCT_CODE)->orderBy('sequence')->orderBy('id')->get(['id', 'code', 'name']);
 
@@ -6313,10 +6319,21 @@ class DriverController extends Controller
                 ]);
             }
 
+            // Customers missing from the sequence go last, by name.
             $rows = $rows
-                ->sortBy(function ($row) use ($taskSequences) {
-                    return $taskSequences[$row['customer_id']] ?? PHP_INT_MAX;
-                })
+                ->sortBy([
+                    function ($a, $b) use ($customerSequences, $assignSequences) {
+                        $seq = function ($row) use ($customerSequences, $assignSequences) {
+                            return (int) ($customerSequences[$row['customer_id']]
+                                ?? $assignSequences[$row['customer_id']]
+                                ?? PHP_INT_MAX);
+                        };
+                        return $seq($a) <=> $seq($b);
+                    },
+                    function ($a, $b) {
+                        return strcasecmp($a['customer_name'], $b['customer_name']);
+                    },
+                ])
                 ->values();
 
             $totals = array_fill_keys($products->pluck('id')->all(), 0);
