@@ -6283,7 +6283,37 @@ class DriverController extends Controller
                         'quantities' => $quantities,
                         'no_order' => $noOrder,
                     ];
-                })
+                });
+
+            // Every Off Day customer on the driver's list for the day shows
+            // too, with or without an SO, as "No Order" among the other
+            // stops. The list is the day's tasks, or the driver's assigned
+            // customers when the trip has not built it yet.
+            $routeCustomerIds = Task::where('driver_id', $driver->id)
+                ->where('date', $date)
+                ->where('status', '!=', 9)
+                ->pluck('customer_id');
+            if ($routeCustomerIds->isEmpty()) {
+                $routeCustomerIds = Assign::where('driver_id', $driver->id)->pluck('customer_id');
+            }
+            $offDayCustomers = Customer::whereIn('id', $routeCustomerIds->unique()->all())
+                ->where('off_day', true)
+                ->where('status', 1)
+                ->whereNotIn('id', $rows->keys()->all());
+            if (!empty($groupId) && empty($salesOrderIds)) {
+                $offDayCustomers->whereRaw('FIND_IN_SET(?, `group`)', [$groupId]);
+            }
+            $emptyQuantities = array_fill_keys($products->pluck('id')->all(), 0);
+            foreach ($offDayCustomers->get(['id', 'company']) as $customer) {
+                $rows->put($customer->id, [
+                    'customer_id' => $customer->id,
+                    'customer_name' => $customer->company ?? '-',
+                    'quantities' => $emptyQuantities,
+                    'no_order' => true,
+                ]);
+            }
+
+            $rows = $rows
                 ->sortBy(function ($row) use ($taskSequences) {
                     return $taskSequences[$row['customer_id']] ?? PHP_INT_MAX;
                 })
