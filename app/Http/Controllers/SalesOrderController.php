@@ -238,7 +238,11 @@ class SalesOrderController extends AppBaseController
             ];
         });
 
-        return response()->json(['items' => $items]);
+        // The dialog preselects the customer's own term: Credit customers get
+        // Credit, everyone else Cash. The user can still pick another method.
+        $term = (int) optional(Customer::find($salesOrder->customer_id))->paymentterm;
+
+        return response()->json(['items' => $items, 'paymentterm' => $term === self::PAYMENTTERM_CREDIT ? 2 : 1]);
     }
 
     public function adddetail($id, Request $request)

@@ -98,7 +98,7 @@
                 type: "GET",
                 success: function(response){
                     HideLoad();
-                    openConvertDialog(soId, response.items || []);
+                    openConvertDialog(soId, response.items || [], response.paymentterm || 1);
                 },
                 error: function(error) {
                     HideLoad();
@@ -107,7 +107,7 @@
             });
         });
 
-        function openConvertDialog(soId, items){
+        function openConvertDialog(soId, items, paymentterm){
             var rows = items.map(function(item){
                 var total = (parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2);
                 return `
@@ -142,6 +142,7 @@
                     </div>
                 `,
                 onContentReady: function() {
+                    this.$content.find('#convert_paymentterm').val(String(paymentterm));
                     this.$content.on('input', '.convert-qty', function(){
                         var row = $(this).closest('tr');
                         var price = parseFloat(row.data('price')) || 0;
