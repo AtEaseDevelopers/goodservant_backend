@@ -529,6 +529,9 @@ Route::group(['middleware' => ['auth']], function() {
         Route::get('/deliveryOrders/getprice/{deliveryorder_id}/{product_id}', [App\Http\Controllers\DeliveryOrderController::class, 'getprice']);
         Route::post('/deliveryOrders/combine-convert', [App\Http\Controllers\DeliveryOrderController::class, 'combineConvert'])->name('deliveryOrders.combine-convert');
         Route::resource('deliveryOrders', App\Http\Controllers\DeliveryOrderController::class);
+        // Documents made on a driver's phone without signal that need a look.
+        Route::get('/offlineReview', [App\Http\Controllers\OfflineReviewController::class, 'index'])->name('offlineReview.index');
+        Route::post('/offlineReview/{kind}/{id}/done', [App\Http\Controllers\OfflineReviewController::class, 'done'])->name('offlineReview.done');
         Route::post('/deliveryOrders/massdestroy', [App\Http\Controllers\DeliveryOrderController::class, 'massdestroy']);
         Route::get('/print/deliveryOrders/getDoViewPDF/{id}/{function}', [App\Http\Controllers\DeliveryOrderController::class, 'getDoViewPDF'])->name('deliveryorder.print');
     });

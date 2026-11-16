@@ -1,0 +1,33 @@
+{
+    "name": "Sales Order receipt",
+    "size": 12,
+    "margin": [30, 30, 30, 30],
+    "blocks": [
+        {"logo": true, "height": 55, "bottom": 8},
+        {"text": "{{company.name}}", "align": "center", "size": 12, "bold": true},
+        {"text": "{{company.ssm}}", "align": "center", "size": 12},
+        {"text": "{{company.address1}}", "align": "center", "size": 12},
+        {"text": "{{company.address2}}", "align": "center", "size": 12},
+        {"text": "{{company.address3}}", "align": "center", "size": 12},
+        {"if": "company.phone", "blocks": [
+            {"text": "Tel: {{company.phone}}", "align": "center", "size": 12}
+        ]},
+        {"space": 16},
+        {"row": [{"text": "Sales Order", "width": 35}, {"text": "{{doc.number}}", "align": "right"}]},
+        {"row": [{"text": "Sales Order Date", "width": 35}, {"text": "{{doc.datetime}}", "align": "right"}]},
+        {"row": [{"text": "Address", "width": 35}, {"text": "{{doc.customer_address}}", "cjk": true, "align": "right"}]},
+        {"row": [{"text": "Driver", "width": 35}, {"text": "{{doc.salesperson}}", "cjk": true, "align": "right"}]},
+        {"space": 15},
+        {"row": [{"text": "Customer", "width": 35, "bold": true}, {"text": "{{doc.customer_name}}", "cjk": true, "align": "right"}], "size": 16},
+        {"space": 16},
+        {"row": [{"text": "Product", "width": 40, "bold": true}, {"text": "Price (RM)", "width": 20, "align": "right", "bold": true}, {"text": "Qty", "width": 15, "align": "right", "bold": true}, {"text": "Subtotal", "align": "right", "bold": true}]},
+        {"each": "items", "blocks": [
+            {"row": [{"text": "{{name}}", "width": 40, "cjk": true}, {"text": "{{price}}", "width": 20, "align": "right"}, {"text": "{{qty_plain}}", "width": 15, "align": "right"}, {"text": "{{line_total}}", "align": "right"}], "size": 16}
+        ]},
+        {"space": 16},
+        {"row": [{"text": "Total", "bold": true}, {"text": "RM{{doc.total}}", "align": "right", "bold": true}], "size": 18},
+        {"if": "doc.remark", "blocks": [
+            {"text": "Remark : {{doc.remark}}", "cjk": true, "border_top": "dashed", "top": 10, "size": 14}
+        ]}
+    ]
+}

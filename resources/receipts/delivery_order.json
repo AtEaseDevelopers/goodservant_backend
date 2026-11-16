@@ -1,0 +1,38 @@
+{
+    "name": "Delivery Order receipt",
+    "size": 12,
+    "margin": [6, 12, 8, 12],
+    "blocks": [
+        {"logo": true, "height": 106, "width": 168},
+        {"text": "{{company.name}}", "align": "center", "size": 15, "bold": true},
+        {"text": "{{company.ssm}}", "align": "center", "size": 12},
+        {"text": "{{company.address1}}", "align": "center", "size": 12},
+        {"text": "{{company.address2}}", "align": "center", "size": 12},
+        {"text": "{{company.address3}}", "align": "center", "size": 12},
+        {"if": "company.phone", "blocks": [
+            {"text": "Tel: {{company.phone}}", "align": "center", "size": 12}
+        ]},
+        {"space": 8},
+        {"row": [{"text": "DELIVERY ORDER", "width": 42, "bold": true}, {"text": "{{doc.number}}", "align": "right"}]},
+        {"row": [{"text": "Date", "width": 42}, {"text": "{{doc.date}}", "align": "right"}]},
+        {"row": [{"text": "Payment Type", "width": 42}, {"text": "{{doc.payment_type}}", "align": "right"}]},
+        {"if": "doc.is_cheque", "blocks": [
+            {"row": [{"text": "Cheque No", "width": 42}, {"text": "{{doc.cheque_no}}", "align": "right"}]}
+        ]},
+        {"row": [{"text": "Address", "width": 42}, {"text": "{{doc.customer_address}}", "cjk": true, "align": "right"}]},
+        {"row": [{"text": "Driver", "width": 42}, {"text": "{{doc.salesperson}}", "cjk": true, "align": "right"}]},
+        {"space": 15},
+        {"row": [{"text": "Customer", "width": 42, "bold": true}, {"text": "{{doc.customer_name}}", "cjk": true, "align": "right"}], "size": 16},
+        {"rule": "solid", "thickness": 3},
+        {"each": "items", "blocks": [
+            {"row": [{"text": "{{name}}", "cjk": true}, {"text": "{{qty_plain}}", "width": 28, "align": "right", "cjk": true}], "size": 20, "pad": 8}
+        ]},
+        {"rule": "solid", "thickness": 3},
+        {"text": "Received by:", "top": 16, "size": 16},
+        {"space": 100},
+        {"rule": "solid", "thickness": 3, "width": 70},
+        {"if": "doc.remark", "blocks": [
+            {"text": "Remark : {{doc.remark}}", "cjk": true, "border_top": "dashed", "top": 10, "size": 14}
+        ]}
+    ]
+}

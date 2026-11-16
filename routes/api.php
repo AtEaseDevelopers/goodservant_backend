@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function () {
+Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version', 'offline.pending']], function () {
     Route::get('/testconnection', function (Request $request) {
         return 'OK';
     });
@@ -64,6 +64,9 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version']], function
     Route::get('/driver/invoice', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicelist']);
     Route::post('/driver/invoice/pdf', [App\Http\Controllers\Api\V1\DriverController::class, 'invoicepdf']);
     Route::post('/driver/invoice/bulk', [App\Http\Controllers\Api\V1\DriverController::class, 'addinvoicebulk']);
+    // Offline work: setup download (numbers, receipt layouts, server time) and late photo upload.
+    Route::get('/driver/offline/setup', [App\Http\Controllers\Api\V1\OfflineController::class, 'setup']);
+    Route::post('/driver/offline/attachments', [App\Http\Controllers\Api\V1\OfflineController::class, 'attachments']);
     Route::get('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicebyid']);
     Route::delete('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'cancelinvoice']);
 

@@ -2206,7 +2206,110 @@ class DriverController extends Controller
         }
     }
 
+    /**
+     * Online create. The app sends a request id (client_ref) made once per
+     * Create tap. When the reply is lost (weak signal) the app sends the same
+     * request again; the server then answers with the invoice it already
+     * saved instead of making a second one.
+     */
     public function addinvoice(Request $request){
+        return $this->oncePerRequestId($request, 'invoice', function () use ($request) {
+            return $this->addinvoiceNow($request);
+        });
+    }
+
+    /** Online create SO, safe to resend: see addinvoice(). */
+    public function addsalesorder(Request $request){
+        return $this->oncePerRequestId($request, 'sales_order', function () use ($request) {
+            return $this->addsalesorderNow($request);
+        });
+    }
+
+    /** Convert an SO, safe to resend: see addinvoice(). */
+    public function convertsalesorder(Request $request){
+        return $this->oncePerRequestId($request, 'convert', function () use ($request) {
+            return $this->convertsalesorderNow($request);
+        });
+    }
+
+    private function oncePerRequestId(Request $request, string $kind, callable $create){
+        $ref = $request->input('client_ref');
+        $ref = is_string($ref) && $ref !== '' ? substr($ref, 0, 64) : null;
+        if($ref){
+            $request->merge(['client_ref' => $ref]);
+            if($saved = $this->savedForRequestId($ref, $kind)){
+                return $saved;
+            }
+        }
+        try{
+            return $create();
+        }
+        catch(\Illuminate\Database\QueryException $e){
+            while(DB::transactionLevel() > 0){
+                DB::rollBack();
+            }
+            // The same request arrived twice at the same moment: the other
+            // one saved it.
+            if($ref && ($saved = $this->savedForRequestId($ref, $kind))){
+                return $saved;
+            }
+            throw $e;
+        }
+    }
+
+    /** The reply the app would have got the first time, or null. */
+    private function savedForRequestId(string $ref, string $kind){
+        if($kind === 'sales_order'){
+            $so = SalesOrder::where('client_ref', $ref)->first();
+            if(!$so){
+                return null;
+            }
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_add_successfully',
+                'data' => SalesOrder::where('id', $so->id)->with('salesorderdetail.product')->first()
+            ], 200);
+        }
+
+        $deliveryOrder = DeliveryOrder::where('client_ref', $ref)->first();
+        if($deliveryOrder){
+            return response()->json([
+                'result' => true,
+                'message' => __LINE__.$this->message_separator.'api.message.sales_order_converted_to_delivery_order',
+                'data' => $kind === 'convert'
+                    ? DeliveryOrder::where('id', $deliveryOrder->id)->with('deliveryorderdetail.product')->first()
+                    : [
+                        'id' => $deliveryOrder->id,
+                        'invoiceno' => $deliveryOrder->dono,
+                        'paymentterm' => 2,
+                        'status' => 0,
+                        'is_delivery_order' => true,
+                    ]
+            ], 200);
+        }
+
+        $invoice = Invoice::where('client_ref', $ref)->first();
+        if(!$invoice){
+            return null;
+        }
+        $iv = Invoice::where('id', $invoice->id)->with('invoicedetail.product', 'paymentAttachments')->first();
+        if($kind === 'invoice'){
+            try{
+                $credit = DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$iv->customer_id.');');
+                $iv->newcredit = $credit ? round($credit[0]->credit, 2) : 0;
+            }
+            catch(\Throwable $ex){
+                $iv->newcredit = 0;
+            }
+        }
+        return response()->json([
+            'result' => true,
+            'message' => __LINE__.$this->message_separator.($kind === 'convert' ? 'api.message.sales_order_converted_to_invoice' : 'api.message.invoice_add_successfully'),
+            'data' => $iv
+        ], 200);
+    }
+
+    private function addinvoiceNow(Request $request){
         try{
             $data = $request->all();
             //check session
@@ -2268,7 +2371,7 @@ class DriverController extends Controller
             //process
             DB::beginTransaction();
             if($customer->is_do_customer && (int) $data['type'] === 2){
-                $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $data['invoicedetail'], $data['date'] ?? date('Y-m-d H:i:s'), $data['remark'] ?? null, $data['cheque_no'] ?? null);
+                $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $data['invoicedetail'], $data['date'] ?? date('Y-m-d H:i:s'), $data['remark'] ?? null, $data['cheque_no'] ?? null, $data['client_ref'] ?? null);
                 Task::where('customer_id', $data['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
                 DB::commit();
                 return response()->json([
@@ -2315,6 +2418,7 @@ class DriverController extends Controller
             if($id != null){
                 $invoice->id = $id;
             }
+            $invoice->client_ref = !empty($data['client_ref']) ? $data['client_ref'] : null;
             $invoice->date = $data['date'] ?? date('Y-m-d H:i:s');
             $invoice->invoiceno = $invoiceno;
             $invoice->customer_id = $data['customer_id'];
@@ -2459,214 +2563,16 @@ class DriverController extends Controller
     }
 
     /**
-     * Bulk-create invoices that were queued on the device while offline
-     * (no/poor connectivity) and are now being synced back once the driver
-     * is online again. Each item is processed in its own DB transaction so
-     * one bad item doesn't fail the whole batch - the response reports
-     * which client_refs succeeded/failed so the mobile queue only keeps
-     * retrying the failed ones.
-     *
-     * Deliberately a SEPARATE, self-contained code path from addinvoice()
-     * rather than a shared refactor, so this new bulk/offline path can
-     * never regress the existing single-invoice online create path.
-     *
-     * Running numbers get an "A" prefix (AIV instead of IV) so anyone
-     * looking at an invoice can tell it was created while the driver had
-     * no signal at the time, same counter/sequence either way.
+     * Upload invoices the driver made on the phone without signal. Each one
+     * carries the phone's request id (client_ref) and its own offline number
+     * (IV2611/BK07/A0001, CS..., or DO... for a DO customer on credit), which
+     * was already printed for the customer. See App\Services\OfflineDocuments:
+     * a resent document returns the saved one, a used number is renumbered,
+     * an upload after End Trip lands on the trip it was made on, and problems
+     * are flagged for the office instead of rejected.
      */
     public function addinvoicebulk(Request $request){
-        try{
-            $driver = Driver::where('session', $request->header('session'))->first();
-            if(empty($driver)){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
-                    'data' => null
-                ], 401);
-            }
-            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            if(empty($trip) || $trip->type == 2){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                    'data' => null
-                ], 401);
-            }
-            $validator = Validator::make($request->all(), [
-                'invoices' => 'required|array|min:1',
-                'invoices.*.client_ref' => 'required|string',
-                'invoices.*.date' => 'nullable|date_format:Y-m-d H:i:s',
-                'invoices.*.customer_id' => 'required|numeric',
-                'invoices.*.type' => 'required|numeric|gt:0|lt:6',
-                'invoices.*.remark' => 'present|nullable|string',
-                'invoices.*.invoicedetail' => 'required|array',
-                'invoices.*.invoicedetail.*.product_id' => 'required',
-                'invoices.*.invoicedetail.*.quantity' => 'required',
-                'invoices.*.invoicedetail.*.price' => 'required',
-                'invoices.*.invoicedetail.*.foc' => 'required|boolean'
-            ]);
-            if ($validator->fails()) {
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
-                    'data' => null
-                ], 400);
-            }
-
-            $created = [];
-            $failed = [];
-
-            foreach($request->input('invoices') as $item){
-                DB::beginTransaction();
-                try{
-                    $customer = Customer::where('id', $item['customer_id'])->first();
-                    if(empty($customer)){
-                        throw new \Exception('Invalid customer');
-                    }
-
-                    if($customer->is_do_customer && (int) $item['type'] === 2){
-                        $deliveryOrder = $this->createDirectDeliveryOrder($customer, $driver, $trip, $item['invoicedetail'], $item['date'] ?? date('Y-m-d H:i:s'), $item['remark'] ?? null, $item['cheque_no'] ?? null);
-                        Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
-                        DB::commit();
-                        $created[] = [
-                            'client_ref' => $item['client_ref'],
-                            'invoice_id' => $deliveryOrder->id,
-                            'invoiceno' => $deliveryOrder->dono,
-                        ];
-                        continue;
-                    }
-
-                    // Same counter and format as an online invoice for this driver
-                    // (IV2610/CODE/0001, or CS for a cash sale). Offline uploads
-                    // take the next number in that same sequence.
-                    $invoiceno = Code::nextDocumentNumber($item['type'] == 2 ? 'IV' : 'CS', $driver->id, false);
-
-                    $invoice = new Invoice();
-                    $invoice->date = $item['date'] ?? date('Y-m-d H:i:s');
-                    $invoice->invoiceno = $invoiceno;
-                    $invoice->customer_id = $item['customer_id'];
-                    $invoice->driver_id = $trip->driver_id;
-                    $invoice->kelindan_id = $trip->kelindan_id;
-                    $invoice->agent_id = $customer->agent_id;
-                    $invoice->supervisor_id = $customer->supervisor_id;
-                    $invoice->paymentterm = $item['type'];
-                    $invoice->status = 1;
-                    $invoice->chequeno = $item['cheque_no'] ?? null;
-                    $invoice->remark = $item['remark'] ?? null;
-                    $invoice->trip_id = $trip->id;
-                    $invoice->save();
-
-                    $totalprice = 0;
-                    foreach($item['invoicedetail'] as $line){
-                        $product = Product::where('id', $line['product_id'])->first();
-                        if(empty($product)){
-                            throw new \Exception('Invalid product');
-                        }
-                        if(\App\Support\InvoiceDiscount::isDiscountProduct($product->id)){
-                            continue;
-                        }
-                        $invoicedetail = new InvoiceDetail();
-                        $invoicedetail->invoice_id = $invoice->id;
-                        $invoicedetail->product_id = $line['product_id'];
-                        $invoicedetail->quantity = $line['quantity'];
-                        $invoicedetail->price = $line['price'];
-                        $invoicedetail->totalprice = $line['quantity'] * $line['price'];
-                        $totalprice = $totalprice + $invoicedetail->totalprice;
-                        if($line['foc']){
-                            $invoicedetail->remark = "FOC";
-                        } else {
-                            $foc = Foc::where('customer_id', $customer->id)
-                                ->where('product_id', $line['product_id'])
-                                ->where('startdate', '<=', date('Y-m-d H:i:s'))
-                                ->where('enddate', '>', date('Y-m-d H:i:s'))
-                                ->where('status', 1)
-                                ->first();
-                            if($foc){
-                                $newAchieveQuantity = $foc->achievequantity + $line['quantity'];
-                                $newStatus = ($newAchieveQuantity >= $foc->quantity) ? 0 : 1;
-                                $foc->update([
-                                    'achievequantity' => $newAchieveQuantity,
-                                    'status' => $newStatus
-                                ]);
-                            }
-                        }
-                        $invoicedetail->save();
-
-                        $inventorybalance = InventoryBalance::where('lorry_id', $trip->lorry_id)->where('product_id', $line['product_id'])->first();
-                        if(empty($inventorybalance)){
-                            $newinventorybalance = new InventoryBalance();
-                            $newinventorybalance->lorry_id = $trip->lorry_id;
-                            $newinventorybalance->product_id = $line['product_id'];
-                            $newinventorybalance->quantity = 0 - $line['quantity'];
-                            $newinventorybalance->save();
-                        } else {
-                            $inventorybalance->quantity = $inventorybalance->quantity - $line['quantity'];
-                            $inventorybalance->save();
-                        }
-
-                        $inventorytransaction = new InventoryTransaction();
-                        $inventorytransaction->lorry_id = $trip->lorry_id;
-                        $inventorytransaction->product_id = $line['product_id'];
-                        $inventorytransaction->quantity = $line['quantity'] * -1;
-                        $inventorytransaction->type = 3;
-                        $inventorytransaction->remark = $invoice->invoiceno;
-                        $inventorytransaction->user = $driver->employeeid . " (".$driver->name.")";
-                        $inventorytransaction->date = date('Y-m-d H:i:s');
-                        $inventorytransaction->trip_id = $trip->id;
-                        $inventorytransaction->save();
-                    }
-
-                    $totalprice = $totalprice - \App\Support\InvoiceDiscount::set($invoice->id, $item['discount'] ?? 0);
-
-                    if(in_array((int) $item['type'], [1, 3, 4], true)){
-                        $invoicepayment = new InvoicePayment();
-                        $invoicepayment->invoice_id = $invoice->id;
-                        $invoicepayment->type = $item['type'];
-                        $invoicepayment->customer_id = $invoice->customer_id;
-                        $invoicepayment->amount = $totalprice;
-                        $invoicepayment->status = 1;
-                        $invoicepayment->driver_id = $driver->id;
-                        $invoicepayment->approve_by = $driver->name;
-                        $invoicepayment->approve_at = date('Y-m-d H:i:s');
-                        // Same change-on-receipt support as the online addinvoice path.
-                        if((int) $item['type'] === 1 && isset($item['cash_received']) && is_numeric($item['cash_received']) && $item['cash_received'] >= $totalprice){
-                            $invoicepayment->cash_received = $item['cash_received'];
-                        }
-                        $invoicepayment->save();
-                    }
-
-                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
-
-                    DB::commit();
-
-                    $created[] = [
-                        'client_ref' => $item['client_ref'],
-                        'invoice_id' => $invoice->id,
-                        'invoiceno' => $invoiceno,
-                    ];
-                }
-                catch(\Exception $e){
-                    DB::rollback();
-                    $failed[] = [
-                        'client_ref' => $item['client_ref'] ?? null,
-                        'message' => $e->getMessage(),
-                    ];
-                }
-            }
-
-            return response()->json([
-                'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.bulk_invoice_processed',
-                'data' => ['created' => $created, 'failed' => $failed]
-            ], 200);
-        }
-        catch(\Exception $e){
-            return response()->json([
-                'result' => false,
-                'message' => __LINE__.$this->message_separator.$e->getMessage(),
-                'data' => null
-            ], 500);
-        }
+        return $this->saveOfflineBatch($request, 'invoices', 'invoicedetail', 'api.message.bulk_invoice_processed');
     }
 
     /**
@@ -4961,7 +4867,7 @@ class DriverController extends Controller
     // No inventory/FOC effects here either - those only happen once an Invoice
     // actually exists (convertsalesorder / combineconvertdeliveryorder).
 
-    public function addsalesorder(Request $request){
+    private function addsalesorderNow(Request $request){
         try{
             $data = $request->all();
             //check session
@@ -5031,6 +4937,7 @@ class DriverController extends Controller
             }else{
                 $salesOrder = new SalesOrder();
                 $salesOrder->sono = Code::nextRunningNumber('sorunningnumber', 'SO');
+                $salesOrder->client_ref = !empty($data['client_ref']) ? $data['client_ref'] : null;
                 foreach($header as $column => $value){
                     $salesOrder->{$column} = $value;
                 }
@@ -5080,127 +4987,83 @@ class DriverController extends Controller
     }
 
     /**
-     * Bulk-create sales orders queued on the device while offline - see
-     * addinvoicebulk() for the full rationale (same design, no inventory/
-     * FOC/payment side effects here since SO doesn't touch stock).
-     * Running numbers get an "A" prefix (ASO instead of SO).
+     * Upload sales orders the driver made on the phone without signal. Each
+     * one carries the phone's request id (client_ref) and its own offline
+     * number (SO2611/BK07/A0001). See App\Services\OfflineDocuments for the
+     * rules: a resent document returns the saved one, a used number is
+     * renumbered, problems are flagged for the office instead of rejected.
+     * Each document is saved on its own, so one bad one never blocks the rest.
      */
     public function addsalesorderbulk(Request $request){
-        try{
-            $driver = Driver::where('session', $request->header('session'))->first();
-            if(empty($driver)){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
-                    'data' => null
-                ], 401);
-            }
-            $trip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->first();
-            if(empty($trip) || $trip->type == 2){
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.'api.message.trip_had_not_started',
-                    'data' => null
-                ], 401);
-            }
-            $validator = Validator::make($request->all(), [
-                'salesorders' => 'required|array|min:1',
-                'salesorders.*.client_ref' => 'required|string',
-                'salesorders.*.date' => 'nullable|date_format:Y-m-d H:i:s',
-                'salesorders.*.customer_id' => 'required|numeric',
-                'salesorders.*.remark' => 'present|nullable|string',
-                'salesorders.*.salesorderdetail' => 'required|array',
-                'salesorders.*.salesorderdetail.*.product_id' => 'required',
-                'salesorders.*.salesorderdetail.*.quantity' => 'required',
-                'salesorders.*.salesorderdetail.*.price' => 'required',
-                'salesorders.*.salesorderdetail.*.foc' => 'required|boolean'
-            ]);
-            if ($validator->fails()) {
-                return response()->json([
-                    'result' => false,
-                    'message' => __LINE__.$this->message_separator.$validator->errors()->first(),
-                    'data' => null
-                ], 400);
-            }
+        return $this->saveOfflineBatch($request, 'salesorders', 'salesorderdetail', 'api.message.bulk_sales_order_processed');
+    }
 
-            $created = [];
-            $failed = [];
-
-            foreach($request->input('salesorders') as $item){
-                DB::beginTransaction();
-                try{
-                    $customer = Customer::where('id', $item['customer_id'])->first();
-                    if(empty($customer)){
-                        throw new \Exception('Invalid customer');
-                    }
-
-                    // Same counter/format as an online SO (SO2609/0012),
-                    // just with an "A" right before the running number
-                    // itself (SO2609/A0012) to flag it as created offline.
-                    $sono = preg_replace('/\/(\d+)$/', '/A$1', Code::nextRunningNumber('sorunningnumber', 'SO'));
-
-                    $salesOrder = new SalesOrder();
-                    $salesOrder->sono = $sono;
-                    $salesOrder->date = $item['date'] ?? date('Y-m-d H:i:s');
-                    $salesOrder->customer_id = $item['customer_id'];
-                    $salesOrder->driver_id = $trip->driver_id;
-                    $salesOrder->kelindan_id = $trip->kelindan_id;
-                    $salesOrder->agent_id = $customer->agent_id;
-                    $salesOrder->supervisor_id = $customer->supervisor_id;
-                    $salesOrder->status = 0;
-                    $salesOrder->remark = $item['remark'] ?? null;
-                    $salesOrder->trip_id = $trip->id;
-                    $salesOrder->off_day = (bool) $customer->off_day;
-                    $salesOrder->save();
-
-                    foreach($item['salesorderdetail'] as $line){
-                        $product = Product::where('id', $line['product_id'])->first();
-                        if(empty($product)){
-                            throw new \Exception('Invalid product');
-                        }
-                        $detail = new SalesOrderDetail();
-                        $detail->sales_order_id = $salesOrder->id;
-                        $detail->product_id = $line['product_id'];
-                        $detail->quantity = $line['quantity'];
-                        $price = !empty($line['foc']) ? 0 : Product::priceForCustomer($product->id, $product->price, $salesOrder->customer_id);
-                        $detail->price = $price;
-                        $detail->totalprice = $line['quantity'] * $price;
-                        $detail->remark = $line['foc'] ? 'FOC' : null;
-                        $detail->save();
-                    }
-
-                    Task::where('customer_id', $item['customer_id'])->where('driver_id', $driver->id)->where('date', date('Y-m-d'))->whereIn('status', [0, 1])->update(['status' => 8]);
-
-                    DB::commit();
-
-                    $created[] = [
-                        'client_ref' => $item['client_ref'],
-                        'sales_order_id' => $salesOrder->id,
-                        'sono' => $sono,
-                    ];
-                }
-                catch(\Exception $e){
-                    DB::rollback();
-                    $failed[] = [
-                        'client_ref' => $item['client_ref'] ?? null,
-                        'message' => $e->getMessage(),
-                    ];
-                }
-            }
-
-            return response()->json([
-                'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.bulk_sales_order_processed',
-                'data' => ['created' => $created, 'failed' => $failed]
-            ], 200);
-        }
-        catch(\Exception $e){
+    /**
+     * Shared by the offline invoice and sales order uploads.
+     */
+    private function saveOfflineBatch(Request $request, string $listKey, string $linesKey, string $doneMessage){
+        $driver = Driver::where('session', $request->header('session'))->first();
+        if(empty($driver)){
             return response()->json([
                 'result' => false,
-                'message' => __LINE__.$this->message_separator.$e->getMessage(),
+                'message' => __LINE__.$this->message_separator.'api.message.invalid_session',
                 'data' => null
-            ], 500);
+            ], 401);
         }
+        $items = $request->input($listKey);
+        if(!is_array($items) || empty($items)){
+            return response()->json([
+                'result' => false,
+                'message' => __LINE__.$this->message_separator.'The '.$listKey.' field is required.',
+                'data' => null
+            ], 400);
+        }
+
+        $service = app(\App\Services\OfflineDocuments::class);
+        $created = [];
+        $failed = [];
+        foreach($items as $item){
+            $ref = is_array($item) ? ($item['client_ref'] ?? null) : null;
+            try{
+                $rules = [
+                    'client_ref' => 'required|string|max:64',
+                    'docno' => 'nullable|string|max:40',
+                    'date' => 'nullable|date_format:Y-m-d H:i:s',
+                    'customer_id' => 'required|numeric',
+                    'remark' => 'nullable|string',
+                    'cancelled' => 'nullable|boolean',
+                    $linesKey => 'required|array|min:1',
+                    $linesKey.'.*.product_id' => 'required|numeric',
+                    $linesKey.'.*.quantity' => 'required|numeric',
+                    $linesKey.'.*.price' => 'required|numeric',
+                    $linesKey.'.*.foc' => 'required|boolean',
+                ];
+                if($listKey === 'invoices'){
+                    $rules['type'] = 'required|numeric|gt:0|lt:6';
+                    $rules['discount'] = 'nullable|numeric|min:0';
+                }
+                $validator = Validator::make(is_array($item) ? $item : [], $rules);
+                if($validator->fails()){
+                    throw new \RuntimeException($validator->errors()->first());
+                }
+                $created[] = $listKey === 'invoices'
+                    ? $service->saveInvoice($driver, $item)
+                    : $service->saveSalesOrder($driver, $item);
+            }
+            catch(\Throwable $e){
+                report($e);
+                $failed[] = [
+                    'client_ref' => $ref,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'result' => true,
+            'message' => __LINE__.$this->message_separator.$doneMessage,
+            'data' => ['created' => $created, 'failed' => $failed]
+        ], 200);
     }
 
     /**
@@ -5402,7 +5265,7 @@ class DriverController extends Controller
      * lorry inventory and applies FOC rules, matching addinvoice() - the
      * DO path does not, since a DO isn't a completed sale yet.
      */
-    public function convertsalesorder(Request $request){
+    private function convertsalesorderNow(Request $request){
         try{
             $data = $request->all();
             $driver = Driver::where('session', $request->header('session'))->first();
@@ -5501,8 +5364,23 @@ class DriverController extends Controller
             }
             $paymentterm = (int) $data['paymentterm'];
             DB::beginTransaction();
+            // Hold the SO row: two converts of the same SO at the same moment
+            // (double tap, or two drivers) must not both make a document.
+            $held = SalesOrder::where('id', $salesOrder->id)->lockForUpdate()->first(['id', 'deliveryorder_id', 'invoice_id', 'status']);
+            if(empty($held) || !empty($held->deliveryorder_id) || !empty($held->invoice_id) || (int) $held->status === 2){
+                DB::rollback();
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.sales_order_already_converted',
+                    'data' => null
+                ], 400);
+            }
+            $clientRef = !empty($data['client_ref']) ? $data['client_ref'] : null;
             if($customer->is_do_customer && $paymentterm == 2){
                 $deliveryOrder = $this->convertSalesOrderToDeliveryOrder($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems);
+                if($clientRef){
+                    DeliveryOrder::where('id', $deliveryOrder->id)->update(['client_ref' => $clientRef]);
+                }
                 DB::commit();
                 $result = DeliveryOrder::where('id',$deliveryOrder->id)->with('deliveryorderdetail.product')->first();
                 return response()->json([
@@ -5512,6 +5390,9 @@ class DriverController extends Controller
                 ], 200);
             }else{
                 $invoice = $this->convertSalesOrderToInvoice($salesOrder, $paymentterm, $data['cheque_no'] ?? null, $quantityOverrides, $newItems, $data['cash_received'] ?? null, $data['discount'] ?? 0);
+                if($clientRef){
+                    Invoice::where('id', $invoice->id)->update(['client_ref' => $clientRef]);
+                }
                 $this->storePaymentAttachments($request, $invoice);
                 DB::commit();
                 $result = Invoice::where('id',$invoice->id)->with('invoicedetail.product', 'paymentAttachments')->first();
@@ -5536,9 +5417,10 @@ class DriverController extends Controller
      * A DO customer paying on credit gets a Delivery Order, not an invoice.
      * Stock is not deducted until that DO is converted to an invoice.
      */
-    private function createDirectDeliveryOrder($customer, $driver, $trip, $lines, $date, $remark, $chequeno){
+    private function createDirectDeliveryOrder($customer, $driver, $trip, $lines, $date, $remark, $chequeno, $clientRef = null){
         $deliveryOrder = new DeliveryOrder();
         $deliveryOrder->dono = Code::nextDocumentNumber('DO', $driver->id);
+        $deliveryOrder->client_ref = $clientRef ?: null;
         $deliveryOrder->date = $date;
         $deliveryOrder->customer_id = $customer->id;
         $deliveryOrder->driver_id = $trip->driver_id;

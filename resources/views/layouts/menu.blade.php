@@ -98,7 +98,7 @@
 @endcanany --}}
 
 @canany(['invoice'])
-<li class="nav-item nav-dropdown {{ Request::is('invoices*','invoiceDetails*','invoicePayments','salesOrders*','deliveryOrders*') ? 'open' : '' }}">
+<li class="nav-item nav-dropdown {{ Request::is('invoices*','invoiceDetails*','invoicePayments','salesOrders*','deliveryOrders*','offlineReview*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
         <i class="nav-icon icon-notebook"></i>
         <span>{{ trans('side_menu.invoices') }}</span>
@@ -116,6 +116,13 @@
             <li class="nav-item {{ Request::is('deliveryOrders*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('deliveryOrders*') ? 'active' : '' }}" href="{{ route('deliveryOrders.index') }}">
                     <span>{{ trans('side_menu.delivery_orders') }}</span>
+                </a>
+            </li>
+        </ul>
+        <ul class="nav-dropdown-items">
+            <li class="nav-item {{ Request::is('offlineReview*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('offlineReview*') ? 'active' : '' }}" href="{{ route('offlineReview.index') }}">
+                    <span>Offline Review</span>
                 </a>
             </li>
         </ul>

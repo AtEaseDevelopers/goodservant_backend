@@ -1,0 +1,46 @@
+{
+    "name": "Invoice / Cash Sale receipt",
+    "blocks": [
+        {"logo": true, "height": 106, "width": 168},
+        {"text": "{{company.name}}", "align": "center", "size": 15, "bold": true},
+        {"text": "{{company.ssm}}", "align": "center", "size": 12},
+        {"text": "{{company.address1}}", "align": "center", "size": 12},
+        {"text": "{{company.address2}}", "align": "center", "size": 12},
+        {"text": "{{company.address3}}", "align": "center", "size": 12},
+        {"if": "company.phone", "blocks": [
+            {"text": "Tel: {{company.phone}}", "align": "center", "size": 12}
+        ]},
+        {"space": 8},
+        {"row": [{"text": "{{doc.title}}", "width": 42, "bold": true}, {"text": "{{doc.number}}", "align": "right"}]},
+        {"row": [{"text": "Date", "width": 42}, {"text": "{{doc.date}}", "align": "right"}]},
+        {"row": [{"text": "Payment Type", "width": 42}, {"text": "{{doc.payment_type}}", "align": "right"}]},
+        {"if": "doc.is_cheque", "blocks": [
+            {"row": [{"text": "Cheque No", "width": 42}, {"text": "{{doc.cheque_no}}", "align": "right"}]}
+        ]},
+        {"row": [{"text": "Address", "width": 42}, {"text": "{{doc.customer_address}}", "cjk": true, "align": "right"}]},
+        {"row": [{"text": "Salesperson", "width": 42}, {"text": "{{doc.salesperson}}", "cjk": true, "align": "right"}]},
+        {"space": 6},
+        {"row": [{"text": "Customer", "width": 42, "bold": true}, {"text": "{{doc.customer_name}}", "cjk": true, "align": "right"}], "size": 16},
+        {"rule": "solid", "thickness": 3},
+        {"each": "items", "blocks": [
+            {"row": [{"text": "{{name}}", "cjk": true}, {"text": "RM{{line_total}}", "width": 32, "align": "right"}], "size": 18},
+            {"text": "{{qty}} x RM{{price}}", "size": 15, "bottom": 4}
+        ]},
+        {"rule": "solid", "thickness": 3},
+        {"if": "doc.has_discount", "blocks": [
+            {"row": [{"text": "Subtotal"}, {"text": "RM{{doc.subtotal}}", "align": "right"}], "size": 16},
+            {"row": [{"text": "Discount"}, {"text": "-RM{{doc.discount}}", "align": "right"}], "size": 16}
+        ]},
+        {"row": [{"text": "Total", "bold": true}, {"text": "RM{{doc.total}}", "align": "right", "bold": true}], "size": 18},
+        {"row": [{"text": "{{doc.payment_type}}"}, {"text": "RM{{doc.total}}", "align": "right"}], "size": 16},
+        {"if": "doc.has_change", "blocks": [
+            {"row": [{"text": "Cash Received"}, {"text": "RM{{doc.cash_received}}", "align": "right"}], "size": 18},
+            {"row": [{"text": "Change"}, {"text": "RM{{doc.change}}", "align": "right"}], "size": 18}
+        ]},
+        {"text": "Terima kasih atas sokongan anda", "align": "center", "top": 4},
+        {"row": [{"text": "{{doc.printed_at}}"}, {"text": "{{doc.number}}", "align": "right"}]},
+        {"if": "doc.remark", "blocks": [
+            {"text": "Remark : {{doc.remark}}", "cjk": true, "border_top": "dashed", "top": 10, "size": 14}
+        ]}
+    ]
+}
