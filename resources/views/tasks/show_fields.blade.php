@@ -1,56 +1,19 @@
-<!-- Date Field -->
-<div class="form-group">
-    {!! Form::label('date', __('tasks.date')) !!}:
-    <p>{{ $task->date }}</p>
+@include('partials.detail_styles')
+@php
+    [$statusClass, $statusText] = [
+        0 => ['secondary', __('tasks.new')],
+        1 => ['warning', __('tasks.in_progress')],
+        8 => ['success', __('tasks.completed')],
+        9 => ['danger', __('tasks.cancelled')],
+    ][$task->status] ?? ['secondary', '—'];
+@endphp
+<div class="mb-3">
+    <h2 class="dv-title">{{ $task->customer->company ?? '—' }} <span class="badge badge-{{ $statusClass }} align-middle ml-1">{{ $statusText }}</span></h2>
+    <div class="dv-sub">{{ $task->date }}</div>
 </div>
-
-<!-- Driver Id Field -->
-<div class="form-group">
-    {!! Form::label('driver_id', __('tasks.driver')) !!}:
-    <p>{{ $task->driver->name }}</p>
+<div class="row">
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('tasks.driver') }}</div><div class="dv-fact-value">{{ $task->driver->name ?? '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('tasks.sequence') }}</div><div class="dv-fact-value">{{ $task->sequence }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('tasks.invoice') }}</div><div class="dv-fact-value">{{ $task->invoice->invoiceno ?? '—' }}</div></div></div>
 </div>
-
-<!-- Customer Id Field -->
-<div class="form-group">
-    {!! Form::label('customer_id', __('tasks.customer')) !!}:
-    <p>{{ $task->customer->company }}</p>
-</div>
-
-<!-- Sequence Field -->
-<div class="form-group">
-    {!! Form::label('sequence', __('tasks.sequence')) !!}:
-    <p>{{ $task->sequence }}</p>
-</div>
-
-<!-- Invoice Id Field -->
-<div class="form-group">
-    {!! Form::label('invoice_id', __('tasks.invoice')) !!}:
-    <p>{{ $task->invoice->invoiceno ?? "" }}</p>
-</div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status', __('tasks.status')) !!}:
-    @if($task->status == 0)
-        <p>{{ __('tasks.new') }}</p>
-    @elseif($task->status == 1)
-        <p>{{ __('tasks.in_progress') }}</p>
-    @elseif($task->status == 8)
-        <p>{{ __('tasks.completed') }}</p>
-    @elseif($task->status == 9)
-        <p>{{ __('tasks.cancelled') }}</p>
-    @endif
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

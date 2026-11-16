@@ -1,60 +1,17 @@
-<!-- Product Id Field -->
-<div class="form-group">
-    {!! Form::label('product_id', __('focs.product')) !!}:
-    <p>{{ $foc->product->name }}</p>
+@include('partials.detail_styles')
+<div class="mb-3">
+    <h2 class="dv-title">
+        {{ __('detail.buy') }} {{ $foc->quantity }} × {{ $foc->product->name ?? '—' }}
+        <i class="fa fa-long-arrow-right text-muted mx-1"></i>
+        {{ __('detail.free') }} {{ $foc->free_quantity }} × {{ $foc->freeproduct->name ?? '—' }}
+        @include('partials.dv_status', ['active' => $foc->status == 1])
+    </h2>
+    <div class="dv-sub">{{ $foc->customer->company ?? '—' }}</div>
 </div>
-
-<!-- Customer Id Field -->
-<div class="form-group">
-    {!! Form::label('customer_id', __('focs.customer')) !!}:
-    <p>{{ $foc->customer->company }}</p>
+<div class="row">
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('focs.product') }}</div><div class="dv-fact-value">{{ $foc->product->name ?? '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('focs.free_product') }}</div><div class="dv-fact-value">{{ $foc->freeproduct->name ?? '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('focs.start_date') }}</div><div class="dv-fact-value">{{ $foc->startdate ?: '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('focs.end_date') }}</div><div class="dv-fact-value">{{ $foc->enddate ?: '—' }}</div></div></div>
 </div>
-
-<!-- Quantity Field -->
-<div class="form-group">
-    {!! Form::label('quantity', __('focs.quantity')) !!}:
-    <p>{{ $foc->quantity }}</p>
-</div>
-
-<!-- Free Product Id Field -->
-<div class="form-group">
-    {!! Form::label('free_product_id', __('focs.free_product')) !!}:
-    <p>{{ $foc->product->name }}</p>
-</div>
-
-<!-- Free Quantity Field -->
-<div class="form-group">
-    {!! Form::label('free_quantity', __('focs.free_quantity')) !!}:
-    <p>{{ $foc->free_quantity }}</p>
-</div>
-
-<!-- Startdate Field -->
-<div class="form-group">
-    {!! Form::label('startdate', __('focs.start_date')) !!}:
-    <p>{{ $foc->startdate }}</p>
-</div>
-
-<!-- Enddate Field -->
-<div class="form-group">
-    {!! Form::label('enddate', __('focs.end_date')) !!}:
-    <p>{{ $foc->enddate }}</p>
-</div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status', __('focs.status')) !!}:
-    <p>{{ $foc->status == 1 ? __('focs.active') : __('focs.unactive') }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

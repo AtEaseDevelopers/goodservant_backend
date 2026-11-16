@@ -1,60 +1,22 @@
-<!-- Code Field -->
-<div class="form-group">
-    {!! Form::label('code', __('companies.code') . ':') !!}
-    <p>{{ $company->code }}</p>
+@include('partials.detail_styles')
+@php $address = array_filter([$company->address1, $company->address2, $company->address3, $company->address4]); @endphp
+<div class="mb-3">
+    <h2 class="dv-title">
+        {{ $company->name }}
+        <span class="badge badge-light border align-middle ml-1">{{ $company->code }}</span>
+    </h2>
 </div>
-
-<!-- Name Field -->
-<div class="form-group">
-    {!! Form::label('name', __('companies.name') . ':') !!}
-    <p>{{ $company->name }}</p>
+<div class="row">
+    <div class="col-lg-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-building-o mr-1"></i> {{ __('detail.company') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('companies.ssm'), 'value' => $company->ssm])
+            @include('partials.dv_row', ['label' => __('companies.group'), 'value' => $company->group->description ?? null])
+        </dl>
+    </div></div>
+    <div class="col-lg-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-map-marker mr-1"></i> {{ __('detail.address') }}</div>
+        <dl><dd class="mt-1">@forelse($address as $line){{ $line }}<br>@empty — @endforelse</dd></dl>
+    </div></div>
 </div>
-
-<!-- Ssm Field -->
-<div class="form-group">
-    {!! Form::label('ssm', __('companies.ssm') . ':') !!}
-    <p>{{ $company->ssm }}</p>
-</div>
-
-<!-- Address1 Field -->
-<div class="form-group">
-    {!! Form::label('address1', __('companies.address1') . ':') !!}
-    <p>{{ $company->address1 }}</p>
-</div>
-
-<!-- Address2 Field -->
-<div class="form-group">
-    {!! Form::label('address2', __('companies.address2') . ':') !!}
-    <p>{{ $company->address2 }}</p>
-</div>
-
-<!-- Address3 Field -->
-<div class="form-group">
-    {!! Form::label('address3', __('companies.address3') . ':') !!}
-    <p>{{ $company->address3 }}</p>
-</div>
-
-<!-- Address4 Field -->
-<div class="form-group">
-    {!! Form::label('address4', __('companies.address4') . ':') !!}
-    <p>{{ $company->address4 }}</p>
-</div>
-
-<!-- Group Id Field -->
-<div class="form-group">
-    {!! Form::label('group_id', __('companies.group') . ':') !!}
-    <p>{{ $company->group->description }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

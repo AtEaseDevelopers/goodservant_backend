@@ -1,23 +1,21 @@
-<!-- Name Field -->
-<div class="form-group">
-    {!! Form::label('name', __('role.name')) !!}
-    <p>{{ $role->name }}</p>
+@include('partials.detail_styles')
+@php
+    $permissions = method_exists($role, 'permissions') ? $role->permissions->pluck('name') : collect();
+    if ($permissions->isEmpty() && $role->permission_name) {
+        $permissions = collect([$role->permission_name]);
+    }
+@endphp
+<div class="mb-3">
+    <h2 class="dv-title">{{ $role->name }}</h2>
 </div>
-
-<div class="form-group">
-    {!! Form::label('permission_id',  __('role.permissions')) !!}
-    <p>{{ $role->permission_name }}</p>
+<div class="dv-section">
+    <div class="dv-section-title"><i class="fa fa-key mr-1"></i> {{ __('role.permissions') }} ({{ $permissions->count() }})</div>
+    <div class="p-3">
+        @forelse($permissions->sort() as $permission)
+            <span class="badge badge-light border mr-1 mb-1 p-2">{{ $permission }}</span>
+        @empty
+            <span class="text-muted">—</span>
+        @endforelse
+    </div>
 </div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

@@ -1,78 +1,63 @@
-<!-- Invoice Id Field -->
-<div class="form-group">
-    {!! Form::label('invoice_id', __('invoice_payments.invoice')) !!}:
-    <p>{{ $invoicePayment->invoice->invoiceno ?? '' }}</p>
+@include('partials.detail_styles')
+@php
+    $p = $invoicePayment;
+    $type = [
+        1 => __('invoice_payments.cash'),
+        2 => __('invoice_payments.credit'),
+        3 => __('invoice_payments.online_bankin'),
+        4 => __('invoice_payments.ewallet'),
+        5 => __('invoice_payments.cheque') . ($p->chequeno ? ' · ' . $p->chequeno : ''),
+    ][$p->type] ?? __('invoice_payments.payment_term_unknown');
+    [$statusClass, $statusText] = [
+        0 => ['secondary', __('invoice_payments.new')],
+        1 => ['success', __('invoice_payments.completed')],
+        2 => ['danger', __('invoice_payments.canceled')],
+    ][$p->status] ?? ['secondary', '—'];
+    $attachment = $p->attachment;
+    $isImage = $attachment && preg_match('/\.(jpe?g|png|gif|webp)$/i', $attachment);
+@endphp
+<div class="mb-3">
+    <h2 class="dv-title">
+        RM {{ number_format($p->amount, 2) }}
+        <span class="badge badge-{{ $statusClass }} align-middle ml-1">{{ $statusText }}</span>
+    </h2>
+    <div class="dv-sub">{{ implode(' · ', array_filter([$type, $p->customer->company ?? null])) }}</div>
 </div>
-
-<!-- Type Field -->
-<div class="form-group">
-    {!! Form::label('type', __('invoice_payments.type')) !!}:
-    @if($invoicePayment->type == 1)
-         <p>{{ __('invoice_payments.cash') }}</p>
-    @elseif($invoicePayment->type == 2)
-        <p>{{ __('invoice_payments.credit') }}</p>
-    @elseif($invoicePayment->type == 3)
-        <p>{{ __('invoice_payments.online_bankin') }}</p>
-    @elseif($invoicePayment->type == 4)
-        <p>{{ __('invoice_payments.ewallet') }}</p>
-    @elseif($invoicePayment->type == 5)
-        <p>{{ __('invoice_payments.cheque') }} {{ '-' . $invoicePayment->chequeno }}</p>
-    @else
-        <p>{{ __('invoice_payments.payment_term_unknown') }}</p>
-    @endif
+<div class="row">
+    <div class="col-lg-4 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-money mr-1"></i> {{ __('detail.payment') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('invoice_payments.type'), 'value' => $type])
+            @include('partials.dv_row', ['label' => __('invoice_payments.amount'), 'value' => 'RM ' . number_format($p->amount, 2)])
+            @include('partials.dv_row', ['label' => __('invoice_payments.invoice'), 'value' => $p->invoice->invoiceno ?? null])
+        </dl>
+    </div></div>
+    <div class="col-lg-4 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-user-o mr-1"></i> {{ __('detail.customer') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('detail.company'), 'value' => $p->customer->company ?? null])
+            @include('partials.dv_row', ['label' => __('detail.code'), 'value' => $p->customer->code ?? null])
+        </dl>
+    </div></div>
+    <div class="col-lg-4 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-check-square-o mr-1"></i> {{ __('detail.approval') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('invoice_payments.approve_by'), 'value' => $p->approve_by])
+            @include('partials.dv_row', ['label' => __('invoice_payments.approve_at'), 'value' => $p->approve_at])
+            @include('partials.dv_row', ['label' => __('invoice_payments.remark'), 'value' => $p->remark])
+        </dl>
+    </div></div>
 </div>
-
-<!-- Customer Id Field -->
-<div class="form-group">
-    {!! Form::label('customer_id', __('invoice_payments.customer')) !!}:
-    <p>{{ $invoicePayment->customer->name ?? '' }}</p>
+@if($attachment)
+<div class="dv-section">
+    <div class="dv-section-title"><i class="fa fa-paperclip mr-1"></i> {{ __('invoice_payments.attachment') }}</div>
+    <div class="p-3">
+        @if($isImage)
+            <a href="{{ $attachment }}" target="_blank" rel="noopener"><img src="{{ $attachment }}" alt="" style="max-width:220px;max-height:220px;border:1px solid #e4e7ea;border-radius:4px;"></a>
+        @else
+            <a href="{{ $attachment }}" target="_blank" rel="noopener"><i class="fa fa-external-link"></i> {{ basename($attachment) }}</a>
+        @endif
+    </div>
 </div>
-
-<!-- Amount Field -->
-<div class="form-group">
-    {!! Form::label('amount', __('invoice_payments.amount')) !!}:
-    <p>{{ number_format($invoicePayment->amount, 2) }}</p>
-</div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status', __('invoice_payments.status')) !!}:
-    <p>{{ $invoicePayment->status == 2 ? __('invoice_payments.canceled') : ($invoicePayment->status == 1 ? __('invoice_payments.completed') : __('invoice_payments.new')) }}</p>
-</div>
-
-<!-- Attachment Field -->
-<div class="form-group">
-    {!! Form::label('attachment', __('invoice_payments.attachment')) !!}:
-    <p>{{ $invoicePayment->attachment }}</p>
-</div>
-
-<!-- Approve By Field -->
-<div class="form-group">
-    {!! Form::label('approve_by', __('invoice_payments.approve_by')) !!}:
-    <p>{{ $invoicePayment->approve_by }}</p>
-</div>
-
-<!-- Approve At Field -->
-<div class="form-group">
-    {!! Form::label('approve_at', __('invoice_payments.approve_at')) !!}:
-    <p>{{ $invoicePayment->approve_at }}</p>
-</div>
-
-<!-- Remark Field -->
-<div class="form-group">
-    {!! Form::label('remark', __('invoice_payments.remark')) !!}:
-    <p>{{ $invoicePayment->remark }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@endif
+@include('partials.detail_scripts')

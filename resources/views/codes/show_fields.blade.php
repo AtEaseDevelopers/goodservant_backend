@@ -1,84 +1,14 @@
-<!-- Code Field -->
-<div class="form-group">
-    {!! Form::label('code', __('codes.code')) !!}
-    <p>{{ $code->code }}</p>
+@include('partials.detail_styles')
+<div class="mb-3">
+    <h2 class="dv-title">
+        {{ $code->description }}
+        <span class="badge badge-light border align-middle ml-1">{{ $code->code }}</span>
+    </h2>
 </div>
-
-<!-- Description Field -->
-<div class="form-group">
-    {!! Form::label('description', __('codes.description')) !!}
-    <p>{{ $code->description }}</p>
+<div class="row">
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('codes.value') }}</div><div class="dv-fact-value">{{ $code->value ?? '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('codes.sequence') }}</div><div class="dv-fact-value">{{ $code->sequence ?? '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('codes.created_at') }}</div><div class="dv-fact-value">{{ $code->created_at ?: '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('codes.updated_at') }}</div><div class="dv-fact-value">{{ $code->updated_at ?: '—' }}</div></div></div>
 </div>
-
-<!-- Value Field -->
-<div class="form-group">
-    {!! Form::label('value', __('codes.value')) !!}
-    <p>{{ $code->value }}</p>
-</div>
-
-<!-- Sequence Field -->
-<div class="form-group">
-    {!! Form::label('sequence', __('codes.sequence')) !!}
-    <p>{{ $code->sequence }}</p>
-</div>
-
-{{-- <!-- Str Udf1 Field -->
-<div class="form-group">
-    {!! Form::label('STR_UDF1', 'String UDF1:') !!}
-    <p>{{ $code->STR_UDF1 }}</p>
-</div>
-
-<!-- Str Udf2 Field -->
-<div class="form-group">
-    {!! Form::label('STR_UDF2', 'String UDF2:') !!}
-    <p>{{ $code->STR_UDF2 }}</p>
-</div>
-
-<!-- Str Udf3 Field -->
-<div class="form-group">
-    {!! Form::label('STR_UDF3', 'String UDF3:') !!}
-    <p>{{ $code->STR_UDF3 }}</p>
-</div>
-
-<!-- Int Udf1 Field -->
-<div class="form-group">
-    {!! Form::label('INT_UDF1', 'Integer UDF1:') !!}
-    <p>{{ $code->INT_UDF1 }}</p>
-</div>
-
-<!-- Int Udf2 Field -->
-<div class="form-group">
-    {!! Form::label('INT_UDF2', 'Integer UDF2:') !!}
-    <p>{{ $code->INT_UDF2 }}</p>
-</div>
-
-<!-- Int Udf3 Field -->
-<div class="form-group">
-    {!! Form::label('INT_UDF3', 'Integer UDF3:') !!}
-    <p>{{ $code->INT_UDF3 }}</p>
-</div> --}}
-
-<!-- Created At Field -->
-<div class="form-group">
-    {!! Form::label('created_at', __('codes.created_at')) !!}
-    <p>{{ $code->created_at }}</p>
-</div>
-
-<!-- Updated At Field -->
-<div class="form-group">
-    {!! Form::label('updated_at', __('codes.updated_at')) !!}
-    <p>{{ $code->updated_at }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

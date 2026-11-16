@@ -1,48 +1,33 @@
-<!-- From Driver Id Field -->
-<div class="form-group">
-    {!! Form::label('from_driver_id', 'From Driver Id:') !!}
-    <p>{{ $inventoryTransfer->from_driver_id }}</p>
+@include('partials.detail_styles')
+@php
+    $t = $inventoryTransfer;
+    [$statusClass, $statusText] = [
+        1 => ['warning', __('detail.pending_accept')],
+        2 => ['success', __('detail.accepted')],
+        3 => ['danger', __('detail.rejected')],
+    ][$t->status] ?? ['secondary', '—'];
+@endphp
+<div class="mb-3">
+    <h2 class="dv-title">
+        {{ $t->product->name ?? '—' }} × {{ $t->quantity }}
+        <span class="badge badge-{{ $statusClass }} align-middle ml-1">{{ $statusText }}</span>
+    </h2>
 </div>
-
-<!-- From Lorry Id Field -->
-<div class="form-group">
-    {!! Form::label('from_lorry_id', 'From Lorry Id:') !!}
-    <p>{{ $inventoryTransfer->from_lorry_id }}</p>
+<div class="row">
+    <div class="col-md-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-sign-out mr-1"></i> {{ __('detail.from') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('detail.driver'), 'value' => $t->fromdriver->name ?? null])
+            @include('partials.dv_row', ['label' => __('detail.lorry'), 'value' => $t->fromlorry->lorryno ?? null])
+        </dl>
+    </div></div>
+    <div class="col-md-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-sign-in mr-1"></i> {{ __('detail.to') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('detail.driver'), 'value' => $t->todriver->name ?? null])
+            @include('partials.dv_row', ['label' => __('detail.lorry'), 'value' => $t->tolorry->lorryno ?? null])
+        </dl>
+    </div></div>
 </div>
-
-<!-- To Driver Id Field -->
-<div class="form-group">
-    {!! Form::label('to_driver_id', 'To Driver Id:') !!}
-    <p>{{ $inventoryTransfer->to_driver_id }}</p>
-</div>
-
-<!-- To Lorry Id Field -->
-<div class="form-group">
-    {!! Form::label('to_lorry_id', 'To Lorry Id:') !!}
-    <p>{{ $inventoryTransfer->to_lorry_id }}</p>
-</div>
-
-<!-- Product Id Field -->
-<div class="form-group">
-    {!! Form::label('product_id', 'Product Id:') !!}
-    <p>{{ $inventoryTransfer->product_id }}</p>
-</div>
-
-<!-- Quantity Field -->
-<div class="form-group">
-    {!! Form::label('quantity', 'Quantity:') !!}
-    <p>{{ $inventoryTransfer->quantity }}</p>
-</div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status', 'Status:') !!}
-    <p>{{ $inventoryTransfer->status }}</p>
-</div>
-
-<!-- Remark Field -->
-<div class="form-group">
-    {!! Form::label('remark', 'Remark:') !!}
-    <p>{{ $inventoryTransfer->remark }}</p>
-</div>
-
+<div class="dv-section"><div class="dv-section-title">{{ __('detail.remark') }}</div><dl><dd class="mt-1">{{ $t->remark ?: '—' }}</dd></dl></div>
+@include('partials.detail_scripts')

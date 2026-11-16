@@ -1,42 +1,22 @@
-<!-- Driver Code Field -->
-<div class="form-group">
-    {!! Form::label('driver_id', __('assign.driver_code')) !!}:
-    <p>{{ $assign->driver->employeeid }}</p>
+@include('partials.detail_styles')
+<div class="mb-3">
+    <h2 class="dv-title">{{ $assign->customer->company ?? '—' }}</h2>
+    <div class="dv-sub">{{ __('assign.sequence') }} {{ $assign->sequence }}</div>
 </div>
-
-<!-- Driver Name Field -->
-<div class="form-group">
-    {!! Form::label('driver_id', __('assign.driver_name')) !!}:
-    <p>{{ $assign->driver->name }}</p>
+<div class="row">
+    <div class="col-md-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-truck mr-1"></i> {{ __('detail.driver') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('assign.driver_name'), 'value' => $assign->driver->name ?? null])
+            @include('partials.dv_row', ['label' => __('assign.driver_code'), 'value' => $assign->driver->employeeid ?? null])
+        </dl>
+    </div></div>
+    <div class="col-md-6 mb-3"><div class="dv-section">
+        <div class="dv-section-title"><i class="fa fa-user-o mr-1"></i> {{ __('detail.customer') }}</div>
+        <dl>
+            @include('partials.dv_row', ['label' => __('assign.customer_company'), 'value' => $assign->customer->company ?? null])
+            @include('partials.dv_row', ['label' => __('assign.customer_code'), 'value' => $assign->customer->code ?? null])
+        </dl>
+    </div></div>
 </div>
-
-<!-- Customer Code Field -->
-<div class="form-group">
-    {!! Form::label('customer_id', __('assign.customer_code')) !!}:
-    <p>{{ $assign->customer->code }}</p>
-</div>
-
-<!-- Customer Company Field -->
-<div class="form-group">
-    {!! Form::label('customer_id', __('assign.customer_company')) !!}:
-    <p>{{ $assign->customer->company }}</p>
-</div>
-
-<!-- Sequence Field -->
-<div class="form-group">
-    {!! Form::label('sequence', __('assign.sequence')) !!}:
-    <p>{{ $assign->sequence }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

@@ -1,30 +1,6 @@
-<!-- Lorryno Field -->
-<div class="form-group">
-    {!! Form::label('lorryno',  __('lorries.lorry_no')) !!}:
-    <p>{{ $lorry->lorryno }}</p>
+@include('partials.detail_styles')
+<div class="mb-3">
+    <h2 class="dv-title">{{ $lorry->lorryno }} @include('partials.dv_status', ['active' => $lorry->status == 1])</h2>
 </div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status',  __('lorries.status')) !!}:
-    <p>{{ $lorry->status == 1 ? "Active" : "Unactive" }}</p>
-</div>
-
-<!-- remark Field -->
-<div class="form-group">
-    {!! Form::label('remark', __('lorries.remark')) !!}:
-    <p>{{ $lorry->remark }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+<div class="dv-section"><div class="dv-section-title">{{ __('detail.remark') }}</div><dl><dd class="mt-1">{{ $lorry->remark ?: '—' }}</dd></dl></div>
+@include('partials.detail_scripts')

@@ -13,9 +13,8 @@
                  <div class="row">
                      <div class="col-lg-12">
                          <div class="card">
-                             <div class="card-header">
-                                 <strong>{{ __('lorry_service.detail') }}</strong>
-                                  <a href="{{ route('servicedetails.index') }}" class="btn btn-light">Back</a>
+                             <div class="card-header d-flex align-items-center">
+                                 <a href="{{ route('servicedetails.index') }}" id="dv-back" class="btn btn-light btn-sm"><i class="fa fa-arrow-left"></i> {{ __('detail.back') }}</a>
                              </div>
                              <div class="card-body">
                                  @include('servicedetails.show_fields')

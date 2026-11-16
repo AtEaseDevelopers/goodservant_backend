@@ -1,48 +1,13 @@
-<!-- Lorry Id Field -->
-<div class="form-group">
-    {!! Form::label('lorry_id', __('lorry_service.lorry')) !!}:
-    <p>{{ $servicedetails->lorry->lorryno }}</p>
+@include('partials.detail_styles')
+@php $s = $servicedetails; @endphp
+<div class="mb-3">
+    <h2 class="dv-title">{{ __("lorry_service.type_" . str_replace(" ", "_", strtolower($s->type))) }}</h2>
+    <div class="dv-sub">{{ __('detail.lorry') }} {{ $s->lorry->lorryno ?? '—' }}</div>
 </div>
-
-<!-- Type Field -->
-<div class="form-group">
-    {!! Form::label('type', __('lorry_service.type')) !!}:
-    <p>{{ __("lorry_service.type_" . str_replace(" ", "_", strtolower($servicedetails->type))) }}</p>
+<div class="row mb-3">
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('lorry_service.date') }}</div><div class="dv-fact-value">{{ $s->date ?: '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('lorry_service.next_date') }}</div><div class="dv-fact-value">{{ $s->nextdate ?: '—' }}</div></div></div>
+    <div class="col-6 col-md-3 mb-2"><div class="dv-fact"><div class="dv-fact-label">{{ __('lorry_service.amount') }}</div><div class="dv-fact-value">RM {{ number_format($s->amount, 2) }}</div></div></div>
 </div>
-
-<!-- Date Field -->
-<div class="form-group">
-    {!! Form::label('date', __('lorry_service.date')) !!}:
-    <p>{{ $servicedetails->date }}</p>
-</div>
-
-<!-- Nextdate Field -->
-<div class="form-group">
-    {!! Form::label('nextdate', __('lorry_service.next_date')) !!}:
-    <p>{{ $servicedetails->nextdate }}</p>
-</div>
-
-<!-- Amount Field -->
-<div class="form-group">
-    {!! Form::label('amount', __('lorry_service.amount')) !!}:
-    <p>{{ number_format($servicedetails->amount, 2) }}</p>
-</div>
-
-<!-- Remark Field -->
-<div class="form-group">
-    {!! Form::label('remark', __('lorry_service.remark')) !!}:
-    <p>{{ $servicedetails->remark }}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+<div class="dv-section"><div class="dv-section-title">{{ __('detail.remark') }}</div><dl><dd class="mt-1">{{ $s->remark ?: '—' }}</dd></dl></div>
+@include('partials.detail_scripts')

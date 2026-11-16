@@ -10,155 +10,49 @@
      <div class="container-fluid">
           <div class="animated fadeIn">
                  @include('coreui-templates::common.errors')
-                 <div class="row">
-                     <div class="col-lg-12">
-                         <div class="card">
-                             <div class="card-header">
-                                 <strong>{{ __('trips.end_trip_summary') }}</strong>
-                                  <a href="{{ route('trips.index') }}" class="btn btn-light">Back</a>
-                             </div>
-                             <div class="card-body">
-                                 @include('trips.show_fields')
-                             </div>
-                         </div>
+                 <div class="card">
+                     <div class="card-header d-flex align-items-center">
+                         <a href="{{ route('trips.index') }}" id="dv-back" class="btn btn-light btn-sm">
+                             <i class="fa fa-arrow-left"></i> {{ __('detail.back') }}
+                         </a>
+                         <strong class="ml-2">{{ __('trips.end_trip_summary') }}</strong>
                      </div>
-                 </div>
+                     <div class="card-body">
+                         @include('trips.show_fields')
 
-                 <div class="row">
-                     <div class="col-lg-12">
-                         <div class="card">
-                             <div class="card-header">
-                                 <strong>{{ __('trips.product_sold') }}</strong>
-                               
-                             </div>
-                             <div class="card-body">
-                                <table class="table table-striped table-bordered dataTable" width="100%" role="grid" style="width: 100%;">
-                                    <thead>
-                                        <tr role="row">
-                                            <th>{{ __('trips.product') }}</th>
-                                            <th>{{ __('trips.quantity') }}</th>
-                                            <th>{{ __('trips.price') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if(count($trip->productsold['details']) == 0)
-                                            <tr class="odd">
-                                                <td valign="top" colspan="10" class="dataTables_empty">{{ __('trips.no_product_sold') }}</td>
-                                            </tr>
-                                        @endif
-                                        @foreach($trip->productsold['details'] as $i=>$invoicedetail)
-                                            @if( ($i+1) % 2 == 0 )
-
-                                                <tr class="even">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                    <td>{{ $invoicedetail->price }}</td>
-                                                   
-                                                </tr>
-                                            @else
-                                                <tr class="odd">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                    <td>{{ $invoicedetail->price }}</td>
-                                                </tr>
-                                            @endif
-                                        @endforeach
-                                    </tbody>
-                                </table>
-
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-
-                 <div class="row">
-                     <div class="col-lg-12">
-                         <div class="card">
-                             <div class="card-header">
-                                 <strong>{{ __('trips.product_foc') }}</strong>
-                               
-                             </div>
-                             <div class="card-body">
-                                <table class="table table-striped table-bordered dataTable" width="100%" role="grid" style="width: 100%;">
-                                    <thead>
-                                        <tr role="row">
-                                            <th>{{ __('trips.product') }}</th>
-                                            <th>{{ __('trips.quantity') }}</th>
-                                            <th>{{ __('trips.price') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if(count($trip->productfoc['details']) == 0)
-                                            <tr class="odd">
-                                                <td valign="top" colspan="10" class="dataTables_empty">{{ __('trips.no_product_foc') }}</td>
-                                            </tr>
-                                        @endif
-                                        @foreach($trip->productfoc['details'] as $i=>$invoicedetail)
-                                            @if( ($i+1) % 2 == 0 )
-
-                                                <tr class="even">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                   
-                                                   
-                                                </tr>
-                                            @else
-                                                <tr class="odd">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                   
-                                                </tr>
-                                            @endif
-                                        @endforeach
-                                    </tbody>
-                                </table>
-
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-
-                 <div class="row">
-                     <div class="col-lg-12">
-                         <div class="card">
-                             <div class="card-header">
-                                 <strong>{{ __('trips.wastage') }}</strong>
-                               
-                             </div>
-                             <div class="card-body">
-                                <table class="table table-striped table-bordered dataTable" width="100%" role="grid" style="width: 100%;">
-                                    <thead>
-                                        <tr role="row">
-                                            <th>{{ __('trips.product') }}</th>
-                                            <th>{{ __('trips.quantity') }}</th>
-                                            <th>{{ __('trips.price') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if(count($trip->wastage) == 0)
-                                            <tr class="odd">
-                                                <td valign="top" colspan="10" class="dataTables_empty">{{ __('trips.no_wastage') }}</td>
-                                            </tr>
-                                        @endif
-                                        @foreach($trip->wastage as $i=>$invoicedetail)
-                                            @if( ($i+1) % 2 == 0 )
-
-                                                <tr class="even">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                   
-                                                </tr>
-                                            @else
-                                                <tr class="odd">
-                                                    <td>{{ $invoicedetail->name }}</td>
-                                                    <td>{{ $invoicedetail->quantity }}</td>
-                                                </tr>
-                                            @endif
-                                        @endforeach
-                                    </tbody>
-                                </table>
-
-                             </div>
+                         @php
+                             $tables = [
+                                 ['fa-shopping-cart', __('trips.product_sold'), $trip->productsold['details'] ?? [], __('trips.no_product_sold'), true],
+                                 ['fa-gift', __('trips.product_foc'), $trip->productfoc['details'] ?? [], __('trips.no_product_foc'), false],
+                                 ['fa-trash-o', __('trips.wastage'), $trip->wastage ?? [], __('trips.no_wastage'), false],
+                             ];
+                         @endphp
+                         <div class="row mt-2">
+                             @foreach($tables as [$icon, $title, $rows, $empty, $withPrice])
+                                 <div class="col-lg-4 mb-3"><div class="dv-section">
+                                     <div class="dv-section-title"><i class="fa {{ $icon }} mr-1"></i> {{ $title }}</div>
+                                     <table class="table table-sm table-hover">
+                                         <thead class="thead-light">
+                                             <tr>
+                                                 <th class="pl-3">{{ __('trips.product') }}</th>
+                                                 <th class="text-right {{ $withPrice ? '' : 'pr-3' }}">{{ __('trips.quantity') }}</th>
+                                                 @if($withPrice)<th class="text-right pr-3">{{ __('trips.price') }}</th>@endif
+                                             </tr>
+                                         </thead>
+                                         <tbody>
+                                         @forelse($rows as $row)
+                                             <tr>
+                                                 <td class="pl-3">{{ $row->name }}</td>
+                                                 <td class="text-right {{ $withPrice ? '' : 'pr-3' }}">{{ $row->quantity }}</td>
+                                                 @if($withPrice)<td class="text-right pr-3">{{ is_numeric($row->price) ? number_format($row->price, 2) : $row->price }}</td>@endif
+                                             </tr>
+                                         @empty
+                                             <tr><td colspan="3" class="text-center text-muted py-3">{{ $empty }}</td></tr>
+                                         @endforelse
+                                         </tbody>
+                                     </table>
+                                 </div></div>
+                             @endforeach
                          </div>
                      </div>
                  </div>
@@ -166,16 +60,4 @@
     </div>
 @endsection
 
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('form a.btn-secondary')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

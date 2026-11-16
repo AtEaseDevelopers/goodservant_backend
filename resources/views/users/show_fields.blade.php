@@ -1,42 +1,18 @@
-<!-- Name Field -->
-<div class="form-group">
-    {!! Form::label('name', __('user.name')) !!}
-    <p>{!! $user->name !!}</p>
+@include('partials.detail_styles')
+<div class="mb-3">
+    <h2 class="dv-title">
+        {{ $user->name }}
+        @if($user->role_name)<span class="badge badge-info align-middle ml-1">{{ $user->role_name }}</span>@endif
+    </h2>
+    <div class="dv-sub">{{ $user->email }}</div>
 </div>
-
-<!-- Email Field -->
-<div class="form-group">
-    {!! Form::label('email', __('user.email')) !!}
-    <p>{!! $user->email !!}</p>
+<div class="dv-section">
+    <div class="dv-section-title"><i class="fa fa-user-o mr-1"></i> {{ __('detail.account') }}</div>
+    <dl>
+        @include('partials.dv_row', ['label' => __('user.email'), 'value' => $user->email])
+        @include('partials.dv_row', ['label' => __('user.role'), 'value' => $user->role_name])
+        @include('partials.dv_row', ['label' => __('user.created_at'), 'value' => $user->created_at])
+        @include('partials.dv_row', ['label' => __('user.updated_at'), 'value' => $user->updated_at])
+    </dl>
 </div>
-
-<!-- Role Id Field -->
-<div class="form-group">
-    {!! Form::label('role_id', __('user.role')) !!}
-    <p>{!! $user->role_name !!}</p>
-</div>
-
-<!-- Created At Field -->
-<div class="form-group">
-    {!! Form::label('created_at', __('user.created_at')) !!}
-    <p>{!! $user->created_at !!}</p>
-</div>
-
-<!-- Updated At Field -->
-<div class="form-group">
-    {!! Form::label('updated_at', __('user.updated_at')) !!}
-    <p>{!! $user->updated_at !!}</p>
-</div>
-
-@push('scripts')
-    <script>
-        $(document).keyup(function(e) {
-            if (e.key === "Escape") {
-                $('.card .card-header a')[0].click();
-            }
-        });
-        $(document).ready(function () {
-            HideLoad();
-        });
-    </script>
-@endpush
+@include('partials.detail_scripts')

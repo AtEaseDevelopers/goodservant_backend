@@ -1,146 +1,176 @@
-<!-- Code Field -->
-<div class="form-group">
-    {!! Form::label('code', __('customers.code')) !!}:
-    <p>{{ $customer->code }}</p>
-</div>
-
-<!-- Company Field -->
-<div class="form-group">
-    {!! Form::label('company', __('customers.company')) !!}:
-    <p>{{ $customer->company }}</p>
-</div>
-
-<div class="form-group">
-    {!! Form::label('second_description', 'Second Description') !!}:
-    <p>{{ $customer->second_description }}</p>
-</div>
-
 @php
-    if($customer->paymentterm == 1){
-        $paymentterm = __('customers.payment_term_cash');
-    }
-    if($customer->paymentterm == 2){
-        $paymentterm = __('customers.payment_term_bankin');
-    }
-    if($customer->paymentterm == 3){
-        $paymentterm = __('customers.payment_term_credit_note');
-    }
+    $dash = '—';
+    $paymentterm = [
+        1 => __('customers.payment_term_cash'),
+        2 => __('customers.payment_term_bankin'),
+        3 => __('customers.payment_term_credit_note'),
+    ][$customer->paymentterm] ?? $dash;
+    $groups = array_filter(array_map('trim', explode(',', (string) ($customer->group ?? ''))));
+    $addressLine2 = trim(implode(' ', array_filter([$customer->postcode ?? null, $customer->city ?? null])));
+    $addressLine3 = implode(', ', array_filter([$customer->state ?? null, $customer->country ?? null]));
+    $yesNo = fn($on) => $on
+        ? '<span class="badge badge-success">' . e(__('customers.yes')) . '</span>'
+        : '<span class="badge badge-secondary">' . e(__('customers.no')) . '</span>';
 @endphp
 
-<!-- Paymentterm Field -->
-<div class="form-group">
-    {!! Form::label('paymentterm', __('customers.payment_term')) !!}:
-    <p>{{ $paymentterm }}</p>
+@include('partials.detail_styles')
+
+{{-- Header: who this customer is --}}
+<div class="d-flex flex-wrap align-items-start justify-content-between mb-3">
+    <div>
+        <h2 class="dv-title">
+            {{ $customer->company ?: $dash }}
+            <span class="badge badge-light border align-middle ml-1">{{ $customer->code }}</span>
+            @if($customer->status == 1)
+                <span class="badge badge-success align-middle">{{ __('customers.active') }}</span>
+            @else
+                <span class="badge badge-secondary align-middle">{{ __('customers.unactive') }}</span>
+            @endif
+        </h2>
+        @if($customer->second_description || ($customer->chinese_name ?? null))
+            <div class="dv-sub">
+                {{ implode(' · ', array_filter([$customer->second_description, $customer->chinese_name ?? null])) }}
+            </div>
+        @endif
+    </div>
 </div>
 
-<!-- Is DO Customer Field -->
-<div class="form-group">
-    {!! Form::label('is_do_customer', __('customers.is_do_customer')) !!}:
-    <p>{{ $customer->is_do_customer ? 'Yes' : 'No' }}</p>
+{{-- Key facts at a glance --}}
+<div class="row mb-3">
+    <div class="col-6 col-md-3 mb-2">
+        <div class="dv-fact">
+            <div class="dv-fact-label">{{ __('customers.payment_term') }}</div>
+            <div class="dv-fact-value">{{ $paymentterm }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-2">
+        <div class="dv-fact">
+            <div class="dv-fact-label">{{ __('customers.price_category') }}</div>
+            <div class="dv-fact-value">{{ $priceCategory ?? __('customers.base_price') }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-2">
+        <div class="dv-fact">
+            <div class="dv-fact-label">{{ __('customers.do_customer') }}</div>
+            <div class="dv-fact-value">{!! $yesNo($customer->is_do_customer) !!}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 mb-2">
+        <div class="dv-fact">
+            <div class="dv-fact-label">{{ __('customers.off_day') }}</div>
+            <div class="dv-fact-value">{!! $yesNo($customer->off_day) !!}</div>
+        </div>
+    </div>
 </div>
 
-<!-- Off Day Field -->
-<div class="form-group">
-    {!! Form::label('off_day', 'Off Day') !!}:
-    <p>{{ $customer->off_day ? 'Yes' : 'No' }}</p>
+{{-- Details, grouped --}}
+<div class="row">
+    <div class="col-lg-4 mb-3">
+        <div class="dv-section">
+            <div class="dv-section-title"><i class="fa fa-address-card-o mr-1"></i> {{ __('customers.contact_details') }}</div>
+            <dl>
+                <dt>{{ __('customers.phone') }}</dt>
+                <dd>{{ $customer->phone ?: $dash }}</dd>
+                <dt>{{ __('customers.email') }}</dt>
+                <dd>{{ ($customer->email ?? null) ?: $dash }}</dd>
+                <dt>{{ __('customers.address') }}</dt>
+                <dd>
+                    @if($customer->address || $addressLine2 || $addressLine3)
+                        {{ $customer->address }}
+                        @if($addressLine2)<br>{{ $addressLine2 }}@endif
+                        @if($addressLine3)<br>{{ $addressLine3 }}@endif
+                    @else
+                        {{ $dash }}
+                    @endif
+                </dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-3">
+        <div class="dv-section">
+            <div class="dv-section-title"><i class="fa fa-truck mr-1"></i> {{ __('customers.sales_details') }}</div>
+            <dl>
+                <dt>{{ __('customers.group') }}</dt>
+                <dd>
+                    @forelse($groups as $g)
+                        <span class="badge badge-info mr-1">{{ $g }}</span>
+                    @empty
+                        {{ $dash }}
+                    @endforelse
+                </dd>
+                <dt>{{ __('customers.so_default_driver') }}</dt>
+                <dd>{{ $customer->soDefaultDriver->name ?? $dash }}</dd>
+                @if($customer->agent->name ?? null)
+                    <dt>{{ __('customers.agent') }}</dt>
+                    <dd>{{ $customer->agent->name }}</dd>
+                @endif
+                @if($customer->supervisor->name ?? null)
+                    <dt>{{ __('customers.operation') }}</dt>
+                    <dd>{{ $customer->supervisor->name }}</dd>
+                @endif
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-3">
+        <div class="dv-section">
+            <div class="dv-section-title"><i class="fa fa-file-text-o mr-1"></i> {{ __('customers.tax_details') }}</div>
+            <dl>
+                <dt>{{ __('customers.tin') }}</dt>
+                <dd>{{ $customer->tin ?: $dash }}</dd>
+                <dt>{{ __('customers.sst') }}</dt>
+                <dd>{{ $customer->sst ?: $dash }}</dd>
+                <dt>{{ __('customers.registration_no') }}</dt>
+                <dd>{{ ($customer->registration_no ?? null) ?: $dash }}</dd>
+                <dt>{{ __('customers.debtor_type') }}</dt>
+                <dd>{{ $customer->debtor_type ?: $dash }}</dd>
+            </dl>
+        </div>
+    </div>
 </div>
 
-<!-- Group Field -->
-<div class="form-group">
-    {!! Form::label('group', __('customers.group')) !!}:
-    <p>{{ $customer->group ?? '' }}</p>
-</div>
-
-<!-- Agent Id Field -->
-<div class="form-group">
-    {!! Form::label('agent_id', __('customers.agent')) !!}:
-    <p>{{ $customer->agent->name ?? '' }}</p>
-</div>
-
-<!-- Supervisor Id Field -->
-<div class="form-group">
-    {!! Form::label('supervisor_id', __('customers.operation')) !!}:
-    <p>{{ $customer->supervisor->name ?? '' }}</p>
-</div>
-
-<!-- SO Default Driver Field -->
-<div class="form-group">
-    {!! Form::label('so_default_driver_id', 'SO Default Driver') !!}:
-    <p>{{ $customer->soDefaultDriver->name ?? '—' }}</p>
-</div>
-
-<!-- Phone Field -->
-<div class="form-group">
-    {!! Form::label('phone', __('customers.phone')) !!}:
-    <p>{{ $customer->phone }}</p>
-</div>
-
-<!-- Address Field -->
-<div class="form-group">
-    {!! Form::label('address', __('customers.address')) !!}:
-    <p>{{ $customer->address }}</p>
-</div>
-
-<!-- Sst Field -->
-<div class="form-group">
-    {!! Form::label('sst', __('customers.sst')) !!}:
-    <p>{{ $customer->sst }}</p>
-</div>
-
-<!-- Tin Field -->
-<div class="form-group">
-    {!! Form::label('tin', __('customers.tin')) !!}:
-    <p>{{ $customer->tin }}</p>
-</div>
-
-<!-- Debtor Type Field (from AutoCount, read-only) -->
-<div class="form-group">
-    {!! Form::label('debtor_type', __('customers.debtor_type')) !!}:
-    <p>{{ $customer->debtor_type ?? '—' }}</p>
-</div>
-
-<!-- Status Field -->
-<div class="form-group">
-    {!! Form::label('status', __('customers.status')) !!}:
-    <p>{{ $customer->status == 1 ? __('customers.active') : __('customers.unactive') }}</p>
-</div>
-
-<!-- Price Category Field -->
-<div class="form-group">
-    {!! Form::label('product_price_category_id', 'Price Category') !!}:
-    <p>{{ $priceCategory ?? '—' }}</p>
-</div>
-
-<!-- Price list for this customer (read-only) -->
-<div class="form-group">
-    {!! Form::label('price_list', 'Pricing for this customer') !!}
-    @if(empty($priceCategory))
-        <p class="text-muted mb-2">No price category assigned — every product uses its base price.</p>
-    @endif
-    <table class="table table-sm table-bordered">
-        <thead>
-            <tr>
-                <th>Code</th>
-                <th>Product</th>
-                <th class="text-right">Base Price</th>
-                <th class="text-right">{{ $priceCategory ? e($priceCategory).' Price' : 'Category Price' }}</th>
-                <th class="text-right">Price Applied</th>
-            </tr>
-        </thead>
-        <tbody>
-        @forelse($priceList as $item)
-            <tr>
-                <td>{{ $item->code }}</td>
-                <td>{{ $item->name }}</td>
-                <td class="text-right">{{ number_format($item->base_price, 2) }}</td>
-                <td class="text-right">{{ is_null($item->category_price) ? '—' : number_format($item->category_price, 2) }}</td>
-                <td class="text-right"><strong>{{ number_format($item->effective_price, 2) }}</strong></td>
-            </tr>
-        @empty
-            <tr><td colspan="5" class="text-center text-muted">No active products.</td></tr>
-        @endforelse
-        </tbody>
-    </table>
+{{-- Pricing for this customer (read-only) --}}
+<div class="dv-section">
+    <div class="dv-section-title d-flex justify-content-between align-items-center">
+        <span><i class="fa fa-tags mr-1"></i> {{ __('customers.pricing_for_customer') }}</span>
+        <span class="text-muted font-weight-normal text-none" style="text-transform:none;letter-spacing:0">
+            {{ empty($priceCategory) ? __('customers.no_price_category') : __('customers.pricing_hint') }}
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 dv-price-table">
+            <thead class="thead-light">
+                <tr>
+                    <th class="pl-3">{{ __('customers.code') }}</th>
+                    <th>{{ __('customers.product') }}</th>
+                    <th class="text-right">{{ __('customers.base_price') }}</th>
+                    <th class="text-right">{{ $priceCategory ? e($priceCategory) : __('customers.category_price') }}</th>
+                    <th class="text-right pr-3">{{ __('customers.price_applied') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($priceList as $item)
+                <tr>
+                    <td class="pl-3 text-muted">{{ $item->code }}</td>
+                    <td>{{ $item->name }}</td>
+                    <td class="text-right">{{ number_format($item->base_price, 2) }}</td>
+                    <td class="text-right">{{ is_null($item->category_price) ? $dash : number_format($item->category_price, 2) }}</td>
+                    <td class="text-right pr-3">
+                        <strong>{{ number_format($item->effective_price, 2) }}</strong>
+                        @if(!is_null($item->category_price))
+                            <span class="badge badge-primary ml-1">{{ __('customers.price_source_category') }}</span>
+                        @else
+                            <span class="badge badge-light border ml-1">{{ __('customers.price_source_base') }}</span>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="text-center text-muted py-3">{{ __('customers.no_active_products') }}</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 @push('scripts')
