@@ -114,9 +114,19 @@ class Code extends Model
     }
 
     /**
-     * Next invoice or cash-sale number for one driver:
-     * {IV|CS}{yymm}/{driver code}/{0001}. Each driver has a separate counter
-     * that resets every calendar month. Online and offline invoices share it.
+     * Next invoice, cash-sale or DO number for one driver:
+     * {IV|CS|DO}{yymm}/{driver code}/{0001}.
+     *
+     * The number is the driver's highest number of that type this month + 1,
+     * read from the documents themselves (no counter is kept): the first one
+     * of each month is 0001. Cancelled documents still count (their number
+     * stays used); offline numbers (.../A0001) are a separate series and do
+     * not count. A cancelled number of this month is handed out again first,
+     * as before.
+     *
+     * The driver's row is held until the caller's transaction ends, so two
+     * documents for one driver cannot take the same number; the unique index
+     * on the number column is the last line of defence.
      *
      * A driver with no code uses "00".
      */
@@ -128,11 +138,11 @@ class Code extends Model
         }
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $reuseCancelled) {
-            static::lockDocumentCounters($prefix);
-
-            $driver = $driverId ? Driver::find($driverId) : null;
+            $driver = $driverId ? Driver::where('id', $driverId)->lockForUpdate()->first() : null;
+            if (!$driver) {
+                static::lockDocumentCounters($prefix);
+            }
             $docCode = $driver ? $driver->documentCode() : '00';
-            $row = static::documentCounterRow($prefix, $driver->id ?? 0);
             $period = date('ym');
 
             if ($reuseCancelled && $prefix !== 'DO') {
@@ -142,86 +152,34 @@ class Code extends Model
                 }
             }
 
-            if ($row->STR_UDF1 !== $period) {
-                $row->value = 1;
-                $row->STR_UDF1 = $period;
-            } else {
-                $row->value = ((int) $row->value) + 1;
-            }
-            $row->save();
+            $stem = $prefix . $period . '/' . $docCode . '/';
+            [$table, $column] = $prefix === 'DO' ? ['deliveryorders', 'dono'] : ['invoices', 'invoiceno'];
+            $row = \Illuminate\Support\Facades\DB::table($table)
+                ->where($column, 'like', $stem . '%')
+                ->where($column, 'not like', $stem . 'A%')
+                ->selectRaw('MAX(CAST(SUBSTRING(' . $column . ', ?) AS UNSIGNED)) as seq', [strlen($stem) + 1])
+                ->first();
 
-            return $prefix . $period . '/' . $docCode . '/' . sprintf('%04d', $row->value);
+            return $stem . sprintf('%04d', ((int) ($row->seq ?? 0)) + 1);
         });
     }
 
     /**
-     * A number the phone already used (an offline invoice uploaded with its
-     * own number) must move this driver's counter forward, so the next one
-     * issued here does not repeat it.
+     * Kept for older app versions that send their own number: nothing to do,
+     * because the next number is always read from the saved documents.
      */
     public static function acknowledgeDocumentNumber(string $prefix, $driverId, ?string $number): void
     {
-        if (!$driverId || $number === null || $number === '') {
-            return;
-        }
-
-        $prefix = strtoupper($prefix) === 'IV' ? 'IV' : 'CS';
-        $driver = Driver::find($driverId);
-        if (!$driver) {
-            return;
-        }
-
-        $pattern = '/^' . $prefix . '(\d{4})\/' . preg_quote($driver->documentCode(), '/') . '\/(\d+)$/';
-        if (!preg_match($pattern, $number, $matches)) {
-            return;
-        }
-
-        $period = $matches[1];
-        $sequence = (int) $matches[2];
-
-        \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driver, $period, $sequence) {
-            static::lockDocumentCounters($prefix);
-            $row = static::documentCounterRow($prefix, $driver->id);
-
-            if ($row->STR_UDF1 !== $period) {
-                $row->STR_UDF1 = $period;
-                $row->value = $sequence;
-            } else {
-                $row->value = max((int) $row->value, $sequence);
-            }
-            $row->save();
-        });
     }
 
     /**
-     * Hold the shared counter row so two invoices cannot take the same number.
+     * Documents without a driver: hold a shared row so two of them cannot take
+     * the same number.
      */
     protected static function lockDocumentCounters(string $prefix): void
     {
-        if ($prefix === 'DO') {
-            return;
-        }
-        $shared = $prefix === 'IV' ? 'invoicerunningnumber' : 'cashsalesrunningnumber';
+        $shared = ['IV' => 'invoicerunningnumber', 'CS' => 'cashsalesrunningnumber', 'DO' => 'dorunningnumber'][$prefix] ?? 'cashsalesrunningnumber';
         static::where('code', $shared)->lockForUpdate()->first();
-    }
-
-    protected static function documentCounterRow(string $prefix, int $driverId): self
-    {
-        $key = strtolower($prefix) . 'runningnumber:' . $driverId;
-        $row = static::where('code', $key)->lockForUpdate()->first();
-        if ($row) {
-            return $row;
-        }
-
-        $row = new static();
-        $row->code = $key;
-        $row->description = $prefix . ' running number for driver ' . $driverId;
-        $row->value = 0;
-        $row->sequence = 0;
-        $row->STR_UDF1 = date('ym');
-        $row->save();
-
-        return static::where('id', $row->id)->lockForUpdate()->first();
     }
 
     /**
@@ -232,7 +190,7 @@ class Code extends Model
      * stays unique. Invoices already sent to AutoCount are left alone - their
      * number exists there and must not be issued twice.
      *
-     * Must run inside the caller's transaction (the counter row is locked).
+     * Must run inside the caller's transaction (the driver row is held).
      */
     protected static function takeCancelledInvoiceNumber(string $prefix, string $period, ?string $docCode = null): ?string
     {
