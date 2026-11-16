@@ -2,156 +2,87 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\CodeDataTable;
-use App\Http\Requests;
-use App\Http\Requests\CreateCodeRequest;
-use App\Http\Requests\UpdateCodeRequest;
-use App\Repositories\CodeRepository;
+use App\Models\Code;
 use Flash;
-use App\Http\Controllers\AppBaseController;
-use Response;
-use Illuminate\Support\Facades\Crypt;
+use Illuminate\Http\Request;
 
+/**
+ * The Codes page now only edits the three driver-app update settings:
+ * latest app version and the Android / iPhone update links.
+ *
+ * The other rows in the codes table are system values (running numbers,
+ * day colours, email receivers, commission and reminder settings) that the
+ * system reads by code. They are kept but not shown, so nobody changes or
+ * deletes them by mistake.
+ */
 class CodeController extends AppBaseController
 {
-    /** @var CodeRepository $codeRepository*/
-    private $codeRepository;
+    public const APP_SETTINGS = [
+        'mobile_app_latest_version' => 'Latest app version',
+        'mobile_app_update_url_android' => 'Android update link',
+        'mobile_app_update_url_ios' => 'iPhone update link',
+    ];
 
-    public function __construct(CodeRepository $codeRepo)
+    public function index()
     {
-        $this->codeRepository = $codeRepo;
+        $values = Code::whereIn('code', array_keys(self::APP_SETTINGS))->pluck('value', 'code');
+
+        return view('codes.app_update', [
+            'settings' => self::APP_SETTINGS,
+            'values' => $values,
+        ]);
     }
 
-    /**
-     * Display a listing of the Code.
-     *
-     * @param CodeDataTable $codeDataTable
-     *
-     * @return Response
-     */
-    public function index(CodeDataTable $codeDataTable)
+    public function saveAppUpdate(Request $request)
     {
-        return $codeDataTable->render('codes.index');
+        $data = $request->validate([
+            'mobile_app_latest_version' => ['required', 'regex:/^\d+\.\d+\.\d+$/'],
+            'mobile_app_update_url_android' => ['nullable', 'url', 'max:255'],
+            'mobile_app_update_url_ios' => ['nullable', 'url', 'max:255'],
+        ], [
+            'mobile_app_latest_version.regex' => 'The version must look like 1.0.72.',
+        ]);
+
+        foreach (self::APP_SETTINGS as $code => $label) {
+            Code::updateOrCreate(
+                ['code' => $code],
+                ['value' => trim((string) ($data[$code] ?? '')), 'description' => $label]
+            );
+        }
+
+        Flash::success('App update settings saved.');
+
+        return redirect(route('codes.index'));
     }
 
-    /**
-     * Show the form for creating a new Code.
-     *
-     * @return Response
-     */
+    /** Other Codes actions are closed: the remaining rows are system values. */
     public function create()
     {
-        return view('codes.create');
-    }
-
-    /**
-     * Store a newly created Code in storage.
-     *
-     * @param CreateCodeRequest $request
-     *
-     * @return Response
-     */
-    public function store(CreateCodeRequest $request)
-    {
-        $input = $request->all();
-
-        $code = $this->codeRepository->create($input);
-
-        Flash::success(__('codes.code_saved_successfully'));
-
         return redirect(route('codes.index'));
     }
 
-    /**
-     * Display the specified Code.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
+    public function store(Request $request)
+    {
+        return redirect(route('codes.index'));
+    }
+
     public function show($id)
     {
-        $id = Crypt::decrypt($id);
-        $code = $this->codeRepository->find($id);
-
-        if (empty($code)) {
-            Flash::error(__('codes.code_not_found'));
-
-            return redirect(route('codes.index'));
-        }
-
-        return view('codes.show')->with('code', $code);
-    }
-
-    /**
-     * Show the form for editing the specified Code.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
-    public function edit($id)
-    {
-        $id = Crypt::decrypt($id);
-        $code = $this->codeRepository->find($id);
-
-        if (empty($code)) {
-            Flash::error(__('codes.code_not_found'));
-
-            return redirect(route('codes.index'));
-        }
-
-        return view('codes.edit')->with('code', $code);
-    }
-
-    /**
-     * Update the specified Code in storage.
-     *
-     * @param int $id
-     * @param UpdateCodeRequest $request
-     *
-     * @return Response
-     */
-    public function update($id, UpdateCodeRequest $request)
-    {
-        $id = Crypt::decrypt($id);
-        $code = $this->codeRepository->find($id);
-
-        if (empty($code)) {
-            Flash::error(__('codes.code_not_found'));
-
-            return redirect(route('codes.index'));
-        }
-
-        $code = $this->codeRepository->update($request->all(), $id);
-
-        Flash::success(__('codes.code_updated_successfully'));
-
         return redirect(route('codes.index'));
     }
 
-    /**
-     * Remove the specified Code from storage.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
+    public function edit($id)
+    {
+        return redirect(route('codes.index'));
+    }
+
+    public function update($id, Request $request)
+    {
+        return redirect(route('codes.index'));
+    }
+
     public function destroy($id)
     {
-        $id = Crypt::decrypt($id);
-        $code = $this->codeRepository->find($id);
-
-        if (empty($code)) {
-            Flash::error(__('codes.code_not_found'));
-
-            return redirect(route('codes.index'));
-        }
-
-        $this->codeRepository->delete($id);
-
-        Flash::success(__('codes.code_deleted_successfully'));
-
         return redirect(route('codes.index'));
     }
 }

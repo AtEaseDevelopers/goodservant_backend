@@ -565,6 +565,7 @@ Route::group(['middleware' => ['auth']], function() {
 
 
     Route::group(['middleware' => ['permission:code']], function() {
+        Route::post('codes/app-update', [App\Http\Controllers\CodeController::class, 'saveAppUpdate'])->name('codes.appUpdate');
         Route::resource('codes', App\Http\Controllers\CodeController::class);
     });
 

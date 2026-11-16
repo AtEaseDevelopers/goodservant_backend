@@ -405,6 +405,15 @@
 @endcanany
 @endif
 
+@can('code')
+<li class="nav-item {{ Request::is('codes*') ? 'active' : '' }}">
+    <a class="nav-link {{ Request::is('codes*') ? 'active' : '' }}" href="{{ route('codes.index') }}">
+        <i class="nav-icon fa fa-mobile"></i>
+        <span>App Update</span>
+    </a>
+</li>
+@endcan
+
 @canany(['user','userrole','role','rolepermission'])
 <li class="nav-item nav-dropdown {{ Request::is('users*','userHasRoles*','roles*','roleHasPermissions*','permissions*') ? 'open' : '' }}">
     <a class="nav-link nav-dropdown-toggle" href="#">
