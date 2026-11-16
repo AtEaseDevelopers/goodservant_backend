@@ -142,7 +142,7 @@ class TripDataTable extends DataTable
                         if(columns[index].searchable){
                             if(columns[index].title == \'Type\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Start Trip</option><option value="2">End Trip</option></select>\';
-                            }else if(columns[index].title == \'Date\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('trips.date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
@@ -169,7 +169,11 @@ class TripDataTable extends DataTable
             'data' => 'id',
             'name' => 'id']),
 
-            'date',
+            'date' => new \Yajra\DataTables\Html\Column(['title' => trans('trips.date'),
+
+            'data' => 'date',
+
+            'name' => 'date']),
 
             'driver_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('trips.driver'),
             'data' => 'driver.name',

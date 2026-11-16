@@ -7,7 +7,7 @@
 <!-- Type Field -->
 <div class="form-group">
     {!! Form::label('type', __('lorry_service.type')) !!}:
-    <p>{{ __("lorry_service.type_" . strtolower($servicedetails->type)) }}</p>
+    <p>{{ __("lorry_service.type_" . str_replace(" ", "_", strtolower($servicedetails->type))) }}</p>
 </div>
 
 <!-- Date Field -->

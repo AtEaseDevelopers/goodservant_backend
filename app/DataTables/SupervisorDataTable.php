@@ -171,7 +171,7 @@ class SupervisorDataTable extends DataTable
             'data' => 'bankdetails1',
             'name' => 'bankdetails1']),
 
-            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => 'Bank Details 2',
+            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => trans('operations.bank_details_2'),
             'data' => 'bankdetails2',
             'name' => 'bankdetails2']),
 
@@ -183,7 +183,7 @@ class SupervisorDataTable extends DataTable
             'data' => 'secondvaccine',
             'name' => 'secondvaccine']),
 
-            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => 'Body Temperature',
+            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => trans('operations.body_temperature'),
             'data' => 'temperature',
             'name' => 'temperature']),*/
 

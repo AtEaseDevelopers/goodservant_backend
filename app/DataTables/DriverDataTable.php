@@ -170,7 +170,7 @@ class DriverDataTable extends DataTable
             'data' => 'employeeid',
             'name' => 'drivers.employeeid']),
 
-            'doc_code'=> new \Yajra\DataTables\Html\Column(['title' => 'Invoice code',
+            'doc_code'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.invoice_code'),
             'data' => 'doc_code',
             'name' => 'drivers.doc_code']),
 
@@ -190,7 +190,7 @@ class DriverDataTable extends DataTable
             'data' => 'phone',
             'name' => 'drivers.phone']),
 
-            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission %',
+            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.commission_percent'),
             'data' => 'commissionrate',
             'name' => 'drivers.commissionrate']),
 
@@ -198,7 +198,7 @@ class DriverDataTable extends DataTable
             'data' => 'bankdetails1',
             'name' => 'bankdetails1']),
 
-            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => 'Bank Details 2',
+            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.bank_details_2'),
             'data' => 'bankdetails2',
             'name' => 'bankdetails2']),*/
 
@@ -210,7 +210,7 @@ class DriverDataTable extends DataTable
             'data' => 'secondvaccine',
             'name' => 'secondvaccine']),
 
-            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => 'Body Temperature',
+            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.body_temperature'),
             'data' => 'temperature',
             'name' => 'temperature']),*/
 
@@ -218,7 +218,7 @@ class DriverDataTable extends DataTable
             'data' => 'status',
             'name' => 'drivers.status']),
 
-            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => 'On Trip',
+            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => trans('drivers.on_trip'),
             'data' => 'latest_trip_type',
             'name' => 'latest_trip_type',
             'orderable' => false,

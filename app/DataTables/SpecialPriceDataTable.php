@@ -162,7 +162,9 @@ class SpecialPriceDataTable extends DataTable
             'customer_id'=> new \Yajra\DataTables\Html\Column(['title' =>  trans('special_prices.customer'),
             'data' => 'customer.company',
             'name' => 'customer.company']),
-            'price',
+            'price' => new \Yajra\DataTables\Html\Column(['title' => trans('special_prices.price'),
+            'data' => 'price',
+            'name' => 'price']),
             'status'
         ];
     }

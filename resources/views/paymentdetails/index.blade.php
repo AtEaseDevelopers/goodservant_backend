@@ -73,7 +73,7 @@
             </div> --}}
         </div>
         <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('Close') }}</button>
         <button type="submit" class="btn btn-primary">Generate</button>
         </div>
       </div>
@@ -141,7 +141,7 @@
             </div> --}}
         </div>
         <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('Close') }}</button>
         <button type="button" class="get btn btn-warning">Get</button>
         <button type="submit" class="btn btn-primary">Generate</button>
         </div>

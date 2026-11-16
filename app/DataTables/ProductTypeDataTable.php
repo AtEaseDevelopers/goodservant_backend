@@ -25,7 +25,7 @@ class ProductTypeDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['title' => 'Action', 'printable' => false])
+            ->addAction(['title' => trans('products.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -72,11 +72,11 @@ class ProductTypeDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'name'=> new \Yajra\DataTables\Html\Column(['title' => 'Name',
+            'name'=> new \Yajra\DataTables\Html\Column(['title' => trans('products.name'),
             'data' => 'name',
             'name' => 'name']),
 
-            'status'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
+            'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('products.status'),
             'data' => 'status',
             'name' => 'status']),
         ];

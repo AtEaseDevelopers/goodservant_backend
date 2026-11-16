@@ -23,4 +23,5 @@ return [
     'status' => 'Status',
     'updated_at' => 'Updated at',
     'value' => 'Value',
+    'are_you_sure_to_delete_the_code' => 'Are you sure to delete the code?',
 ];

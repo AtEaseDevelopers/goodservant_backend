@@ -1288,17 +1288,19 @@ class LanguageController extends Controller
             ->groupBy('page');
 
         foreach ($translations as $page => $pageTranslations) {
-            $content = "<?php\n\nreturn [\n";
-            foreach ($pageTranslations as $translation) {
-                $key = $translation->key;
-                $translatedText = $translation->translated_text ?: '';
-                $translatedText = str_replace("'", "\\'", $translatedText);
-                $content .= "    '$key' => '$translatedText',\n";
-            }
-            $content .= "];\n";
-
             $filePath = $langPath . '/' . $page . '.php';
-            file_put_contents($filePath, $content);
+
+            // Merge into the existing file instead of replacing it: labels added
+            // in code but not yet in the database must survive a save here.
+            $merged = file_exists($filePath) ? (array) include $filePath : [];
+            foreach ($pageTranslations as $translation) {
+                $text = (string) $translation->translated_text;
+                if ($text !== '' || !isset($merged[$translation->key])) {
+                    $merged[$translation->key] = $text;
+                }
+            }
+
+            file_put_contents($filePath, "<?php\n\nreturn " . var_export($merged, true) . ";\n");
         }
     }
 

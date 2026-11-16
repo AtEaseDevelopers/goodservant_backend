@@ -38,7 +38,7 @@ class ConsolidatedEinvoiceDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['width' => '200px', 'printable' => false, 'exportable' => false])
+            ->addAction(['title' => trans('einvoices.action'), 'width' => '200px', 'printable' => false, 'exportable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -62,27 +62,27 @@ class ConsolidatedEinvoiceDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'sku'=> new \Yajra\DataTables\Html\Column(['title' => 'SKU',
+            'sku'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.sku'),
             'data' => 'sku',
             'name' => 'consolidated_einvoices.sku']),
 
-            'currency'=> new \Yajra\DataTables\Html\Column(['title' => 'Currency',
+            'currency'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.currency'),
             'data' => 'currency',
             'name' => 'consolidated_einvoices.currency']),
 
-            'status'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
+            'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.status'),
             'data' => 'status',
             'name' => 'consolidated_einvoices.status']),
 
-            'submission_date'=> new \Yajra\DataTables\Html\Column(['title' => 'Submission Date',
+            'submission_date'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.submission_date'),
             'data' => 'submission_date',
             'name' => 'consolidated_einvoices.submission_date']),
 
-            'validated_time'=> new \Yajra\DataTables\Html\Column(['title' => 'Validated Time',
+            'validated_time'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.validated_time'),
             'data' => 'validated_time',
             'name' => 'consolidated_einvoices.validated_time']),
 
-            'uuid'=> new \Yajra\DataTables\Html\Column(['title' => 'UUID',
+            'uuid'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.uuid'),
             'data' => 'uuid',
             'name' => 'consolidated_einvoices.uuid',
             'visible' => false]),

@@ -45,4 +45,12 @@ return [
     'user_management' => '用户管理',
     'user_roles' => '用户角色',
     'users' => '用户',
+    'claims' => '索赔',
+    'payment_details' => '付款明细',
+    'sales_orders' => '销售订单',
+    'einvoices' => '电子发票',
+    'consolidated_einvoices' => '合并电子发票',
+    'credit_notes' => '贷项通知单',
+    'debit_notes' => '借项通知单',
+    'product_types' => '产品类型',
 ];

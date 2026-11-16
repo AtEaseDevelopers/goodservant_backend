@@ -230,7 +230,7 @@ class InvoicePaymentDataTable extends DataTable
             'data' => 'customer.company',
             'name' => 'customer.company']),
 
-            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => 'Second Description',
+            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => trans('invoice_payments.second_description'),
             'data' => 'customer.second_description',
             'name' => 'customer.second_description',
             'defaultContent' => '']),

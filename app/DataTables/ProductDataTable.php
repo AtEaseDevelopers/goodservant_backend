@@ -128,9 +128,9 @@ class ProductDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('products.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Unactive</option></select>\';
-                            }else if(columns[index].title == \'Type\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('products.type')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="">'.__('All').'</option>' . $this->typeFilterOptions() . '</select>\';
                             }else if(columns[index].title == \'1st Vaccine Date\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
@@ -175,13 +175,23 @@ class ProductDataTable extends DataTable
             'orderable' => false,
             'searchable' => false]),
 
-            'code',
-            'name',
-            'price',
-            'type_name'=> new \Yajra\DataTables\Html\Column(['title' => 'Type',
+            'code' => new \Yajra\DataTables\Html\Column(['title' => trans('products.code'),
+
+            'data' => 'code',
+
+            'name' => 'code']),
+            'name' => new \Yajra\DataTables\Html\Column(['title' => trans('products.name'),
+            'data' => 'name',
+            'name' => 'name']),
+            'price' => new \Yajra\DataTables\Html\Column(['title' => trans('products.price'),
+            'data' => 'price',
+            'name' => 'price']),
+            'type_name'=> new \Yajra\DataTables\Html\Column(['title' => trans('products.type'),
             'data' => 'type_name',
             'name' => 'type_name']),
-            'status'
+            'status' => new \Yajra\DataTables\Html\Column(['title' => trans('products.status'),
+            'data' => 'status',
+            'name' => 'status'])
         ];
     }
 

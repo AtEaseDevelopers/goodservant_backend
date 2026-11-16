@@ -46,4 +46,5 @@ return [
     'status' => '状态',
     'type' => '类型',
     'update' => '更新',
+    'second_description' => '第二描述',
 ];

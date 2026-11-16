@@ -38,4 +38,6 @@ return [
     'translations_imported_successfully' => '翻译导入成功',
     'upload' => '上传',
     'upload_translations' => '上传翻译',
+    'cannot_delete_active_language' => '无法删除当前正在使用的语言。',
+    'cannot_delete_default_language' => '无法删除默认语言。',
 ];

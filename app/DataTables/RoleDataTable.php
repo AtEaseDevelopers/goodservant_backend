@@ -134,7 +134,9 @@ class RoleDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'name'
+            'name' => new \Yajra\DataTables\Html\Column(['title' => trans('role.name'),
+            'data' => 'name',
+            'name' => 'name'])
         ];
     }
 

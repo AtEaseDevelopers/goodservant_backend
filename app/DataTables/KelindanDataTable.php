@@ -43,7 +43,7 @@ class KelindanDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['width' => '120px', 'printable' => false])
+            ->addAction(['title' => trans('kelindans.action'), 'width' => '120px', 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -90,7 +90,7 @@ class KelindanDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('kelindans.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Unactive</option></select>\';
                             }else if(columns[index].title == \'1st Vaccine Date\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
@@ -123,17 +123,17 @@ class KelindanDataTable extends DataTable
             'orderable' => false,
             'searchable' => false]),
 
-            'employeeid'=> new \Yajra\DataTables\Html\Column(['title' => 'Employee ID',
+            'employeeid'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.employee_id'),
             'data' => 'employeeid',
             'name' => 'kelindans.employeeid']),
 
-            'name'=> new \Yajra\DataTables\Html\Column(['title' => 'Name',
+            'name'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.name'),
             'data' => 'name',
             'name' => 'kelindans.name']),
-            'phone'=> new \Yajra\DataTables\Html\Column(['title' => 'Phone',
+            'phone'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.phone'),
             'data' => 'phone',
             'name' => 'kelindans.phone']),
-            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => 'Commission %',
+            'commissionrate'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.commission_percent'),
             'data' => 'commissionrate',
             'name' => 'kelindans.commissionrate']),
 
@@ -141,7 +141,7 @@ class KelindanDataTable extends DataTable
             'data' => 'bankdetails1',
             'name' => 'bankdetails1']),
 
-            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => 'Bank Details 2',
+            'bankdetails2'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.bank_details_2'),
             'data' => 'bankdetails2',
             'name' => 'bankdetails2']),
 
@@ -153,25 +153,25 @@ class KelindanDataTable extends DataTable
             'data' => 'secondvaccine',
             'name' => 'secondvaccine']),
 
-            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => 'Body Temperature',
+            'temperature'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.body_temperature'),
             'data' => 'temperature',
             'name' => 'temperature']),
 
-            'permitdate'=> new \Yajra\DataTables\Html\Column(['title' => 'Permit Date',
+            'permitdate'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.permit_date'),
             'data' => 'permitdate',
             'name' => 'permitdate']),*/
 
-            'status'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
+            'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.status'),
             'data' => 'status',
             'name' => 'kelindans.status']),
 
-            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => 'On Trip',
+            'latest_trip_type'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.on_trip'),
             'data' => 'latest_trip_type',
             'name' => 'latest_trip_type',
             'orderable' => false,
             'searchable' => false]),
 
-            'remark'=> new \Yajra\DataTables\Html\Column(['title' => 'Remark',
+            'remark'=> new \Yajra\DataTables\Html\Column(['title' => trans('kelindans.remark'),
             'data' => 'remark',
             'name' => 'kelindans.remark'])
         ];

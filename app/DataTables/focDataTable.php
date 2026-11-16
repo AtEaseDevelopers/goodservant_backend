@@ -125,7 +125,7 @@ class focDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('focs.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Inactive</option></select>\';
                             }else if(columns[index].title == \'Payment Term\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Cash</option><option value="2">Bankin</option><option value="3">Credit Note</option></select>\';
@@ -168,7 +168,11 @@ class focDataTable extends DataTable
             'data' => 'achievequantity',
             'name' => 'achievequantity']),
 
-            'quantity',
+            'quantity' => new \Yajra\DataTables\Html\Column(['title' => trans('focs.quantity'),
+
+            'data' => 'quantity',
+
+            'name' => 'quantity']),
 
             'free_product_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('focs.free_product'),
             'data' => 'freeproduct.name',
@@ -186,7 +190,11 @@ class focDataTable extends DataTable
             'data' => 'enddate',
             'name' => 'enddate']),
 
-            'status'
+            'status' => new \Yajra\DataTables\Html\Column(['title' => trans('focs.status'),
+
+            'data' => 'status',
+
+            'name' => 'status'])
         ];
     }
 

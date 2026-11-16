@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item">Delivery Orders</li>
+        <li class="breadcrumb-item">{{ trans('delivery_orders.delivery_orders') }}</li>
     </ol>
     <div class="container-fluid">
         <div class="animated fadeIn">
@@ -12,11 +12,11 @@
                      <div class="card">
                          <div class="card-header">
                              <i class="fa fa-align-justify"></i>
-                             Delivery Orders
+                             {{ trans('delivery_orders.delivery_orders') }}
                              <a class="pull-right" href="{{ route('deliveryOrders.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
                              <button type="button" class="btn btn-info btn-sm pull-right mr-2" id="combineconvert" title="Combine the selected delivery orders (must all be from the same customer) into one invoice">
-                                <i class="fa fa-object-group"></i> Combine and Convert
+                                <i class="fa fa-object-group"></i> {{ __('Combine and Convert') }}
                              </button>
                          </div>
                          <div class="card-body">
@@ -92,7 +92,7 @@
                 m = "Confirm to combine " + window.checkboxid.length + " delivery orders (must be from the same customer) into one invoice?"
             }
             $.confirm({
-                title: 'Combine and Convert',
+                title: @json(__('Combine and Convert')),
                 content: m,
                 buttons: {
                     Yes: function() {

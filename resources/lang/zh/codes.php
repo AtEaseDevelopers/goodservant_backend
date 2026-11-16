@@ -23,4 +23,5 @@ return [
     'status' => '状态',
     'updated_at' => '更新时间',
     'value' => '值',
+    'are_you_sure_to_delete_the_code' => '确定要删除此代码吗？',
 ];

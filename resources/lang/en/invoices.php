@@ -48,4 +48,9 @@ return [
     'status' => 'Status',
     'supervisor' => 'Supervisor',
     'total_price' => 'Total Price',
+    'create' => 'Create',
+    'are_you_sure_to_delete_the_invoice_detail' => 'Are you sure to delete the invoice detail?',
+    'second_description' => 'Second Description',
+    'discount' => 'Discount',
+    'autocount_sync' => 'AutoCount Sync',
 ];

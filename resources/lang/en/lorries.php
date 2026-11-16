@@ -25,4 +25,5 @@ return [
     'status' => 'Status',
     'tyre_next_date' => 'Tyre next date',
     'updated_successfully' => 'Updated successfully',
+    'driver' => 'Driver',
 ];

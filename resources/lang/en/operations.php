@@ -30,4 +30,6 @@ return [
     'unactive' => 'Unactive',
     'updated_successfully' => 'Updated successfully',
     'upload' => 'Upload',
+    'are_you_sure_to_delete_the_products' => 'Are you sure to delete the products?',
+    'task_saved_successfully' => 'Task saved successfully.',
 ];

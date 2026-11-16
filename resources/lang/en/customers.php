@@ -34,7 +34,7 @@ return [
     'payment_term_cash' => 'Cash',
     'payment_term_credit_note' => 'Credit Note',
     'is_do_customer' => 'Uses Delivery Order (Credit orders become a DO before invoicing)',
-    'paymentterm' => 'Paymentterm',
+    'paymentterm' => 'Payment Term',
     'phone' => 'Phone',
     'product' => 'Product',
     'progress' => 'Progress',
@@ -55,4 +55,8 @@ return [
     'unactive' => 'Unactive',
     'upload' => 'Upload',
     'used' => 'Used',
+    'payment_term_bankin' => 'Bank In',
+    'second_description' => 'Second Description',
+    'do_customer' => 'DO Customer',
+    'credit' => 'Credit',
 ];

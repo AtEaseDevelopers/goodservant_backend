@@ -37,4 +37,8 @@ return [
     'status' => '状态',
     'unactive' => '未激活',
     'updated_successfully' => '更新成功',
+    'invoice_code' => '发票代码',
+    'commission_percent' => '佣金 %',
+    'body_temperature' => '体温',
+    'on_trip' => '行程中',
 ];

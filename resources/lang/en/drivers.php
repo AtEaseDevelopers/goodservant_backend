@@ -37,4 +37,8 @@ return [
     'status' => 'Status',
     'unactive' => 'Unactive',
     'updated_successfully' => 'Updated successfully',
+    'invoice_code' => 'Invoice Code',
+    'commission_percent' => 'Commission %',
+    'body_temperature' => 'Body Temperature',
+    'on_trip' => 'On Trip',
 ];

@@ -286,11 +286,11 @@ class CustomerDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('customers.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Active</option><option value="0">Unactive</option></select>\';
-                            }else if(columns[index].title == \'Payment Term\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('customers.paymentterm')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Cash</option><option value="2">Credit Note</option></select>\';
-                            }else if(columns[index].title == \'DO Customer\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('customers.do_customer')) . '\'){
                                 var saved = String(column.search() || \'\').toLowerCase();
                                 var current = (saved == \'1\' || saved == \'yes\') ? \'1\' : ((saved == \'0\' || saved == \'no\') ? \'0\' : \'\');
                                 var input = $(\'<select class="border-0" style="width: 100%;"><option value="">All</option><option value="1">Yes</option><option value="0">No</option></select>\').val(current);
@@ -321,12 +321,15 @@ class CustomerDataTable extends DataTable
             'orderable' => false,
             'searchable' => false]),
 
-            'code',
+            'code'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.code'),
+            'data' => 'code',
+            'name' => 'code']),
+
             'company'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.company'),
             'data' => 'company',
             'name' => 'company']),
 
-            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => 'Second Description',
+            'second_description'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.second_description'),
             'data' => 'second_description',
             'name' => 'customers.second_description']),
 
@@ -346,16 +349,27 @@ class CustomerDataTable extends DataTable
             // 'data' => 'supervisor.name',
             // 'name' => 'supervisor.name']),
 
-            'phone',
-            'address',
-            'status',
-            'credit',
+            'phone'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.phone'),
+            'data' => 'phone',
+            'name' => 'phone']),
+
+            'address'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.address'),
+            'data' => 'address',
+            'name' => 'address']),
+            'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.status'),
+            'data' => 'status',
+            'name' => 'status']),
+            'credit'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.credit'),
+            'data' => 'credit',
+            'name' => 'credit']),
 
             // 'sst'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.ssm'),
             // 'data' => 'sst',
             // 'name' => 'sst']),
 
-            'tin',
+            'tin'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.tin'),
+            'data' => 'tin',
+            'name' => 'tin']),
 
             'debtor_type'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.debtor_type'),
             'data' => 'debtor_type',
@@ -372,7 +386,7 @@ class CustomerDataTable extends DataTable
             'orderable' => false,
             'searchable' => false]),
 
-            'is_do_customer'=> new \Yajra\DataTables\Html\Column(['title' => 'DO Customer',
+            'is_do_customer'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.do_customer'),
             'data' => 'is_do_customer',
             'name' => 'customers.is_do_customer']),
         ];

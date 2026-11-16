@@ -20,4 +20,5 @@ return [
     'save' => '保存',
     'status' => '状态',
     'updated_at' => '更新时间',
+    'customer_group' => '客户组',
 ];

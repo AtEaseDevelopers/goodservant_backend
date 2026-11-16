@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ route('mobileErrorLogs.index') }}">Mobile App Error Logs</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('mobileErrorLogs.index') }}">{{ __('Mobile App Error Logs') }}</a></li>
         <li class="breadcrumb-item">#{{ $mobileErrorLog->id }}</li>
     </ol>
     <div class="container-fluid">

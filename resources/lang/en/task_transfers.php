@@ -20,4 +20,9 @@ return [
     'task_transfers' => 'Task transfers',
     'tasks' => 'Tasks',
     'to_driver_id' => 'To Driver id',
+    'transfer_date' => 'Transfer Date',
+    'from_driver' => 'From Driver',
+    'to_driver' => 'To Driver',
+    'task_date' => 'Task Date',
+    'task_customer' => 'Task Customer',
 ];

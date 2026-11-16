@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ route('productTypes.index') }}">Product Types</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('productTypes.index') }}">{{ trans('side_menu.product_types') }}</a></li>
         <li class="breadcrumb-item">Create</li>
     </ol>
     <div class="container-fluid">

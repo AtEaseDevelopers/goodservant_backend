@@ -316,7 +316,7 @@
         <ul class="nav-dropdown-items">
             <li class="nav-item {{ Request::is('productTypes*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('productTypes*') ? 'active' : '' }}" href="{{ route('productTypes.index') }}">
-                    <span>Product Types</span>
+                    <span>{{ trans('side_menu.product_types') }}</span>
                 </a>
             </li>
         </ul>

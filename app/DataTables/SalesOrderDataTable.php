@@ -47,7 +47,7 @@ class SalesOrderDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['title' => 'Action', 'printable' => false])
+            ->addAction(['title' => trans('sales_orders.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -117,9 +117,9 @@ class SalesOrderDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('sales_orders.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option></select>\';
-                            }else if(columns[index].title == \'Date\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('sales_orders.date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
@@ -146,50 +146,50 @@ class SalesOrderDataTable extends DataTable
             ]),
 
             'sono' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Sales Order No',
+                'title' => trans('sales_orders.sales_order_no'),
                 'data' => 'sono',
                 'name' => 'sono'
             ]),
 
             'date' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Date',
+                'title' => trans('sales_orders.date'),
                 'data' => 'date',
                 'name' => 'date'
             ]),
 
             'customer_id' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Customer',
+                'title' => trans('sales_orders.customer'),
                 'data' => 'customer.company',
                 'name' => 'customer.company'
             ]),
 
             'second_description' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Second Description',
+                'title' => trans('sales_orders.second_description'),
                 'data' => 'customer.second_description',
                 'name' => 'customer.second_description',
                 'defaultContent' => ''
             ]),
 
             'driver_id' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Driver',
+                'title' => trans('sales_orders.driver'),
                 'data' => 'driver.name',
                 'name' => 'driver.name'
             ]),
 
             'paymentterm' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Payment Term',
+                'title' => trans('sales_orders.payment_term'),
                 'data' => 'paymentterm',
                 'name' => 'sales_orders.paymentterm'
             ]),
 
             'status' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Status',
+                'title' => trans('sales_orders.status'),
                 'data' => 'status',
                 'name' => 'sales_orders.status'
             ]),
 
             'converted_to' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Converted To',
+                'title' => trans('sales_orders.converted_to'),
                 'data' => 'converted_to',
                 'name' => 'converted_to',
                 'orderable' => false,
@@ -197,7 +197,7 @@ class SalesOrderDataTable extends DataTable
             ]),
 
             'off_day' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Off Day',
+                'title' => trans('sales_orders.off_day'),
                 'data' => 'off_day_label',
                 'name' => 'sales_orders.off_day',
                 'searchable' => false

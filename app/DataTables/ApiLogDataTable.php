@@ -35,7 +35,7 @@ class ApiLogDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['title' => 'Action', 'printable' => false])
+            ->addAction(['title' => trans('logs.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -91,32 +91,32 @@ class ApiLogDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'id'=> new \Yajra\DataTables\Html\Column(['title' => 'ID',
+            'id'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.id'),
             'data' => 'id',
             'name' => 'api_logs.id']),
 
-            'created_at'=> new \Yajra\DataTables\Html\Column(['title' => 'Date',
+            'created_at'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.date'),
             'data' => 'created_at',
             'name' => 'api_logs.created_at']),
 
-            'driver.name'=> new \Yajra\DataTables\Html\Column(['title' => 'Driver',
+            'driver.name'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.driver'),
             'data' => 'driver.name',
             'name' => 'driver.name',
             'orderable' => false]),
 
-            'method'=> new \Yajra\DataTables\Html\Column(['title' => 'Method',
+            'method'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.method'),
             'data' => 'method',
             'name' => 'method']),
 
-            'status_code'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
+            'status_code'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.status'),
             'data' => 'status_code',
             'name' => 'status_code']),
 
-            'url'=> new \Yajra\DataTables\Html\Column(['title' => 'URL',
+            'url'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.url'),
             'data' => 'url',
             'name' => 'url']),
 
-            'ip_address'=> new \Yajra\DataTables\Html\Column(['title' => 'IP',
+            'ip_address'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.ip'),
             'data' => 'ip_address',
             'name' => 'ip_address']),
         ];

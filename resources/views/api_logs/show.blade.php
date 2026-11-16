@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ route('apiLogs.index') }}">API Logs</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('apiLogs.index') }}">{{ __('API Logs') }}</a></li>
         <li class="breadcrumb-item">#{{ $apiLog->id }}</li>
     </ol>
     <div class="container-fluid">

@@ -30,4 +30,6 @@ return [
     'unactive' => '未激活',
     'updated_successfully' => '更新成功',
     'upload' => '上传',
+    'are_you_sure_to_delete_the_products' => '确定要删除这些产品吗？',
+    'task_saved_successfully' => '任务保存成功。',
 ];

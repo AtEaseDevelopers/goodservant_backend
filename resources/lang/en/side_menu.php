@@ -54,4 +54,7 @@ return [
     'credit_notes' => 'Credit Note',
     'debit_notes' => 'Debit Note',
 
+    'claims' => 'Claims',
+    'payment_details' => 'Payment Details',
+    'product_types' => 'Product Types',
 ];

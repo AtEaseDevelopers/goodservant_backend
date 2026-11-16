@@ -52,7 +52,7 @@
                     <input id="idmodel" type="hidden" value="">
                     <input id="datefrommodel" type="hidden" value="">
                     <input id="datetomodel" type="hidden" value="">
-                    <label for="datefrommodel">Date:</label>
+                    <label for="datefrommodel">{{ __('Date:') }}</label>
                     <div id="reportrange" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
                         <i class="fa fa-calendar"></i>&nbsp;
                         <span></span> <i class="fa fa-caret-down"></i>
@@ -63,7 +63,7 @@
               <button type="button" class="btn btn-success" onclick="viewvendorprint();">View</button>
               <button type="button" class="btn btn-primary" onclick="printvendorprint();">Print</button>
               <button type="button" class="btn btn-primary" onclick="downloadvendorprint();">Download</button>
-              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ __('Close') }}</button>
             </div>
           </div>
         </div>

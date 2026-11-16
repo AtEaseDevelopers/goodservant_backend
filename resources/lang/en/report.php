@@ -22,4 +22,6 @@ return [
     'sql' => 'Sql',
     'status' => 'Status',
     'unactive' => 'Unactive',
+    'inactive' => 'Inactive',
+    'commission' => 'Commission',
 ];

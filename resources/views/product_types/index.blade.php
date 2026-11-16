@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item">Product Types</li>
+        <li class="breadcrumb-item">{{ trans('side_menu.product_types') }}</li>
     </ol>
     <div class="container-fluid">
         <div class="animated fadeIn">
@@ -12,11 +12,11 @@
                     <div class="card">
                         <div class="card-header">
                             <i class="fa fa-align-justify"></i>
-                            Product Types
+                            {{ trans('side_menu.product_types') }}
                             <a class="pull-right" href="{{ route('productTypes.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
                         </div>
                         <div class="card-body">
-                            <p class="text-muted">Manage the product type/category options drivers can filter by on the mobile Inventory screen - add one here and it's available everywhere immediately, no app update needed.</p>
+                            <p class="text-muted">{{ __('Manage the product type/category options drivers can filter by on the mobile Inventory screen - add one here and it\'s available everywhere immediately, no app update needed.') }}</p>
                             @include('product_types.table')
                         </div>
                     </div>

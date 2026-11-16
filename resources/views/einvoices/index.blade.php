@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item">E-Invoices</li>
+        <li class="breadcrumb-item">{{ trans('side_menu.einvoices') }}</li>
     </ol>
     <div class="container-fluid">
         <div class="animated fadeIn">
@@ -12,9 +12,9 @@
                      <div class="card">
                         <div class="card-header">
                             <i class="fa fa-align-justify"></i>
-                            E-Invoices
-                            <a class="pull-right" href="#" onclick="showNoteTypeSelection(); return false;" title="Create Note">
-                                <i class="fa fa-file-text-o fa-lg"></i> Create Note
+                            {{ trans('side_menu.einvoices') }}
+                            <a class="pull-right" href="#" onclick="showNoteTypeSelection(); return false;" title="{{ __('Create Note') }}">
+                                <i class="fa fa-file-text-o fa-lg"></i> {{ __('Create Note') }}
                             </a>
                         </div>
                          <div class="card-body">
@@ -166,7 +166,7 @@
             }
             
             Swal.fire({
-                title: 'Create Note',
+                title: @json(__('Create Note')),
                 html: `
                     <div style="text-align: center; padding: 20px;">
                         <p style="margin-bottom: 20px;">Select the type of note you want to create:</p>

@@ -142,10 +142,18 @@ class CodeDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'code',
-            'description',
-            'value',
-            'sequence',
+            'code' => new \Yajra\DataTables\Html\Column(['title' => trans('codes.code'),
+            'data' => 'code',
+            'name' => 'code']),
+            'description' => new \Yajra\DataTables\Html\Column(['title' => trans('codes.description'),
+            'data' => 'description',
+            'name' => 'description']),
+            'value' => new \Yajra\DataTables\Html\Column(['title' => trans('codes.value'),
+            'data' => 'value',
+            'name' => 'value']),
+            'sequence' => new \Yajra\DataTables\Html\Column(['title' => trans('codes.sequence'),
+            'data' => 'sequence',
+            'name' => 'sequence']),
             // 'STR_UDF1'=> new \Yajra\DataTables\Html\Column(['title' => 'String UDF1',
             // 'data' => 'STR_UDF1',
             // 'name' => 'STR_UDF1']),

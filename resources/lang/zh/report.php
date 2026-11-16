@@ -22,4 +22,6 @@ return [
     'sql' => 'SQL',
     'status' => '状态',
     'unactive' => '未激活',
+    'inactive' => '不活跃',
+    'commission' => '佣金',
 ];

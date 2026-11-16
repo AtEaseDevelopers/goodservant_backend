@@ -151,7 +151,9 @@ class UserDataTable extends DataTable
                 'data'  => 'name',
                 'name'  => 'users.name'
             ]),
-            'email',
+            'email' => new \Yajra\DataTables\Html\Column(['title' => trans('user.email'),
+            'data' => 'email',
+            'name' => 'email']),
             'role' => new \Yajra\DataTables\Html\Column([
                 'title' => trans('user.role'),
                 'data'  => 'role_name',

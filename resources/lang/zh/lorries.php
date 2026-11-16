@@ -25,4 +25,5 @@ return [
     'status' => '状态',
     'tyre_next_date' => '下次轮胎日期',
     'updated_successfully' => '更新成功',
+    'driver' => '司机',
 ];

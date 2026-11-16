@@ -26,15 +26,15 @@
                                                     <i class="fa fa-circle fa-stack-2x"></i>
                                                     <i class="fa fa-file-text-o fa-stack-1x fa-inverse"></i>
                                                 </span>
-                                                <h5 class="mb-0">Daily Sales Report</h5>
+                                                <h5 class="mb-0">{{ __('Daily Sales Report') }}</h5>
                                             </div>
                                             <p class="text-muted small">
-                                                View sales summary by date range. Filter by driver, customer and payment type. Includes invoice details and payment breakdown.
+                                                {{ __('View sales summary by date range. Filter by driver, customer and payment type. Includes invoice details and payment breakdown.') }}
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0">
                                             <a href="{{ route('reports.daily-sales') }}" class="btn btn-primary btn-sm">
-                                                <i class="fa fa-arrow-right"></i> Open Report
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
                                             </a>
                                         </div>
                                     </div>
@@ -49,15 +49,15 @@
                                                     <i class="fa fa-circle fa-stack-2x"></i>
                                                     <i class="fa fa-percent fa-stack-1x fa-inverse"></i>
                                                 </span>
-                                                <h5 class="mb-0">Commission</h5>
+                                                <h5 class="mb-0">{{ __('report.commission') }}</h5>
                                             </div>
                                             <p class="text-muted small">
-                                                Driver and kelindan commission for a date range, from each person's rate and the sales on their invoices.
+                                                {{ __('Driver and kelindan commission for a date range, from each person\'s rate and the sales on their invoices.') }}
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0">
                                             <a href="{{ route('reports.commission') }}" class="btn btn-sm text-white" style="background:#6f42c1;">
-                                                <i class="fa fa-arrow-right"></i> Open Report
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
                                             </a>
                                         </div>
                                     </div>
@@ -72,15 +72,15 @@
                                                     <i class="fa fa-circle fa-stack-2x"></i>
                                                     <i class="fa fa-truck fa-stack-1x fa-inverse"></i>
                                                 </span>
-                                                <h5 class="mb-0">Packing List</h5>
+                                                <h5 class="mb-0">{{ __('Packing List') }}</h5>
                                             </div>
                                             <p class="text-muted small">
-                                                Generate a driver's packing list for a given date - customers by task sequence, quantity per product.
+                                                {{ __('Generate a driver\'s packing list for a given date - customers by task sequence, quantity per product.') }}
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0">
                                             <a href="{{ route('reports.packing-list') }}" class="btn btn-success btn-sm">
-                                                <i class="fa fa-arrow-right"></i> Open Report
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
                                             </a>
                                         </div>
                                     </div>
@@ -95,15 +95,15 @@
                                                     <i class="fa fa-circle fa-stack-2x"></i>
                                                     <i class="fa fa-list-alt fa-stack-1x fa-inverse"></i>
                                                 </span>
-                                                <h5 class="mb-0">DO Summary</h5>
+                                                <h5 class="mb-0">{{ __('DO Summary') }}</h5>
                                             </div>
                                             <p class="text-muted small">
-                                                Pick a customer and the delivery-order dates, then export the selected DOs as one report of every product line.
+                                                {{ __('Pick a customer and the delivery-order dates, then export the selected DOs as one report of every product line.') }}
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0">
                                             <a href="{{ route('reports.do-summary') }}" class="btn btn-sm text-white" style="background:#fd7e14;">
-                                                <i class="fa fa-arrow-right"></i> Open Report
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
                                             </a>
                                         </div>
                                     </div>
@@ -118,15 +118,15 @@
                                                     <i class="fa fa-circle fa-stack-2x"></i>
                                                     <i class="fa fa-money fa-stack-1x fa-inverse"></i>
                                                 </span>
-                                                <h5 class="mb-0">Payment Collection Report</h5>
+                                                <h5 class="mb-0">{{ __('Payment Collection Report') }}</h5>
                                             </div>
                                             <p class="text-muted small">
-                                                All payments collected for a day or date range - the invoice each payment belongs to, the driver who collected it, the payment method and amount.
+                                                {{ __('All payments collected for a day or date range - the invoice each payment belongs to, the driver who collected it, the payment method and amount.') }}
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0">
                                             <a href="{{ route('reports.payment-collection') }}" class="btn btn-info btn-sm">
-                                                <i class="fa fa-arrow-right"></i> Open Report
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
                                             </a>
                                         </div>
                                     </div>

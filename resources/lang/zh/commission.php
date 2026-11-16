@@ -25,4 +25,5 @@ return [
     'save' => '保存',
     'status' => '状态',
     'value' => '值',
+    'select_product_type' => '选择产品类型',
 ];

@@ -48,4 +48,9 @@ return [
     'status' => '状态',
     'supervisor' => '主管',
     'total_price' => '总价',
+    'create' => '创建',
+    'are_you_sure_to_delete_the_invoice_detail' => '确定要删除此发票明细吗？',
+    'second_description' => '第二描述',
+    'discount' => '折扣',
+    'autocount_sync' => 'AutoCount 同步',
 ];

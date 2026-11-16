@@ -55,4 +55,9 @@ return [
     'unactive' => '未激活',
     'upload' => '上传',
     'used' => '已使用',
+    'is_do_customer' => '使用配送订单（赊账订单先转为配送订单再开发票）',
+    'payment_term_bankin' => '银行转账',
+    'second_description' => '第二描述',
+    'do_customer' => '配送订单客户',
+    'credit' => '欠款',
 ];

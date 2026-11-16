@@ -16,7 +16,7 @@ return [
     'export_translations' => 'Export translations',
     'failed_to_import_translations' => 'Failed to import translations',
     'import' => 'Import',
-    'import_new_language' => '',
+    'import_new_language' => 'Import New Language',
     'language_deleted_successfully' => 'Language deleted successfully',
     'language_name' => 'Language name',
     'language_ready_for_translation' => 'Language ready for translation',
@@ -38,4 +38,6 @@ return [
     'translations_imported_successfully' => 'Translations imported successfully',
     'upload' => 'Upload',
     'upload_translations' => 'Upload translations',
+    'cannot_delete_active_language' => 'You cannot delete the language that is currently in use.',
+    'cannot_delete_default_language' => 'You cannot delete the default language.',
 ];

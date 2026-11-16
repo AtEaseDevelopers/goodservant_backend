@@ -55,7 +55,7 @@ class EinvoiceDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['width' => '200px', 'printable' => false, 'exportable' => false])
+            ->addAction(['title' => trans('einvoices.action'), 'width' => '200px', 'printable' => false, 'exportable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -84,32 +84,32 @@ class EinvoiceDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'sku'=> new \Yajra\DataTables\Html\Column(['title' => 'SKU',
+            'sku'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.sku'),
             'data' => 'sku',
             'name' => 'einvoices.sku']),
 
-            'customer'=> new \Yajra\DataTables\Html\Column(['title' => 'Customer',
+            'customer'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.customer'),
             'data' => 'invoice.customer.company',
             'name' => 'customer.company',
             'orderable' => false]),
 
-            'currency'=> new \Yajra\DataTables\Html\Column(['title' => 'Currency',
+            'currency'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.currency'),
             'data' => 'currency',
             'name' => 'einvoices.currency']),
 
-            'status'=> new \Yajra\DataTables\Html\Column(['title' => 'Status',
+            'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.status'),
             'data' => 'status',
             'name' => 'einvoices.status']),
 
-            'submission_date'=> new \Yajra\DataTables\Html\Column(['title' => 'Submission Date',
+            'submission_date'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.submission_date'),
             'data' => 'submission_date',
             'name' => 'einvoices.submission_date']),
 
-            'validated_time'=> new \Yajra\DataTables\Html\Column(['title' => 'Validated Time',
+            'validated_time'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.validated_time'),
             'data' => 'validated_time',
             'name' => 'einvoices.validated_time']),
 
-            'uuid'=> new \Yajra\DataTables\Html\Column(['title' => 'UUID',
+            'uuid'=> new \Yajra\DataTables\Html\Column(['title' => trans('einvoices.uuid'),
             'data' => 'uuid',
             'name' => 'einvoices.uuid',
             'visible' => false]),

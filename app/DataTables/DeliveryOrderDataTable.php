@@ -37,7 +37,7 @@ class DeliveryOrderDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['title' => 'Action', 'printable' => false])
+            ->addAction(['title' => trans('delivery_orders.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -107,9 +107,9 @@ class DeliveryOrderDataTable extends DataTable
                     .every(function (index) {
                         var column = this;
                         if(columns[index].searchable){
-                            if(columns[index].title == \'Status\'){
+                            if(columns[index].title == \'' . addslashes(trans('delivery_orders.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option></select>\';
-                            }else if(columns[index].title == \'Date\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('delivery_orders.date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
@@ -136,50 +136,50 @@ class DeliveryOrderDataTable extends DataTable
             ]),
 
             'dono' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Delivery Order No',
+                'title' => trans('delivery_orders.delivery_order_no'),
                 'data' => 'dono',
                 'name' => 'dono'
             ]),
 
             'date' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Date',
+                'title' => trans('delivery_orders.date'),
                 'data' => 'date',
                 'name' => 'date'
             ]),
 
             'customer_id' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Customer',
+                'title' => trans('delivery_orders.customer'),
                 'data' => 'customer.company',
                 'name' => 'customer.company'
             ]),
 
             'second_description' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Second Description',
+                'title' => trans('delivery_orders.second_description'),
                 'data' => 'customer.second_description',
                 'name' => 'customer.second_description',
                 'defaultContent' => ''
             ]),
 
             'driver_id' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Driver',
+                'title' => trans('delivery_orders.driver'),
                 'data' => 'driver.name',
                 'name' => 'driver.name'
             ]),
 
             'paymentterm' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Payment Term',
+                'title' => trans('delivery_orders.payment_term'),
                 'data' => 'paymentterm',
                 'name' => 'deliveryorders.paymentterm'
             ]),
 
             'status' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Status',
+                'title' => trans('delivery_orders.status'),
                 'data' => 'status',
                 'name' => 'deliveryorders.status'
             ]),
 
             'converted_invoice' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Converted Invoice',
+                'title' => trans('delivery_orders.converted_invoice'),
                 'data' => 'converted_invoice',
                 'name' => 'converted_invoice',
                 'orderable' => false,

@@ -20,4 +20,9 @@ return [
     'task_transfers' => '任务转移',
     'tasks' => '任务',
     'to_driver_id' => '到司机编号',
+    'transfer_date' => '转移日期',
+    'from_driver' => '原司机',
+    'to_driver' => '新司机',
+    'task_date' => '任务日期',
+    'task_customer' => '任务客户',
 ];

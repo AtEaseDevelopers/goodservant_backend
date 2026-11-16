@@ -35,7 +35,7 @@ class MobileErrorLogDataTable extends DataTable
         return $this->builder()
             ->columns($this->getColumns())
             ->minifiedAjax('', null, [], ['type' => 'POST', 'headers' => ['X-HTTP-Method-Override' => 'GET']])
-            ->addAction(['title' => 'Action', 'printable' => false])
+            ->addAction(['title' => trans('logs.action'), 'printable' => false])
             ->parameters([
                 'dom'       => '<"row"B><"row"<"dataTableBuilderDiv"t>><"row"ip>',
                 'stateSave' => true,
@@ -81,28 +81,28 @@ class MobileErrorLogDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'id'=> new \Yajra\DataTables\Html\Column(['title' => 'ID',
+            'id'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.id'),
             'data' => 'id',
             'name' => 'mobile_error_logs.id']),
 
-            'created_at'=> new \Yajra\DataTables\Html\Column(['title' => 'Date',
+            'created_at'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.date'),
             'data' => 'created_at',
             'name' => 'mobile_error_logs.created_at']),
 
-            'driver.name'=> new \Yajra\DataTables\Html\Column(['title' => 'Driver',
+            'driver.name'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.driver'),
             'data' => 'driver.name',
             'name' => 'driver.name',
             'orderable' => false]),
 
-            'app_version'=> new \Yajra\DataTables\Html\Column(['title' => 'App Version',
+            'app_version'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.app_version'),
             'data' => 'app_version',
             'name' => 'app_version']),
 
-            'screen'=> new \Yajra\DataTables\Html\Column(['title' => 'Screen',
+            'screen'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.screen'),
             'data' => 'screen',
             'name' => 'screen']),
 
-            'message'=> new \Yajra\DataTables\Html\Column(['title' => 'Message',
+            'message'=> new \Yajra\DataTables\Html\Column(['title' => trans('logs.message'),
             'data' => 'message',
             'name' => 'message']),
         ];

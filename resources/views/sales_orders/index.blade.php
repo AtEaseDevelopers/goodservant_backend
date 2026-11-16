@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item">Sales Orders</li>
+        <li class="breadcrumb-item">{{ trans('sales_orders.sales_orders') }}</li>
     </ol>
     <div class="container-fluid">
         <div class="animated fadeIn">
@@ -12,11 +12,11 @@
                      <div class="card">
                          <div class="card-header">
                              <i class="fa fa-align-justify"></i>
-                             Sales Orders
+                             {{ trans('sales_orders.sales_orders') }}
                              <a class="pull-right" href="{{ route('salesOrders.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
-                             <button type="button" class="btn btn-success btn-sm pull-right mr-2" id="convert" title="Convert the selected Sales Order into a Delivery Order or an Invoice">
-                                <i class="fa fa-exchange"></i> Convert
+                             <button type="button" class="btn btn-success btn-sm pull-right mr-2" id="convert" title="{{ __('Convert the selected Sales Order into a Delivery Order or an Invoice') }}">
+                                <i class="fa fa-exchange"></i> {{ __('Convert') }}
                              </button>
                          </div>
                          <div class="card-body">

@@ -43,4 +43,8 @@ return [
     'status' => 'Status',
     'supervisor' => 'Supervisor',
     'total_price' => 'Total Price',
+    'create' => 'Create',
+    'second_description' => 'Second Description',
+    'converted_to' => 'Converted To',
+    'off_day' => 'Off Day',
 ];

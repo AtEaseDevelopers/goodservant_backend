@@ -251,7 +251,7 @@ class InvoiceDataTable extends DataTable
             ]),
 
             'second_description' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Second Description',
+                'title' => trans('invoices.second_description'),
                 'data' => 'customer.second_description',
                 'name' => 'customer.second_description',
                 'defaultContent' => ''
@@ -282,7 +282,7 @@ class InvoiceDataTable extends DataTable
             // ]),
 
             'discount' => new \Yajra\DataTables\Html\Column([
-                'title' => 'Discount',
+                'title' => trans('invoices.discount'),
                 'data' => 'discount',
                 'name' => 'discount',
                 'orderable' => false,
@@ -310,7 +310,7 @@ class InvoiceDataTable extends DataTable
             ]),
 
             'sync_status' => new \Yajra\DataTables\Html\Column([
-                'title' => 'AutoCount Sync',
+                'title' => trans('invoices.autocount_sync'),
                 'data' => 'sync_status',
                 'name' => 'invoices.sync_status'
             ]),

@@ -26,4 +26,7 @@ return [
     'save' => '保存',
     'sequence' => '序列',
     'status' => '状态',
+    'company' => '公司',
+    'placeholder_pick_driver' => '选择司机',
+    'placeholder_pick_group' => '选择分组',
 ];

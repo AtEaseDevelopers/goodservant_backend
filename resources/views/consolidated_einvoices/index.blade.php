@@ -2,7 +2,7 @@
 
 @section('content')
     <ol class="breadcrumb">
-        <li class="breadcrumb-item">Consolidated E-Invoices</li>
+        <li class="breadcrumb-item">{{ trans('side_menu.consolidated_einvoices') }}</li>
     </ol>
     <div class="container-fluid">
         <div class="animated fadeIn">
@@ -12,7 +12,7 @@
                      <div class="card">
                         <div class="card-header">
                             <i class="fa fa-align-justify"></i>
-                            Consolidated E-Invoices
+                            {{ trans('side_menu.consolidated_einvoices') }}
                         </div>
                         <div class="card-body">
                             @include('consolidated_einvoices.table')

@@ -25,4 +25,5 @@ return [
     'save' => 'Save',
     'status' => 'Status',
     'value' => 'Value',
+    'select_product_type' => 'Select product type',
 ];

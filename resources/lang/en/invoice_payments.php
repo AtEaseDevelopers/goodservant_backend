@@ -46,4 +46,5 @@ return [
     'status' => 'Status',
     'type' => 'Type',
     'update' => 'Update',
+    'second_description' => 'Second Description',
 ];

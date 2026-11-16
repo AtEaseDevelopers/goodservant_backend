@@ -36,4 +36,6 @@ return [
     'supervisor' => 'Supervisor',
     'total_price' => 'Total Price',
     'converted_to_invoice' => 'Converted to Invoice',
+    'second_description' => 'Second Description',
+    'converted_invoice' => 'Converted Invoice',
 ];

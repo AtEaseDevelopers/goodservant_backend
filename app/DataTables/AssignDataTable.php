@@ -160,7 +160,11 @@ class AssignDataTable extends DataTable
             'data' => 'customer.company',
             'name' => 'customer.company']),
 
-            'sequence'
+            'sequence' => new \Yajra\DataTables\Html\Column(['title' => trans('assign.sequence'),
+
+            'data' => 'sequence',
+
+            'name' => 'sequence'])
 
         ];
     }

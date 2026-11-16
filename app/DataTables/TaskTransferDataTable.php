@@ -117,9 +117,9 @@ class TaskTransferDataTable extends DataTable
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="8">Completed</option><option value="0">New</option><option value="1">In-Progress</option><option value="9">Cancelled</option></select>\';
                             }else if(columns[index].title == \'Type\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Cash</option><option value="2">Bankin</option></select>\';
-                            }else if(columns[index].title == \'Transfer Date\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('task_transfers.transfer_date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
-                            }else if(columns[index].title == \'Task Date\'){
+                            }else if(columns[index].title == \'' . addslashes(trans('task_transfers.task_date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
@@ -143,23 +143,23 @@ class TaskTransferDataTable extends DataTable
     {
         return [
 
-            'from_datedriver_id'=> new \Yajra\DataTables\Html\Column(['title' => 'Transfer Date',
+            'from_datedriver_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('task_transfers.transfer_date'),
             'data' => 'date',
             'name' => 'date']),
 
-            'from_driver_id'=> new \Yajra\DataTables\Html\Column(['title' => 'From Driver',
+            'from_driver_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('task_transfers.from_driver'),
             'data' => 'fromdriver.name',
             'name' => 'fromdriver.name']),
 
-            'to_driver_id'=> new \Yajra\DataTables\Html\Column(['title' => 'To Driver',
+            'to_driver_id'=> new \Yajra\DataTables\Html\Column(['title' => trans('task_transfers.to_driver'),
             'data' => 'todriver.name',
             'name' => 'todriver.name']),
 
-            'task_id.date'=> new \Yajra\DataTables\Html\Column(['title' => 'Task Date',
+            'task_id.date'=> new \Yajra\DataTables\Html\Column(['title' => trans('task_transfers.task_date'),
             'data' => 'task.date',
             'name' => 'task.date']),
 
-            'task_id.customer.company'=> new \Yajra\DataTables\Html\Column(['title' => 'Task Customer',
+            'task_id.customer.company'=> new \Yajra\DataTables\Html\Column(['title' => trans('task_transfers.task_customer'),
             'data' => 'task.customer.company',
             'name' => 'task.customer.company']),
 

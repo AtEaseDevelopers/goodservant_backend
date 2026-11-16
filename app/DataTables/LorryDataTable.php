@@ -163,7 +163,7 @@ class LorryDataTable extends DataTable
             'data' => 'lorryno',
             'name' => 'lorryno']),
 
-            'current_driver'=> new \Yajra\DataTables\Html\Column(['title' => 'Driver',
+            'current_driver'=> new \Yajra\DataTables\Html\Column(['title' => trans('lorries.driver'),
             'data' => 'current_driver',
             'name' => 'current_driver',
             'orderable' => false,
