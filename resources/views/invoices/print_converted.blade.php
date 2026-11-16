@@ -122,6 +122,7 @@
                 $discountProductId = \App\Support\InvoiceDiscount::productId();
                 $discountAmount = 0;
                 $doRows = [];
+                $doDates = [];
             @endphp
             @foreach ($invoice['invoicedetail'] as $invoicedetail)
                 @if((int) ($invoicedetail['product_id'] ?? 0) === $discountProductId)
@@ -133,13 +134,16 @@
                     $doNo = $invoicedetail['deliveryorder']['dono'] ?? '-';
                     if (!isset($doRows[$doNo])) {
                         $doRows[$doNo] = 0;
+                        // The DO's own date, printed after its number.
+                        $rawDoDate = optional($invoicedetail->deliveryorder)->getRawOriginal('date');
+                        $doDates[$doNo] = $rawDoDate ? date('d-m-Y', strtotime($rawDoDate)) : null;
                     }
                     $doRows[$doNo] += $invoicedetail['totalprice'];
                 @endphp
             @endforeach
             @foreach ($doRows as $doNo => $doTotal)
                 <tr>
-                    <td class="col-do">{{ $doNo }}</td>
+                    <td class="col-do">{{ $doNo }}@if(!empty($doDates[$doNo])) &nbsp;({{ $doDates[$doNo] }})@endif</td>
                     <td class="col-total">{{ number_format($doTotal, 2) }}</td>
                 </tr>
             @endforeach
