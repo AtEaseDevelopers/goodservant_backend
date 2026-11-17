@@ -125,6 +125,8 @@
                 <dd>{{ ($customer->registration_no ?? null) ?: $dash }}</dd>
                 <dt>{{ __('customers.debtor_type') }}</dt>
                 <dd>{{ $customer->debtor_type ?: $dash }}</dd>
+                <dt>{{ __('customers.credit_term') }}</dt>
+                <dd>{{ $customer->credit_term ?: $dash }}</dd>
             </dl>
         </div>
     </div>

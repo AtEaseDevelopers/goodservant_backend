@@ -49,6 +49,7 @@ return [
     'sst' => 'SST',
     'start_date' => 'Start date',
     'debtor_type' => 'Debtor Type',
+    'credit_term' => 'Credit Term',
     'status' => 'Status',
     'target' => 'Target Amount',
     'tin' => 'TIN',

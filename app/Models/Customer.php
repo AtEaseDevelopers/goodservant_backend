@@ -109,6 +109,10 @@ class Customer extends Model implements AuthenticatableContract
         'tourism_tax_registration',
         // AutoCount Debtor Type (Debtor.DebtorType); synced from the plugin.
         'debtor_type',
+        // AutoCount credit term, synced from the plugin: the verbatim term
+        // ("30 DAYS", "C.O.D.") plus its parsed net-day count.
+        'credit_term',
+        'credit_term_days',
     ];
 
     /**
@@ -132,6 +136,8 @@ class Customer extends Model implements AuthenticatableContract
         'address' => 'string',
         'status' => 'integer',
         'product_price_category_id' => 'integer',
+        'credit_term' => 'string',
+        'credit_term_days' => 'integer',
         'sst' => 'string',
         'tin' => 'string',
         'portal_token' => 'string',

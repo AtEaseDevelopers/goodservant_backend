@@ -278,6 +278,9 @@ class AutoCountController extends Controller
             'customers.*.product_price_category' => ['nullable', 'string', 'max:255'],
             // AutoCount Debtor Type (Debtor.DebtorType). AutoCount-owned.
             'customers.*.debtor_type' => ['nullable', 'string', 'max:255'],
+            // AutoCount credit term (Debtor.CreditTerm), e.g. "30 DAYS",
+            // "C.O.D.". AutoCount-owned; stored verbatim + parsed to days.
+            'customers.*.credit_term' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -579,6 +582,25 @@ class AutoCountController extends Controller
                             'unit_price' => (float) $d->price,
                             'subtotal' => (float) $d->totalprice,
                         ];
+                    })
+                    // Combine lines that share the same SKU AND the same unit
+                    // price into a single line (sum quantity + amount). The same
+                    // SKU at different prices stays on separate lines. Lines
+                    // without an item_code are never merged (unique key per row).
+                    ->groupBy(function ($line, $key) {
+                        return $line['item_code'] === null
+                            ? 'null:' . $key
+                            : $line['item_code'] . '|' . number_format($line['unit_price'], 4, '.', '');
+                    })->map(function ($group) {
+                        $first = $group->first();
+
+                        return [
+                            'item_code' => $first['item_code'],
+                            'description' => $first['description'],
+                            'quantity' => (float) $group->sum('quantity'),
+                            'unit_price' => $first['unit_price'],
+                            'subtotal' => round((float) $group->sum('subtotal'), 2),
+                        ];
                     })->values(),
                 ];
             } catch (\Throwable $e) {
@@ -837,6 +859,15 @@ class AutoCountController extends Controller
             $attributes['debtor_type'] = trim((string) $row['debtor_type']) ?: null;
         }
 
+        // Credit term is AutoCount-owned, same rule as debtor_type: present means
+        // reflect it (blank -> null, clearing both columns), absent leaves the
+        // stored value alone. Kept verbatim plus a parsed net-day count.
+        if (array_key_exists('credit_term', $row)) {
+            $term = trim((string) $row['credit_term']);
+            $attributes['credit_term'] = $term !== '' ? $term : null;
+            $attributes['credit_term_days'] = $term !== '' ? $this->parseCreditTermDays($term) : null;
+        }
+
         // Price category is explicit: present means set it (even to null to
         // clear); absent means leave the current assignment alone.
         if (array_key_exists('product_price_category', $row)) {
@@ -878,6 +909,28 @@ class AutoCountController extends Controller
         }
 
         return $isNew;
+    }
+
+    /**
+     * Parse an AutoCount credit term into a net-day count. Day-based terms
+     * ("30 DAYS", "60") yield their number; cash-on-delivery / cash terms
+     * ("C.O.D.", "COD", "CASH") are zero-day credit; anything else is not
+     * day-based and returns null (the verbatim term is still kept).
+     */
+    private function parseCreditTermDays(string $term): ?int
+    {
+        $upper = strtoupper($term);
+
+        if (preg_match('/\d+/', $upper, $m)) {
+            return (int) $m[0];
+        }
+
+        $letters = preg_replace('/[^A-Z]/', '', $upper);
+        if ($letters === 'COD' || strpos($letters, 'CASH') !== false) {
+            return 0;
+        }
+
+        return null;
     }
 
     /**
