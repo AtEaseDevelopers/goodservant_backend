@@ -58,7 +58,8 @@
             font-size: 10.5px;
             vertical-align: top;
         }
-        .item-table .col-do { width: 70%; }
+        .item-table .col-do { width: 45%; }
+        .item-table .col-date { width: 25%; }
         .item-table .col-total { width: 30%; text-align: right; }
         .footer-block { margin-top: 10px; }
         .amount-words-row td { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 4px; vertical-align: top; }
@@ -112,6 +113,7 @@
         <thead>
             <tr>
                 <th class="col-do">D/O No.</th>
+                <th class="col-date">Date</th>
                 <th class="col-total">Total<br>RM</th>
             </tr>
         </thead>
@@ -134,7 +136,7 @@
                     $doNo = $invoicedetail['deliveryorder']['dono'] ?? '-';
                     if (!isset($doRows[$doNo])) {
                         $doRows[$doNo] = 0;
-                        // The DO's own date, printed after its number.
+                        // The DO's own date, in its own column.
                         $rawDoDate = optional($invoicedetail->deliveryorder)->getRawOriginal('date');
                         $doDates[$doNo] = $rawDoDate ? date('d-m-Y', strtotime($rawDoDate)) : null;
                     }
@@ -143,7 +145,8 @@
             @endforeach
             @foreach ($doRows as $doNo => $doTotal)
                 <tr>
-                    <td class="col-do">{{ $doNo }}@if(!empty($doDates[$doNo])) &nbsp;({{ $doDates[$doNo] }})@endif</td>
+                    <td class="col-do">{{ $doNo }}</td>
+                    <td class="col-date">{{ $doDates[$doNo] ?? '-' }}</td>
                     <td class="col-total">{{ number_format($doTotal, 2) }}</td>
                 </tr>
             @endforeach
