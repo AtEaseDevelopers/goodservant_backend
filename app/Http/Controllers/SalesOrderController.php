@@ -304,6 +304,11 @@ class SalesOrderController extends AppBaseController
      */
     public function convert(Request $request)
     {
+        // Converting is done by the driver in the app only: a conversion here
+        // takes the driver's next invoice number, which the driver's phone may
+        // be using offline at the same moment. The button is hidden too.
+        return response()->json(['message' => 'Converting a Sales Order is done by the driver in the app.'], 422);
+
         $id = $request->input('id');
         $paymentterm = (int) $request->input('paymentterm');
         $chequeno = $request->input('chequeno');

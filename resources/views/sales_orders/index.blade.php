@@ -15,9 +15,9 @@
                              {{ trans('sales_orders.sales_orders') }}
                              <a class="pull-right" href="{{ route('salesOrders.create') }}"><i class="fa fa-plus-square fa-lg"></i></a>
                              <a class="pull-right text-danger pr-2" id="massdelete" href="#" alt="Mass delete"><i class="fa fa-trash fa-lg"></i></a>
-                             <button type="button" class="btn btn-success btn-sm pull-right mr-2" id="convert" title="{{ __('Convert the selected Sales Order into a Delivery Order or an Invoice') }}">
-                                <i class="fa fa-exchange"></i> {{ __('Convert') }}
-                             </button>
+                             {{-- Convert is done by the driver in the app only: an SO converted here
+                                  takes the driver's next invoice number, which the driver's phone may
+                                  be using offline at the same time. (Hidden; the code below stays.) --}}
                          </div>
                          <div class="card-body">
                              @include('sales_orders.table')
