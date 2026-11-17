@@ -112,8 +112,8 @@
     <table class="item-table">
         <thead>
             <tr>
-                <th class="col-do">D/O No.</th>
                 <th class="col-date">Date</th>
+                <th class="col-do">D/O No.</th>
                 <th class="col-total">Total<br>RM</th>
             </tr>
         </thead>
@@ -145,8 +145,8 @@
             @endforeach
             @foreach ($doRows as $doNo => $doTotal)
                 <tr>
-                    <td class="col-do">{{ $doNo }}</td>
                     <td class="col-date">{{ $doDates[$doNo] ?? '-' }}</td>
+                    <td class="col-do">{{ $doNo }}</td>
                     <td class="col-total">{{ number_format($doTotal, 2) }}</td>
                 </tr>
             @endforeach
