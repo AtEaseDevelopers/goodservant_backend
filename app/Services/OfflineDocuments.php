@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  * Rules, in order:
  *  1. Same client_ref seen before -> return the saved document, never a
  *     second copy (a resent upload, or two uploads at the same moment).
- *  2. The phone's own number (IV2611/BK07/A0001) is kept. If it is malformed
+ *  2. The phone's own number (IV2611/BK07/0038, the driver's normal series) is kept. If it is malformed
  *     or already used, the next free offline number is given instead, the
  *     old one is kept in renumbered_from and the document is flagged.
  *  3. Data the server would normally refuse (a product made inactive, a

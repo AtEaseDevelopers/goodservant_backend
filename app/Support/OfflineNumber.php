@@ -8,17 +8,16 @@ use App\Models\Invoice;
 use App\Models\SalesOrder;
 
 /**
- * Offline document numbers. The phone makes them while it has no signal,
- * from its own counter, so they never share the online series:
+ * Numbers the phone gives documents made without signal.
  *
- *   Invoice      IV2611/BK07/A0001     (online IV2611/BK07/0001)
- *   Cash Sale    CS2611/BK07/A0001     (online CS2611/BK07/0001)
- *   Delivery     DO2611/BK07/A0001     (online DO2611/BK07/0001)
- *   Sales Order  SO2611/BK07/A0001     (online SO2611/0001)
+ *   Invoice      IV2611/BK07/0038     the driver's normal series, continued
+ *   Cash Sale    CS2611/BK07/0038     on the phone from the last number it
+ *   Delivery     DO2611/BK07/0011     knows - the same series as online
+ *   Sales Order  SO2611/BK07/0012
  *
- * YYMM is the month of the sale (the document date), BK07 the driver's
- * document code, and A + 4 digits the offline running number. The counter
- * is per driver, per type, per month.
+ * YYMM is the month of the document date, BK07 the driver's document code.
+ * The server never saves a number twice: a number already used (e.g. taken
+ * online while the phone was offline) is renumbered and flagged.
  */
 class OfflineNumber
 {
@@ -31,28 +30,36 @@ class OfflineNumber
         'SO' => [SalesOrder::class, 'sono'],
     ];
 
+    /** Offline numbers use the normal series (no mark); kept as one place to change. */
+    private static function mark(string $prefix): string
+    {
+        return '';
+    }
+
     public static function format(string $prefix, string $period, string $docCode, int $sequence): string
     {
-        return $prefix . $period . '/' . $docCode . '/A' . sprintf('%04d', $sequence);
+        return $prefix . $period . '/' . $docCode . '/' . static::mark($prefix) . sprintf('%04d', $sequence);
     }
 
     /**
-     * Split an offline number into its parts, or null when it is not one.
+     * Split a number into its parts, or null when it is not one of ours.
      *
-     * @return array{prefix:string, period:string, code:string, sequence:int}|null
+     * @return array{prefix:string, period:string, code:string, sequence:int, offline:bool}|null
      */
     public static function parse(?string $number): ?array
     {
-        if ($number === null || !preg_match('/^(IV|CS|DO|SO)(\d{4})\/([A-Z0-9]{1,6})\/A(\d{4,})$/', $number, $m)) {
+        if ($number === null || !preg_match('/^(IV|CS|DO|SO)(\d{4})\/([A-Z0-9]{1,6})\/(A?)(\d{4,})$/', $number, $m)) {
             return null;
         }
 
-        return ['prefix' => $m[1], 'period' => $m[2], 'code' => $m[3], 'sequence' => (int) $m[4]];
+        return ['prefix' => $m[1], 'period' => $m[2], 'code' => $m[3], 'sequence' => (int) $m[5], 'offline' => $m[4] === 'A'];
     }
 
     /**
-     * Whether $number is a well formed offline number for this driver, this
-     * document type and the month of $date.
+     * Whether $number is well formed for this driver, document type and the
+     * month of $date. Both the normal series (IV2611/BK07/0038) and the old
+     * offline series that apps 1.0.72 - 1.0.76 print (IV2611/BK07/A0005) are
+     * kept as printed; the unique index still refuses any repeat.
      */
     public static function fits(?string $number, string $prefix, Driver $driver, string $date): bool
     {
@@ -65,32 +72,34 @@ class OfflineNumber
             && $parts['sequence'] > 0;
     }
 
-    /** Highest offline running number used for this driver, type and month. */
+    /** Highest number of this series used for this driver, type and month. */
     public static function last(string $prefix, string $period, Driver $driver): int
     {
         [$model, $column] = self::TABLES[$prefix];
-        $stem = $prefix . $period . '/' . $driver->documentCode() . '/A';
+        $stem = $prefix . $period . '/' . $driver->documentCode() . '/' . static::mark($prefix);
 
-        $row = $model::query()
-            ->toBase()
-            ->where($column, 'like', $stem . '%')
+        $query = $model::query()->toBase()->where($column, 'like', $stem . '%');
+        if (static::mark($prefix) === '') {
+            // Old offline numbers (.../A0001) are a separate, finished series.
+            $query->where($column, 'not like', $stem . 'A%');
+        }
+        $row = $query
             ->selectRaw('MAX(CAST(SUBSTRING(' . $column . ', ?) AS UNSIGNED)) as seq', [strlen($stem) + 1])
             ->first();
 
         return (int) ($row->seq ?? 0);
     }
 
-    /** The next free offline number for this driver, type and month. */
+    /** The next free number of this series for this driver, type and month. */
     public static function next(string $prefix, string $period, Driver $driver): string
     {
         return static::format($prefix, $period, $driver->documentCode(), static::last($prefix, $period, $driver) + 1);
     }
 
     /**
-     * Last used offline number per type for this month and the two before,
-     * e.g. ['IV2611' => 4, 'CS2611' => 12, 'SO2610' => 3]. The phone takes
-     * the higher of this and its own counter, so a reinstalled app or a
-     * new phone carries on from the right number.
+     * Last used number per type for this month and the two before, e.g.
+     * ['IV2611' => 10, 'CS2611' => 38, 'SO2611' => 3]. The phone continues
+     * from the higher of this and its own count.
      */
     public static function lastUsedMap(Driver $driver): array
     {

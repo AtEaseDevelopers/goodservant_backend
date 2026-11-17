@@ -116,7 +116,8 @@ class CartController extends Controller
             }
 
             $order = new SalesOrder();
-            $order->sono = Code::nextRunningNumber('sorunningnumber', 'SO');
+            // Per driver (SO2611/BK07/0012), like the driver app; no driver -> SO2611/00/0012.
+            $order->sono = Code::nextDocumentNumber('SO', $customer->so_default_driver_id ?: null);
             $order->date = now();
             $order->customer_id = $customer->id;
             $order->paymentterm = $customer->paymentterm;

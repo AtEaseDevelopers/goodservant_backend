@@ -4936,7 +4936,8 @@ class DriverController extends Controller
                 $salesOrderId = $extsalesorder->id;
             }else{
                 $salesOrder = new SalesOrder();
-                $salesOrder->sono = Code::nextRunningNumber('sorunningnumber', 'SO');
+                // Per driver, the same series the phone continues offline.
+                $salesOrder->sono = Code::nextDocumentNumber('SO', $driver->id);
                 $salesOrder->client_ref = !empty($data['client_ref']) ? $data['client_ref'] : null;
                 foreach($header as $column => $value){
                     $salesOrder->{$column} = $value;

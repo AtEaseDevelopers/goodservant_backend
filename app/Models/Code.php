@@ -114,15 +114,17 @@ class Code extends Model
     }
 
     /**
-     * Next invoice, cash-sale or DO number for one driver:
-     * {IV|CS|DO}{yymm}/{driver code}/{0001}.
+     * Next invoice, cash-sale, DO or sales order number for one driver:
+     * {IV|CS|DO|SO}{yymm}/{driver code}/{0001}.
      *
      * The number is the driver's highest number of that type this month + 1,
      * read from the documents themselves (no counter is kept): the first one
-     * of each month is 0001. Cancelled documents still count (their number
-     * stays used); offline numbers (.../A0001) are a separate series and do
-     * not count. A cancelled number of this month is handed out again first,
-     * as before.
+     * of each month is 0001. Cancelled documents keep their number and it is
+     * never handed out again: the driver's phone continues this same series
+     * without signal and must be able to rely on "highest + 1". Old offline
+     * numbers (.../A0001) are a separate, finished series and do not count.
+     *
+     * $reuseCancelled is ignored (kept for existing callers).
      *
      * The driver's row is held until the caller's transaction ends, so two
      * documents for one driver cannot take the same number; the unique index
@@ -133,7 +135,7 @@ class Code extends Model
     public static function nextDocumentNumber(string $prefix, $driverId = null, bool $reuseCancelled = true): string
     {
         $prefix = strtoupper($prefix);
-        if (!in_array($prefix, ['IV', 'CS', 'DO'], true)) {
+        if (!in_array($prefix, ['IV', 'CS', 'DO', 'SO'], true)) {
             $prefix = 'CS';
         }
 
@@ -145,15 +147,8 @@ class Code extends Model
             $docCode = $driver ? $driver->documentCode() : '00';
             $period = date('ym');
 
-            if ($reuseCancelled && $prefix !== 'DO') {
-                $reused = static::takeCancelledInvoiceNumber($prefix, $period, $docCode);
-                if ($reused !== null) {
-                    return $reused;
-                }
-            }
-
             $stem = $prefix . $period . '/' . $docCode . '/';
-            [$table, $column] = $prefix === 'DO' ? ['deliveryorders', 'dono'] : ['invoices', 'invoiceno'];
+            [$table, $column] = ['DO' => ['deliveryorders', 'dono'], 'SO' => ['sales_orders', 'sono']][$prefix] ?? ['invoices', 'invoiceno'];
             $row = \Illuminate\Support\Facades\DB::table($table)
                 ->where($column, 'like', $stem . '%')
                 ->where($column, 'not like', $stem . 'A%')
@@ -178,7 +173,7 @@ class Code extends Model
      */
     protected static function lockDocumentCounters(string $prefix): void
     {
-        $shared = ['IV' => 'invoicerunningnumber', 'CS' => 'cashsalesrunningnumber', 'DO' => 'dorunningnumber'][$prefix] ?? 'cashsalesrunningnumber';
+        $shared = ['IV' => 'invoicerunningnumber', 'CS' => 'cashsalesrunningnumber', 'DO' => 'dorunningnumber', 'SO' => 'sorunningnumber'][$prefix] ?? 'cashsalesrunningnumber';
         static::where('code', $shared)->lockForUpdate()->first();
     }
 

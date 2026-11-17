@@ -56,7 +56,8 @@ class SalesOrderController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
         if (empty($input['sono'])) {
-            $input['sono'] = Code::nextRunningNumber('sorunningnumber', 'SO');
+            // Per driver (SO2611/BK07/0012), the series the driver's phone continues offline.
+            $input['sono'] = Code::nextDocumentNumber('SO', $input['driver_id'] ?? null);
         }
 
         $salesOrder = $this->salesOrderRepository->create($input);

@@ -71,8 +71,10 @@ class OfflineReviewController extends Controller
     }
 
     /**
-     * Missing offline numbers per driver, type and month (this month and
-     * the last), e.g. IV2611/BK07/A0003 when A0002 and A0004 exist.
+     * Missing numbers per driver, type and month (this month and the last),
+     * e.g. IV2611/BK07/0003 when 0002 and 0004 exist. Usually a document
+     * still on a phone, or a number set aside for a create that never
+     * reached the server.
      */
     private function gaps(): array
     {
@@ -83,8 +85,10 @@ class OfflineReviewController extends Controller
             foreach (['IV' => Invoice::class, 'CS' => Invoice::class, 'DO' => DeliveryOrder::class, 'SO' => SalesOrder::class] as $prefix => $model) {
                 $column = $model === Invoice::class ? 'invoiceno' : ($model === DeliveryOrder::class ? 'dono' : 'sono');
                 foreach ($periods as $period) {
-                    $stem = $prefix . $period . '/' . $code . '/A';
-                    $used = $model::query()->where($column, 'like', $stem . '%')->pluck($column)
+                    $stem = $prefix . $period . '/' . $code . '/';
+                    $used = $model::query()->where($column, 'like', $stem . '%')
+                        ->where($column, 'not like', $stem . 'A%')
+                        ->pluck($column)
                         ->map(function ($n) use ($stem) { return (int) substr($n, strlen($stem)); })
                         ->filter()->unique()->sort()->values();
                     if ($used->isEmpty()) {

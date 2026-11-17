@@ -81,11 +81,11 @@
             <div class="card">
                 <div class="card-header">
                     <i class="fa fa-mobile"></i>
-                    Offline numbers not uploaded yet
+                    Numbers not uploaded yet
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Numbers skipped in a driver's offline series (this month and last month). The document is
+                        Numbers skipped in a driver's series (this month and last month). The document is
                         usually still on the driver's phone waiting for signal. If the phone was lost or reset,
                         enter it from the printed copy.
                     </p>
