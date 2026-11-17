@@ -120,13 +120,6 @@
             </li>
         </ul>
         <ul class="nav-dropdown-items">
-            <li class="nav-item {{ Request::is('offlineReview*') ? 'active' : '' }}">
-                <a class="nav-link {{ Request::is('offlineReview*') ? 'active' : '' }}" href="{{ route('offlineReview.index') }}">
-                    <span>Offline Review</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="nav-dropdown-items">
             <li class="nav-item {{ Request::is('invoices*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('invoices*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">
                     <span>{{ trans('side_menu.invoices') }}</span>
