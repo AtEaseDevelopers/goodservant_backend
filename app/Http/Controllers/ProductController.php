@@ -233,6 +233,11 @@ class ProductController extends AppBaseController
 
         $input = $request->all();
 
+        // Item code is the shared key with AutoCount; it must never change on the
+        // OMS side (a rename desyncs both systems). Pin it to the stored value so
+        // the form field is purely informational and a crafted POST can't bypass it.
+        $input['code'] = $product->code;
+
         if(str_contains($input['name'],'"')){
             return Redirect::back()->withInput($input)->withErrors('The name cannot contain double quote');
         }

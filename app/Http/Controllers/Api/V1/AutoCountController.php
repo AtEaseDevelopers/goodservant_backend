@@ -35,9 +35,12 @@ use Illuminate\Support\Facades\Validator;
  */
 class AutoCountController extends Controller
 {
-    // Default payment term for customers synced from AutoCount (AutoCount's
-    // credit term does not map cleanly to the OMS enum). 2 = Credit.
-    private const DEFAULT_PAYMENT_TERM = 2;
+    // OMS payment-method enum. The customer sync derives this from the AutoCount
+    // credit term: a zero-day term (C.O.D. / CASH) is Cash, any credit window is
+    // Credit. DEFAULT applies to a new customer whose term carries no mapping.
+    private const PAYMENT_TERM_CASH = 1;
+    private const PAYMENT_TERM_CREDIT = 2;
+    private const DEFAULT_PAYMENT_TERM = self::PAYMENT_TERM_CREDIT;
 
     // How many pending invoices the plugin may claim per 30s poll.
     private const INVOICE_PULL_LIMIT = 20;
@@ -223,7 +226,9 @@ class AutoCountController extends Controller
      * Matched by `code` (AutoCount AccNo). Only fields AutoCount actually
      * provides are written; everything else is left empty on create or
      * untouched on update. OMS-owned fields (agent_id, supervisor_id,
-     * is_do_customer, paymentterm) are never overwritten by the sync.
+     * is_do_customer) are never overwritten by the sync; `paymentterm` is the
+     * exception — it is derived from the credit term (Cash for C.O.D./CASH,
+     * Credit otherwise).
      */
     public function syncCustomers(Request $request)
     {
@@ -278,7 +283,7 @@ class AutoCountController extends Controller
             'customers.*.product_price_category' => ['nullable', 'string', 'max:255'],
             // AutoCount Debtor Type (Debtor.DebtorType). AutoCount-owned.
             'customers.*.debtor_type' => ['nullable', 'string', 'max:255'],
-            // AutoCount credit term (Debtor.CreditTerm), e.g. "30 DAYS",
+            // AutoCount credit term (Debtor.DisplayTerm), e.g. "30 DAYS",
             // "C.O.D.". AutoCount-owned; stored verbatim + parsed to days.
             'customers.*.credit_term' => ['nullable', 'string', 'max:255'],
         ]);
@@ -831,7 +836,8 @@ class AutoCountController extends Controller
      * - On first creation only, fills the required legacy columns AutoCount does
      *   not provide with safe defaults (name = company, agent_id/supervisor_id 0,
      *   paymentterm = Credit, is_do_customer = false). Updates leave those
-     *   OMS-owned fields untouched.
+     *   OMS-owned fields untouched — except `paymentterm`, which the credit term
+     *   derives (see below) whenever a non-blank term is synced.
      * - Race-safe against the unique `code` index, like upsertProduct().
      * - product_price_category: when the key is present it is resolved to a
      *   product_price_category_id, creating the category if needed (blank ->
@@ -861,11 +867,23 @@ class AutoCountController extends Controller
 
         // Credit term is AutoCount-owned, same rule as debtor_type: present means
         // reflect it (blank -> null, clearing both columns), absent leaves the
-        // stored value alone. Kept verbatim plus a parsed net-day count.
+        // stored value alone. Kept verbatim plus a parsed net-day count, and the
+        // OMS payment method is derived from it: a zero-day term (C.O.D. / CASH)
+        // is a Cash sale, any credit window ("Net 30 days") is Credit. A blank
+        // term carries no signal, so the stored payment method is left untouched.
         if (array_key_exists('credit_term', $row)) {
             $term = trim((string) $row['credit_term']);
-            $attributes['credit_term'] = $term !== '' ? $term : null;
-            $attributes['credit_term_days'] = $term !== '' ? $this->parseCreditTermDays($term) : null;
+            if ($term !== '') {
+                $days = $this->parseCreditTermDays($term);
+                $attributes['credit_term'] = $term;
+                $attributes['credit_term_days'] = $days;
+                $attributes['paymentterm'] = $days === 0
+                    ? self::PAYMENT_TERM_CASH
+                    : self::PAYMENT_TERM_CREDIT;
+            } else {
+                $attributes['credit_term'] = null;
+                $attributes['credit_term_days'] = null;
+            }
         }
 
         // Price category is explicit: present means set it (even to null to

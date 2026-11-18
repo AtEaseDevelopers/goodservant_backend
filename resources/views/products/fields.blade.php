@@ -1,7 +1,15 @@
 <!-- Code Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('code', __('products.code')) !!}<span class="asterisk"> *</span>
-    {!! Form::text('code', null, ['class' => 'form-control', 'maxlength' => 255, 'autofocus']) !!} <!-- Removed duplicate maxlength -->
+    @if(!empty($product))
+        {{-- Item code is the shared key with AutoCount. Renaming it here desyncs
+             both systems (auto-created [REVIEW] items in AutoCount + duplicate
+             products on re-sync), so it is locked on edit. Rename in AutoCount. --}}
+        {!! Form::text('code', null, ['class' => 'form-control', 'maxlength' => 255, 'readonly' => 'readonly']) !!}
+        <small class="form-text text-muted">Managed by AutoCount — to change a code, rename it in AutoCount and let it sync back.</small>
+    @else
+        {!! Form::text('code', null, ['class' => 'form-control', 'maxlength' => 255, 'autofocus']) !!}
+    @endif
 </div>
 
 <!-- Name Field -->
