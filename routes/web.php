@@ -208,6 +208,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/my-orders', [App\Http\Controllers\Portal\OrderController::class, 'orders'])->name('orders');
         Route::get('/my-orders/feed', [App\Http\Controllers\Portal\OrderController::class, 'ordersBatch'])->name('orders.feed');
         Route::get('/my-orders/{order}', [App\Http\Controllers\Portal\OrderController::class, 'show'])->name('orders.show');
+        Route::post('/my-orders/{order}/remove-off-day', [App\Http\Controllers\Portal\OrderController::class, 'removeOffDay'])->name('orders.remove-off-day');
         Route::get('/my-orders/{order}/pdf/{function}', [App\Http\Controllers\Portal\OrderController::class, 'salesOrderPdf'])->name('orders.pdf');
 
         // Cart (server-side, persisted) + checkout into a SalesOrder.
@@ -517,6 +518,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::get('/salesOrders/getprice/{salesorder_id}/{product_id}', [App\Http\Controllers\SalesOrderController::class, 'getprice']);
         Route::get('/salesOrders/{id}/convertitems', [App\Http\Controllers\SalesOrderController::class, 'convertitems'])->name('salesOrders.convertitems');
         Route::post('/salesOrders/convert', [App\Http\Controllers\SalesOrderController::class, 'convert'])->name('salesOrders.convert');
+        Route::post('/salesOrders/{id}/remove-off-day', [App\Http\Controllers\SalesOrderController::class, 'removeOffDay'])->name('salesOrders.remove-off-day');
         Route::resource('salesOrders', App\Http\Controllers\SalesOrderController::class);
         Route::post('/salesOrders/massdestroy', [App\Http\Controllers\SalesOrderController::class, 'massdestroy']);
         Route::get('/print/salesOrders/getSoViewPDF/{id}/{function}', [App\Http\Controllers\SalesOrderController::class, 'getSoViewPDF'])->name('salesorder.print');

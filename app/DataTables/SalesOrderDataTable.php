@@ -28,8 +28,28 @@ class SalesOrderDataTable extends DataTable
                 : '-';
         });
 
-        return $dataTable->addColumn('action', 'sales_orders.datatables_actions')
-            ->rawColumns(['converted_to', 'off_day_label', 'action']);
+        // The off_day column shows an "Off Day"/"-" badge, so the default LIKE
+        // search never matches. The header filter is a Yes/No select sending 1/0.
+        $dataTable->filterColumn('sales_orders.off_day', function ($query, $keyword) {
+            $keyword = strtolower(trim($keyword));
+            if (in_array($keyword, ['1', 'yes'], true)) {
+                $query->where('sales_orders.off_day', 1);
+            } elseif (in_array($keyword, ['0', 'no'], true)) {
+                $query->where(function ($q) {
+                    $q->where('sales_orders.off_day', 0)->orWhereNull('sales_orders.off_day');
+                });
+            }
+        });
+
+        return $dataTable->addColumn('action', function ($salesOrder) {
+            return view('sales_orders.datatables_actions', [
+                'id'       => $salesOrder->id,
+                'off_day'  => (bool) $salesOrder->off_day,
+                'editable' => empty($salesOrder->deliveryorder_id)
+                    && empty($salesOrder->invoice_id)
+                    && (int) $salesOrder->status !== 2,
+            ])->render();
+        })->rawColumns(['converted_to', 'off_day_label', 'action']);
     }
 
     public function query(SalesOrder $model)
@@ -119,6 +139,10 @@ class SalesOrderDataTable extends DataTable
                         if(columns[index].searchable){
                             if(columns[index].title == \'' . addslashes(trans('sales_orders.status')) . '\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option></select>\';
+                            }else if(columns[index].title == \'' . addslashes(trans('sales_orders.off_day')) . '\'){
+                                var saved = String(column.search() || \'\').toLowerCase();
+                                var current = (saved == \'1\' || saved == \'yes\') ? \'1\' : ((saved == \'0\' || saved == \'no\') ? \'0\' : \'\');
+                                var input = $(\'<select class="border-0" style="width: 100%;"><option value="">All</option><option value="1">Yes</option><option value="0">No</option></select>\').val(current);
                             }else if(columns[index].title == \'' . addslashes(trans('sales_orders.date')) . '\'){
                                 var input = \'<input type="text" id="\'+index+\'Date" onclick="searchDateColumn(this);" placeholder="Search ">\';
                             }else{
@@ -200,7 +224,7 @@ class SalesOrderDataTable extends DataTable
                 'title' => trans('sales_orders.off_day'),
                 'data' => 'off_day_label',
                 'name' => 'sales_orders.off_day',
-                'searchable' => false
+                'orderable' => false
             ]),
         ];
     }

@@ -161,6 +161,40 @@ class OrderController extends Controller
     }
 
     /**
+     * Remove the "off day" hold from one of the customer's own orders so it
+     * becomes a normal, deliverable order. Off-day orders no longer forward
+     * automatically — the customer clears the hold here when they want
+     * delivery. Only allowed while the order is still open (not cancelled and
+     * not yet turned into a delivery order or invoice). The order is re-dated to
+     * the day the hold is removed so it behaves like a fresh order for the
+     * driver. Removal only — there is no "put back on hold" here.
+     */
+    public function removeOffDay($token)
+    {
+        $order = $this->findOwnedOrder($token);
+
+        if (!$order->off_day) {
+            return redirect()->route('portal.orders.show', $token)
+                ->with('status', 'This order is not on an off-day hold.');
+        }
+
+        if ((int) $order->status === 2 || !empty($order->deliveryorder_id) || !empty($order->invoice_id)) {
+            return redirect()->route('portal.orders.show', $token)
+                ->with('status', 'This order can no longer be changed.');
+        }
+
+        $order->off_day = false;
+        // Re-date to the release day so the freed order appears as a fresh
+        // order for the driver (top of the lists, and in the today-scoped
+        // grouped delivery view).
+        $order->date = now();
+        $order->save();
+
+        return redirect()->route('portal.orders.show', $token)
+            ->with('status', 'Off-day hold removed — this order will be delivered on the next trip.');
+    }
+
+    /**
      * Stream/download the Sales Order PDF for one of the customer's own orders.
      * Reuses the same print layout and sizing as the admin side.
      */

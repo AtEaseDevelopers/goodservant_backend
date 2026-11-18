@@ -24,6 +24,12 @@
 
     <h1 class="mb-6 text-2xl font-bold tracking-tight text-slate-900">Order Details</h1>
 
+    @if(session('status'))
+        <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+            {{ session('status') }}
+        </div>
+    @endif
+
     {{-- Summary --}}
     <div class="grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 shadow-sm sm:grid-cols-3">
         <div class="bg-white p-5">
@@ -49,6 +55,28 @@
             </span>
         </div>
     </div>
+
+    @php
+        $orderOpen = (int) $order->status !== 2 && empty($order->deliveryorder_id) && empty($order->invoice_id);
+    @endphp
+    @if($order->off_day && $orderOpen)
+        {{-- Off-day hold: the order is held back from delivery until the customer
+             removes the hold here (there is no automatic forwarding). --}}
+        <div class="mt-6 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm font-semibold text-slate-900">This order is on an off-day hold</p>
+                <p class="mt-0.5 text-sm text-slate-500">It stays out of delivery until you remove the hold. Once removed, it will be delivered on the next trip.</p>
+            </div>
+            <form method="POST" action="{{ route('portal.orders.remove-off-day', Crypt::encrypt($order->id)) }}"
+                  onsubmit="return confirm('Remove the off-day hold? This order will then be delivered on the next trip.');">
+                @csrf
+                <button type="submit"
+                        class="w-full shrink-0 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 sm:w-auto">
+                    Remove off-day hold
+                </button>
+            </form>
+        </div>
+    @endif
 
     {{-- Ordered products --}}
     <div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

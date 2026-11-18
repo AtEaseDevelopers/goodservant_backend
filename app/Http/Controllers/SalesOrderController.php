@@ -166,6 +166,49 @@ class SalesOrderController extends AppBaseController
         return redirect(route('salesOrders.index'));
     }
 
+    /**
+     * Clear the "off day" hold on a Sales Order, turning it into a normal,
+     * deliverable order. Off-day orders no longer forward automatically — an
+     * admin (or the customer) removes the hold when the order should be
+     * delivered. Only allowed while the order is still open. The order is
+     * re-dated to the day the hold is removed so it behaves like a fresh order
+     * for the driver.
+     */
+    public function removeOffDay($id)
+    {
+        $id = Crypt::decrypt($id);
+        $salesOrder = $this->salesOrderRepository->find($id);
+
+        if (empty($salesOrder)) {
+            Flash::error('Sales Order not found');
+
+            return redirect(route('salesOrders.index'));
+        }
+
+        if (!$salesOrder->off_day) {
+            Flash::error('Sales Order is not on an off-day hold.');
+
+            return redirect(route('salesOrders.index'));
+        }
+
+        if ((int) $salesOrder->status === 2 || !empty($salesOrder->deliveryorder_id) || !empty($salesOrder->invoice_id)) {
+            Flash::error('Sales Order can no longer be changed.');
+
+            return redirect(route('salesOrders.index'));
+        }
+
+        $salesOrder->off_day = false;
+        // Re-date to the release day so the freed order appears as a fresh
+        // order for the driver (top of the lists, and in the today-scoped
+        // grouped delivery view).
+        $salesOrder->date = now();
+        $salesOrder->save();
+
+        Flash::success('Off-day hold removed. Sales Order is now a normal order.');
+
+        return redirect(route('salesOrders.index'));
+    }
+
     public function massdestroy(Request $request)
     {
         $ids = $request->input('ids', []);
