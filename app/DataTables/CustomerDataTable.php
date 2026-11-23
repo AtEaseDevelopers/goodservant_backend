@@ -36,6 +36,18 @@ class CustomerDataTable extends DataTable
             }
         });
 
+        $dataTable->editColumn('billing_cycle', function ($customer) {
+            return ['weekly' => 'Weekly', 'monthly' => 'Monthly'][$customer->billing_cycle] ?? '-';
+        });
+        $dataTable->filterColumn('customers.billing_cycle', function ($query, $keyword) {
+            $keyword = strtolower(trim($keyword));
+            if (in_array($keyword, ['weekly', 'monthly'], true)) {
+                $query->where('customers.billing_cycle', $keyword);
+            } elseif ($keyword === 'none') {
+                $query->whereNull('customers.billing_cycle');
+            }
+        });
+
         $dataTable->addColumn('price_category', function ($customer) {
             return $customer->productPriceCategory->name ?? '';
         });
@@ -171,6 +183,7 @@ class CustomerDataTable extends DataTable
                     'customers.customer_type',
                     'customers.debtor_type',
                     'customers.chinese_name',
+                    'customers.billing_cycle',
                     'invoicesummary.customer_id',
                     'invoicesummary.totalprice',
                     'invoicesummary.paid',
@@ -294,6 +307,9 @@ class CustomerDataTable extends DataTable
                                 var saved = String(column.search() || \'\').toLowerCase();
                                 var current = (saved == \'1\' || saved == \'yes\') ? \'1\' : ((saved == \'0\' || saved == \'no\') ? \'0\' : \'\');
                                 var input = $(\'<select class="border-0" style="width: 100%;"><option value="">All</option><option value="1">Yes</option><option value="0">No</option></select>\').val(current);
+                            }else if(columns[index].title == \'Billing\'){
+                                var savedBilling = String(column.search() || \'\').toLowerCase();
+                                var input = $(\'<select class="border-0" style="width: 100%;"><option value="">All</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="none">None</option></select>\').val(savedBilling);
                             }else{
                                 var input = \'<input type="text" placeholder="Search ">\';
                             }
@@ -389,6 +405,10 @@ class CustomerDataTable extends DataTable
             'is_do_customer'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.do_customer'),
             'data' => 'is_do_customer',
             'name' => 'customers.is_do_customer']),
+
+            'billing_cycle'=> new \Yajra\DataTables\Html\Column(['title' => 'Billing',
+            'data' => 'billing_cycle',
+            'name' => 'customers.billing_cycle']),
         ];
     }
 

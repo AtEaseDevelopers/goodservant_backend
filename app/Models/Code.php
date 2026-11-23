@@ -126,26 +126,29 @@ class Code extends Model
      *
      * $reuseCancelled is ignored (kept for existing callers).
      *
+     * $date: the document's date; its month gives the YYMM (default: today).
+     * A November billing invoice made on 1 December is IV2611/....
+     *
      * The driver's row is held until the caller's transaction ends, so two
      * documents for one driver cannot take the same number; the unique index
      * on the number column is the last line of defence.
      *
      * A driver with no code uses "00".
      */
-    public static function nextDocumentNumber(string $prefix, $driverId = null, bool $reuseCancelled = true): string
+    public static function nextDocumentNumber(string $prefix, $driverId = null, bool $reuseCancelled = true, ?string $date = null): string
     {
         $prefix = strtoupper($prefix);
         if (!in_array($prefix, ['IV', 'CS', 'DO', 'SO'], true)) {
             $prefix = 'CS';
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $reuseCancelled) {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $date) {
             $driver = $driverId ? Driver::where('id', $driverId)->lockForUpdate()->first() : null;
             if (!$driver) {
                 static::lockDocumentCounters($prefix);
             }
             $docCode = $driver ? $driver->documentCode() : '00';
-            $period = date('ym');
+            $period = $date ? date('ym', strtotime($date)) : date('ym');
 
             $stem = $prefix . $period . '/' . $docCode . '/';
             [$table, $column] = ['DO' => ['deliveryorders', 'dono'], 'SO' => ['sales_orders', 'sono']][$prefix] ?? ['invoices', 'invoiceno'];

@@ -35,11 +35,18 @@
             </div>
         </div>
 
+        <!-- Billing Field -->
+        <div class="form-group">
+            {!! Form::label('billing_cycle', 'Billing') !!}
+            {{ Form::select('billing_cycle', ['' => 'None (convert each DO)', 'weekly' => 'Weekly Billing', 'monthly' => 'Monthly Billing'], null, ['class' => 'form-control']) }}
+            <small class="form-text text-muted">Weekly or Monthly: Delivery Orders &rarr; Billing Convert turns all pending DOs into one invoice per customer.</small>
+        </div>
+
         <!-- Off Day Field -->
         <div class="form-group">
             <div class="checkbox">
                 <label>
-                    {!! Form::checkbox('off_day', 1, null) !!} Off Day (shop closed - packing list shows No Order, new sales orders become Off Day SOs)
+                    {!! Form::checkbox('off_day', 1, null) !!} Off Day (shop closed - left out of the packing list, new sales orders become Off Day SOs)
                 </label>
             </div>
         </div>

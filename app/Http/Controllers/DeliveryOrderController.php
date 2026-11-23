@@ -285,44 +285,7 @@ class DeliveryOrderController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            $first = $deliveryOrders->first();
-
-            $invoiceno = Code::nextDocumentNumber('IV', $first->driver_id);
-
-            $invoice = new Invoice();
-            $invoice->invoiceno = $invoiceno;
-            $invoice->date = date('Y-m-d H:i:s');
-            $invoice->customer_id = $first->customer_id;
-            $invoice->driver_id = $first->driver_id;
-            $invoice->kelindan_id = $first->kelindan_id;
-            $invoice->agent_id = $first->agent_id;
-            $invoice->supervisor_id = $first->supervisor_id;
-            $invoice->paymentterm = $first->paymentterm;
-            $invoice->status = 0;
-            $invoice->remark = $deliveryOrders->count() > 1
-                ? 'Combined from ' . $deliveryOrders->count() . ' delivery order(s)'
-                : $first->remark;
-            $invoice->chequeno = $first->chequeno;
-            $tripIds = $deliveryOrders->pluck('trip_id')->unique();
-            $invoice->trip_id = $tripIds->count() === 1 ? $tripIds->first() : null;
-            $invoice->save();
-
-            foreach ($deliveryOrders as $deliveryOrder) {
-                foreach ($deliveryOrder->deliveryorderdetail as $line) {
-                    $detail = new InvoiceDetail();
-                    $detail->invoice_id = $invoice->id;
-                    $detail->product_id = $line->product_id;
-                    $detail->deliveryorder_id = $deliveryOrder->id;
-                    $detail->quantity = $line->quantity;
-                    $detail->price = $line->price;
-                    $detail->totalprice = $line->totalprice;
-                    $detail->remark = $line->remark;
-                    $detail->save();
-                }
-
-                $deliveryOrder->invoice_id = $invoice->id;
-                $deliveryOrder->save();
-            }
+            $invoice = $this->invoiceFromDeliveryOrders($deliveryOrders, date('Y-m-d H:i:s'));
 
             DB::commit();
 
@@ -336,6 +299,214 @@ class DeliveryOrderController extends AppBaseController
 
             return response()->json(['message' => 'Something went wrong. Please contact administrator.'], 500);
         }
+    }
+
+    /**
+     * One invoice from one customer's delivery orders (caller holds the
+     * transaction). Numbered in the series of the first DO's driver, with the
+     * month of $date.
+     */
+    private function invoiceFromDeliveryOrders($deliveryOrders, string $date, ?string $remark = null): Invoice
+    {
+        $first = $deliveryOrders->first();
+
+        $invoice = new Invoice();
+        $invoice->invoiceno = Code::nextDocumentNumber('IV', $first->driver_id, false, $date);
+        $invoice->date = $date;
+        $invoice->customer_id = $first->customer_id;
+        $invoice->driver_id = $first->driver_id;
+        $invoice->kelindan_id = $first->kelindan_id;
+        $invoice->agent_id = $first->agent_id;
+        $invoice->supervisor_id = $first->supervisor_id;
+        $invoice->paymentterm = $first->paymentterm;
+        $invoice->status = 0;
+        $invoice->remark = $remark ?? ($deliveryOrders->count() > 1
+            ? 'Combined from ' . $deliveryOrders->count() . ' delivery order(s)'
+            : $first->remark);
+        $invoice->chequeno = $first->chequeno;
+        $tripIds = $deliveryOrders->pluck('trip_id')->unique();
+        $invoice->trip_id = $tripIds->count() === 1 ? $tripIds->first() : null;
+        $invoice->save();
+
+        foreach ($deliveryOrders as $deliveryOrder) {
+            foreach ($deliveryOrder->deliveryorderdetail as $line) {
+                $detail = new InvoiceDetail();
+                $detail->invoice_id = $invoice->id;
+                $detail->product_id = $line->product_id;
+                $detail->deliveryorder_id = $deliveryOrder->id;
+                $detail->quantity = $line->quantity;
+                $detail->price = $line->price;
+                $detail->totalprice = $line->totalprice;
+                $detail->remark = $line->remark;
+                $detail->save();
+            }
+
+            // Only the link: a full save also writes `date`, which this model
+            // formats for display.
+            DeliveryOrder::where('id', $deliveryOrder->id)->update(['invoice_id' => $invoice->id]);
+        }
+
+        return $invoice;
+    }
+
+    // ------------------------------------------------------------ billing convert
+
+    /**
+     * The billing period's dates: from/to as given, or the last full week
+     * (Mon - Sun) / last full month.
+     */
+    private function billingPeriod(Request $request): array
+    {
+        $cycle = $request->input('cycle') === 'monthly' ? 'monthly' : 'weekly';
+        $from = $request->input('from');
+        $to = $request->input('to');
+        if (!$from || !$to || strtotime($from) === false || strtotime($to) === false) {
+            if ($cycle === 'monthly') {
+                $from = date('Y-m-01', strtotime('first day of last month'));
+                $to = date('Y-m-t', strtotime('first day of last month'));
+            } else {
+                $from = date('Y-m-d', strtotime('monday last week'));
+                $to = date('Y-m-d', strtotime('sunday last week'));
+            }
+        }
+
+        return [$cycle, date('Y-m-d', strtotime($from)), date('Y-m-d', strtotime($to))];
+    }
+
+    /**
+     * Pending DOs (not converted, not cancelled) of every customer on this
+     * billing cycle, dated on or before the end of the period - so DOs left
+     * over from earlier periods are billed too. Grouped by customer.
+     */
+    private function pendingBillingDeliveryOrders(string $cycle, string $to, ?array $customerIds = null)
+    {
+        $query = DeliveryOrder::with('deliveryorderdetail', 'customer', 'driver')
+            ->whereNull('invoice_id')
+            ->where('status', '!=', 2)
+            ->where('date', '<=', $to . ' 23:59:59')
+            ->whereHas('customer', function ($q) use ($cycle) {
+                $q->where('billing_cycle', $cycle);
+            });
+        if ($customerIds !== null) {
+            $query->whereIn('customer_id', $customerIds);
+        }
+
+        return $query->orderBy('date')->orderBy('id')->get()->groupBy('customer_id');
+    }
+
+    /**
+     * Drivers whose trip is open now. Their invoice numbers are being used
+     * on the phone (also without signal), so billing waits for End Trip.
+     */
+    private function driversOnTrip($driverIds): array
+    {
+        $onTrip = [];
+        foreach (collect($driverIds)->filter()->unique() as $driverId) {
+            $trip = \App\Models\Trip::where('driver_id', $driverId)->orderBy('date', 'desc')->orderBy('id', 'desc')->first();
+            if ($trip && (int) $trip->type === 1) {
+                $onTrip[$driverId] = optional(\App\Models\Driver::find($driverId))->name ?? ('Driver ' . $driverId);
+            }
+        }
+
+        return $onTrip;
+    }
+
+    /** Billing Convert, step 1: what would be converted. */
+    public function billingPreview(Request $request)
+    {
+        [$cycle, $from, $to] = $this->billingPeriod($request);
+        $groups = $this->pendingBillingDeliveryOrders($cycle, $to);
+
+        $rows = [];
+        foreach ($groups as $customerId => $dos) {
+            $first = $dos->first();
+            $rows[] = [
+                'customer_id' => $customerId,
+                'customer' => optional($first->customer)->company ?? '-',
+                'driver' => optional($first->driver)->name ?? '-',
+                'count' => $dos->count(),
+                'first_date' => date('d-m-Y', strtotime($dos->first()->getRawOriginal('date'))),
+                'last_date' => date('d-m-Y', strtotime($dos->last()->getRawOriginal('date'))),
+                'total' => number_format($dos->sum(function ($do) { return $do->deliveryorderdetail->sum('totalprice'); }), 2),
+            ];
+        }
+        usort($rows, function ($a, $b) { return strcasecmp($a['customer'], $b['customer']); });
+
+        return response()->json([
+            'cycle' => $cycle,
+            'from' => $from,
+            'to' => $to,
+            'rows' => $rows,
+            'drivers_on_trip' => array_values($this->driversOnTrip($groups->map(function ($dos) { return $dos->first()->driver_id; })->values())),
+        ]);
+    }
+
+    /**
+     * Billing Convert, step 2: one invoice per ticked customer from all their
+     * pending DOs up to the end of the period, dated the last day of the
+     * period. Refused while a driver whose number series is used is on an
+     * open trip. Each customer is converted on its own, so one problem never
+     * stops the rest.
+     */
+    public function billingConvert(Request $request)
+    {
+        [$cycle, $from, $to] = $this->billingPeriod($request);
+        $customerIds = array_map('intval', (array) $request->input('customer_ids', []));
+        if (empty($customerIds)) {
+            return response()->json(['message' => 'Please tick at least one customer.'], 422);
+        }
+
+        $groups = $this->pendingBillingDeliveryOrders($cycle, $to, $customerIds);
+        if ($groups->isEmpty()) {
+            return response()->json(['message' => 'No pending delivery orders for the ticked customers.'], 422);
+        }
+
+        $onTrip = $this->driversOnTrip($groups->map(function ($dos) { return $dos->first()->driver_id; })->values());
+        if ($onTrip) {
+            return response()->json(['message' => 'Please convert after these drivers end their trip: ' . implode(', ', $onTrip) . '. Their invoice numbers are in use on the phone.'], 422);
+        }
+
+        $label = $cycle === 'monthly' ? 'Monthly billing' : 'Weekly billing';
+        $remark = $label . ' ' . date('d-m-Y', strtotime($from)) . ' to ' . date('d-m-Y', strtotime($to));
+        $invoiceDate = $to . ' 23:59:00';
+        $done = [];
+        $failed = [];
+        foreach ($groups as $customerId => $dos) {
+            DB::beginTransaction();
+            try {
+                // Re-read under lock: a DO converted meanwhile is left out.
+                $fresh = DeliveryOrder::with('deliveryorderdetail')
+                    ->whereIn('id', $dos->pluck('id'))
+                    ->whereNull('invoice_id')
+                    ->where('status', '!=', 2)
+                    ->lockForUpdate()
+                    ->orderBy('date')->orderBy('id')
+                    ->get();
+                if ($fresh->isEmpty()) {
+                    DB::rollBack();
+                    continue;
+                }
+                $invoice = $this->invoiceFromDeliveryOrders($fresh, $invoiceDate, $remark . ' (' . $fresh->count() . ' DO)');
+                DB::commit();
+                $done[] = [
+                    'customer' => optional($dos->first()->customer)->company ?? '-',
+                    'invoice_id' => $invoice->id,
+                    'invoiceno' => $invoice->invoiceno,
+                    'count' => $fresh->count(),
+                    'url' => route('invoices.show', encrypt($invoice->id)),
+                ];
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                report($e);
+                $failed[] = ['customer' => optional($dos->first()->customer)->company ?? '-', 'message' => $e->getMessage()];
+            }
+        }
+
+        return response()->json([
+            'message' => count($done) . ' invoice(s) created' . ($failed ? ', ' . count($failed) . ' failed' : '') . '.',
+            'invoices' => $done,
+            'failed' => $failed,
+        ]);
     }
 
     public function getprice($deliveryorder_id, $product_id)

@@ -84,6 +84,7 @@ class Customer extends Model implements AuthenticatableContract
         'paymentterm',
         'is_do_customer',
         'off_day',
+        'billing_cycle',
         'group',
         'agent_id',
         'supervisor_id',

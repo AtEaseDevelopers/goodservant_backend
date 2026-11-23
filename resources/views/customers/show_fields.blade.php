@@ -61,6 +61,12 @@
             <div class="dv-fact-value">{!! $yesNo($customer->off_day) !!}</div>
         </div>
     </div>
+    <div class="col-6 col-md-3 mb-2">
+        <div class="dv-fact">
+            <div class="dv-fact-label">Billing</div>
+            <div class="dv-fact-value">{{ ['weekly' => 'Weekly Billing', 'monthly' => 'Monthly Billing'][$customer->billing_cycle] ?? 'None' }}</div>
+        </div>
+    </div>
 </div>
 
 {{-- Details, grouped --}}

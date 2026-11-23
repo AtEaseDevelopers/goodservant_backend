@@ -530,6 +530,9 @@ Route::group(['middleware' => ['auth']], function() {
         Route::get('/deliveryOrders/customer/{id}', [App\Http\Controllers\DeliveryOrderController::class, 'getcustomer']);
         Route::get('/deliveryOrders/getprice/{deliveryorder_id}/{product_id}', [App\Http\Controllers\DeliveryOrderController::class, 'getprice']);
         Route::post('/deliveryOrders/combine-convert', [App\Http\Controllers\DeliveryOrderController::class, 'combineConvert'])->name('deliveryOrders.combine-convert');
+        // Weekly / monthly billing: all pending DOs of those customers -> one invoice each.
+        Route::get('/deliveryOrders/billing/preview', [App\Http\Controllers\DeliveryOrderController::class, 'billingPreview'])->name('deliveryOrders.billingPreview');
+        Route::post('/deliveryOrders/billing/convert', [App\Http\Controllers\DeliveryOrderController::class, 'billingConvert'])->name('deliveryOrders.billingConvert');
         Route::resource('deliveryOrders', App\Http\Controllers\DeliveryOrderController::class);
         // Documents made on a driver's phone without signal that need a look.
         Route::get('/offlineReview', [App\Http\Controllers\OfflineReviewController::class, 'index'])->name('offlineReview.index');
