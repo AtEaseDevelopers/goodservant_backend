@@ -4076,6 +4076,18 @@ class DriverController extends Controller
                 }
                 $task = Task::where('driver_id', $driver->id)->where('date', $today)
                     ->where('customer_id', $customerId)->whereIn('status', [0, 1])->first();
+                // Only a task nobody has done yet can move: once this driver
+                // has visited the customer today (invoice / DO / SO made), it
+                // stays with them - no second task for another driver.
+                if(empty($task) && Task::where('driver_id', $driver->id)->where('date', $today)
+                    ->where('customer_id', $customerId)->whereNotIn('status', [0, 1, 9])->exists()){
+                    DB::rollback();
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.task_had_been_completed',
+                        'data' => null
+                    ], 400);
+                }
                 if(empty($task)){
                     // Customer with no open task today (e.g. only reached through an
                     // earlier invoice): give it one so it can be handed over.
