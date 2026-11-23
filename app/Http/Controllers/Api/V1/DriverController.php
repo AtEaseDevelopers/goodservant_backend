@@ -4514,6 +4514,26 @@ class DriverController extends Controller
                         'data' => null
                     ], 400);
                 }
+                // Same rules as the customer transfer: only this driver's own,
+                // still open task of today (the current trip), and only to a
+                // driver who is on a trip. Earlier days are never moved.
+                if((int) $task->driver_id !== (int) $driver->id || substr((string) $task->getRawOriginal('date'), 0, 10) !== date('Y-m-d') || (int) $todriver->id === (int) $driver->id){
+                    DB::rollback();
+                    return response()->json([
+                       'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.invalid_task',
+                        'data' => null
+                    ], 400);
+                }
+                $toTrip = Trip::where('driver_id', $todriver->id)->orderby('date','desc')->orderby('id','desc')->first();
+                if(empty($toTrip) || $toTrip->type == 2){
+                    DB::rollback();
+                    return response()->json([
+                       'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.selected_driver_trip_had_not_started',
+                        'data' => null
+                    ], 400);
+                }
                 $sequence = Task::where('driver_id',$todriver->id)->where('date',date('Y-m-d'))->orderby('sequence','desc')->first();
                 if(empty($sequence)){
                     $sequence = 0;
