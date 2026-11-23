@@ -134,7 +134,13 @@ class TaskController extends AppBaseController
 
         $input['date'] = date_create($input['date']);
 
+        $fromDriverId = $task->driver_id;
         $task = $this->taskRepository->update($input, $id);
+
+        // Task given to another driver: the customer's open sales orders go with it.
+        if (!empty($input['driver_id']) && (int) $input['driver_id'] !== (int) $fromDriverId) {
+            \App\Support\TaskSalesOrders::move($task->customer_id, $fromDriverId, $input['driver_id']);
+        }
 
         Flash::success(__('tasks.task_updated_successfully'));
 

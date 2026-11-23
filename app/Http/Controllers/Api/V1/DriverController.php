@@ -1243,6 +1243,11 @@ class DriverController extends Controller
                 })
                 ->pluck('customer_id')
                 ->unique();
+            // Credit still to be paid (orange dot): same rule as the customer
+            // list - per invoice, its total minus its approved payments.
+            $credits = collect(DB::select(
+                'SELECT i.customer_id, SUM(GREATEST(COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0)) AS credit FROM invoices i WHERE i.status != 2 AND i.customer_id IN (' . implode(',', array_map('intval', $customers->keys()->all() ?: [0])) . ') GROUP BY i.customer_id'
+            ))->pluck('credit', 'customer_id');
             $rows = [];
             $seen = [];
             foreach($tasks as $task){
@@ -1264,7 +1269,8 @@ class DriverController extends Controller
                     'is_do_customer' => $customer->is_do_customer ? 1 : 0,
                     'has_pending_so' => $pending->contains($customer->id) ? 1 : 0,
                     'off_day' => $customer->off_day ? 1 : 0,
-                    'credit' => 0,
+                    'credit' => round((float) ($credits[$customer->id] ?? 0), 2),
+                    'has_credit' => ((float) ($credits[$customer->id] ?? 0)) > 0.005 ? 1 : 0,
                 ];
             }
             return response()->json([
@@ -1908,7 +1914,7 @@ class DriverController extends Controller
             // invoices the pay screen lists. A customer-level payment total
             // used to wipe this to 0 while an invoice still had a balance,
             // and status 0 (new) invoices were left out entirely.
-            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.off_day = 0 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM invoice_details d INNER JOIN invoices inv ON inv.id = d.invoice_id AND inv.status != 2 WHERE d.sales_order_id = so.id)) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
+            $customer = DB::select("SELECT customers.*,COALESCE(b.credit,0) as credit, (COALESCE(b.credit,0) > 0.005) as has_credit, EXISTS(SELECT 1 FROM sales_orders so WHERE so.customer_id = customers.id AND so.driver_id = ? AND so.status != 2 AND so.off_day = 0 AND so.deliveryorder_id IS NULL AND so.invoice_id IS NULL AND so.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM invoice_details d INNER JOIN invoices inv ON inv.id = d.invoice_id AND inv.status != 2 WHERE d.sales_order_id = so.id)) as has_pending_so FROM customers customers RIGHT JOIN ( SELECT customer_id, MIN(sequence) as sequence FROM ( SELECT customer_id, sequence FROM assigns WHERE driver_id = ? UNION ALL SELECT customer_id, NULL as sequence FROM invoices WHERE driver_id = ? UNION ALL SELECT t.customer_id, NULL as sequence FROM tasks t JOIN task_transfers tt ON tt.task_id = t.id WHERE t.driver_id = ? AND t.date = CURDATE() AND t.deleted_at IS NULL AND tt.to_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL ) u GROUP BY customer_id ) a on a.customer_id = customers.id LEFT JOIN ( SELECT i.customer_id, SUM( GREATEST( COALESCE((SELECT SUM(d.totalprice) FROM invoice_details d WHERE d.invoice_id = i.id), 0) - COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id AND p.status = 1), 0), 0 ) ) AS credit FROM invoices i WHERE i.status != 2 GROUP BY i.customer_id ) b on b.customer_id = customers.id WHERE customers.status = 1 AND customers.id NOT IN ( SELECT t.customer_id FROM task_transfers tt JOIN tasks t ON t.id = tt.task_id WHERE tt.from_driver_id = ? AND tt.date >= CURDATE() AND tt.deleted_at IS NULL AND t.date = CURDATE() AND t.driver_id <> ? ) ORDER BY (a.sequence IS NULL) ASC, a.sequence ASC, customers.company ASC", [$driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id, $driver->id]);
             if(count($customer) != 0){
                 return response()->json([
                     'result' => true,
@@ -4083,6 +4089,8 @@ class DriverController extends Controller
                 $task->status = 0;
                 $task->trip_id = null;
                 $task->save();
+                // The customer's open sales orders go with the task.
+                \App\Support\TaskSalesOrders::move($customerId, $driver->id, $todriver->id);
 
                 $tasktransfer = new TaskTransfer();
                 $tasktransfer->date = date('Y-m-d H:i:s');
@@ -4506,6 +4514,8 @@ class DriverController extends Controller
                 $task->based = 0;
                 $task->trip_id = null;
                 $task->save();
+                // The customer's open sales orders go with the task.
+                \App\Support\TaskSalesOrders::move($task->customer_id, $driver->id, $todriver->id);
 
                 $tasktransfer = new TaskTransfer();
                 $tasktransfer->date = date("Y-m-d H:i:s");
@@ -6133,8 +6143,7 @@ class DriverController extends Controller
 
             // Rows follow the driver's customer sequence: today's task order
             // when the trip has built it, otherwise the saved Customer
-            // Sequence (assigns.sequence). Off Day and normal customers are
-            // sorted together in that one order.
+            // Sequence (assigns.sequence).
             $taskSequences = Task::where('driver_id', $driver->id)
                 ->where('date', $date)
                 ->where('status', '!=', 9)
@@ -6174,33 +6183,11 @@ class DriverController extends Controller
                     ];
                 });
 
-            // Every Off Day customer on the driver's list for the day shows
-            // too, with or without an SO, as "No Order" among the other
-            // stops. The list is the day's tasks, or the driver's assigned
-            // customers when the trip has not built it yet.
-            $routeCustomerIds = Task::where('driver_id', $driver->id)
-                ->where('date', $date)
-                ->where('status', '!=', 9)
-                ->pluck('customer_id');
-            if ($routeCustomerIds->isEmpty()) {
-                $routeCustomerIds = Assign::where('driver_id', $driver->id)->pluck('customer_id');
-            }
-            $offDayCustomers = Customer::whereIn('id', $routeCustomerIds->unique()->all())
-                ->where('off_day', true)
-                ->where('status', 1)
-                ->whereNotIn('id', $rows->keys()->all());
-            if (!empty($groupId) && empty($salesOrderIds)) {
-                $offDayCustomers->whereRaw('FIND_IN_SET(?, `group`)', [$groupId]);
-            }
-            $emptyQuantities = array_fill_keys($products->pluck('id')->all(), 0);
-            foreach ($offDayCustomers->get(['id', 'company']) as $customer) {
-                $rows->put($customer->id, [
-                    'customer_id' => $customer->id,
-                    'customer_name' => $customer->company ?? '-',
-                    'quantities' => $emptyQuantities,
-                    'no_order' => true,
-                ]);
-            }
+            // Off Day customers are not shown at all (client request): an Off
+            // Day customer, or a stop with only Off Day SOs, has nothing to pack.
+            $rows = $rows->reject(function ($row) {
+                return $row['no_order'];
+            });
 
             // Customers missing from the sequence go last, by name.
             $rows = $rows
