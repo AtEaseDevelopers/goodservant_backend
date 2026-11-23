@@ -6,6 +6,10 @@
     <a href="{{ route('invoices.show', encrypt($id)) }}" class='btn btn-ghost-success'>
        <i class="fa fa-eye"></i>
     </a>
+    {{-- Opens WhatsApp Web in a new tab to send the invoice to the customer. --}}
+    <a href="https://web.whatsapp.com/" class='btn btn-ghost-success' target="_blank" rel="noopener" title="Open WhatsApp Web">
+       <i class="fa fa-whatsapp" style="color: #25D366; font-size: 1.15em;"></i>
+    </a>
     @if(!in_array($sync_status ?? 0, [\App\Models\Invoice::SYNC_SYNCING, \App\Models\Invoice::SYNC_SYNCED]))
    <a href="{{ route('invoices.edit', encrypt($id)) }}" class='btn btn-ghost-info'>
        <i class="fa fa-edit"></i>
