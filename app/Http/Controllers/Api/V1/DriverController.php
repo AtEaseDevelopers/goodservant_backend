@@ -317,7 +317,8 @@ class DriverController extends Controller
      */
     public function errorlog(Request $request){
         try{
-            $driver = Driver::where('session', $request->header('session'))->first();
+            $session = trim((string) $request->header('session'));
+            $driver = $session === '' ? null : Driver::where('session', $session)->first();
 
             $data = $request->all();
             $log = new MobileErrorLog();

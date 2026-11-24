@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version', 'offline.pending']], function () {
+// driver.session: every api/v1/driver/... call needs a logged-in driver's session.
+Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version', 'offline.pending', 'driver.session']], function () {
     Route::get('/testconnection', function (Request $request) {
         return 'OK';
     });
