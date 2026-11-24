@@ -1446,7 +1446,7 @@ class DriverController extends Controller
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
                         $task[$c]['customer']['product'] = $this->withCustomerPrice(DB::table('products'), $t['customer']['id'])
-                            ->where('products.status','1')
+                            ->where('products.status','1')->whereNull('products.deleted_at')
                             ->select('products.id','products.code','products.name',$this->customerPriceSelect())
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
@@ -1550,7 +1550,7 @@ class DriverController extends Controller
                         $task[$c]['customer']['credit'] = round(  (DB::select('call ice_spGetCustomerCreditByDate("'.date('Y-m-d H:i:s').'",'.$t['customer']['id'].');')[0]->credit ?? 0) ,2);
                         // $task[$c]['customer']['credit'] = $t['customer']['id'];
                         $task[$c]['customer']['product'] = $this->withCustomerPrice(DB::table('products'), $t['customer']['id'])
-                            ->where('products.status','1')
+                            ->where('products.status','1')->whereNull('products.deleted_at')
                             ->select('products.id','products.code','products.name',$this->customerPriceSelect())
                             ->orderBy('products.sequence')
                             ->orderBy('products.id')
@@ -1841,7 +1841,7 @@ class DriverController extends Controller
                         $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
                     });
                 $product = $this->withCustomerPrice($product, $data['customer_id'])
-                ->where('products.status','1')
+                ->where('products.status','1')->whereNull('products.deleted_at')
                 ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),$this->customerPriceSelect())
                 ->orderBy('products.sequence')
                 ->orderBy('products.id')
@@ -1864,7 +1864,7 @@ class DriverController extends Controller
                         $join->on('inventory_balances.product_id', '=', 'products.id');
                         $join->on('inventory_balances.lorry_id', '=', DB::raw($driver->lorry_id ?? 0));
                     })
-                ->where('products.status','1')
+                ->where('products.status','1')->whereNull('products.deleted_at')
                 ->select('products.id','products.code','products.name','products.image_path','products.type_id','product_types.name as type_name',DB::raw('coalesce(inventory_balances.quantity,0) as "quantity"'),DB::raw('products.price as "price"'))
                 ->orderBy('products.sequence')
                 ->orderBy('products.id')
@@ -2443,7 +2443,7 @@ class DriverController extends Controller
             $invoice->save();
             $totalprice = 0;
             foreach($data['invoicedetail'] as $id){
-                $product = Product::where('id',$id['product_id'])->first();
+                $product = Product::withTrashed()->where('id',$id['product_id'])->first();
                 if(empty($product)){
                     return response()->json([
                         'result' => false,
@@ -3480,7 +3480,7 @@ class DriverController extends Controller
 
             DB::beginTransaction();
             foreach($data['transferdetail'] as $td){
-                $product = Product::where('id',$td['product_id'])->first();
+                $product = Product::withTrashed()->where('id',$td['product_id'])->first();
                 if(empty($product)){
                     return response()->json([
                         'result' => false,
@@ -4993,7 +4993,7 @@ class DriverController extends Controller
                 $salesOrderId = $salesOrder->id;
             }
             foreach($data['salesorderdetail'] as $line){
-                $product = Product::where('id',$line['product_id'])->first();
+                $product = Product::withTrashed()->where('id',$line['product_id'])->first();
                 if(empty($product)){
                     DB::rollback();
                     return response()->json([
@@ -5480,7 +5480,7 @@ class DriverController extends Controller
         $deliveryOrder->save();
 
         foreach($lines as $line){
-            $product = Product::where('id', $line['product_id'])->first();
+            $product = Product::withTrashed()->where('id', $line['product_id'])->first();
             if(empty($product) || \App\Support\InvoiceDiscount::isDiscountProduct($product->id)){
                 continue;
             }

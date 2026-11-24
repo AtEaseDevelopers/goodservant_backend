@@ -118,7 +118,7 @@ class CustomerController extends AppBaseController
                 $join->on('product_prices.product_id', '=', 'products.id')
                     ->where('product_prices.product_price_category_id', '=', (int) ($customer->product_price_category_id ?? 0));
             })
-            ->where('products.status', 1)
+            ->where('products.status', 1)->whereNull('products.deleted_at')
             ->orderBy('products.sequence')
             ->orderBy('products.id')
             ->select(

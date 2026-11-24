@@ -411,7 +411,7 @@ class TripController extends AppBaseController
             ->merge(array_keys($doSalesMap))
             ->unique()->values();
 
-        $productNames = Product::whereIn('id', $allProductIds)->pluck('name', 'id');
+        $productNames = Product::withTrashed()->whereIn('id', $allProductIds)->pluck('name', 'id');
 
         $stockMovements = $allProductIds->map(function ($pid) use ($openingMap, $closingMap, $adminInMap, $adminOutMap, $wastageMap, $invoiceSalesMap, $doSalesMap, $productNames) {
             return [

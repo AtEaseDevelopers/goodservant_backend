@@ -18,7 +18,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  */
 class Product extends Model
 {
-    // use SoftDeletes;
+    // Deleting a product only marks it deleted: old invoices, orders and
+    // stock keep their product (relations use withTrashed()).
+    use SoftDeletes;
 
     use HasFactory;
 
@@ -83,7 +85,7 @@ class Product extends Model
      * @var array
      */
     public static $rules = [
-        'code' => 'required|string|max:255|unique:products,code',
+        'code' => 'required|string|max:255|unique:products,code,NULL,id,deleted_at,NULL',
         'name' => 'required|string|max:255|string|max:255',
         'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
         'price' => 'required|numeric|numeric',

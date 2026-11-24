@@ -813,7 +813,7 @@ class InvoiceController extends AppBaseController
                 
                 for ($j = 0; $j < count($invoice_details); $j++) {
                     $invoice_data[$records[$i]['invoiceno']]['line_items'][] = [
-                        'ItemCode' => Product::where('id', $invoice_details[$j]->product_id)->value('code'),
+                        'ItemCode' => Product::withTrashed()->where('id', $invoice_details[$j]->product_id)->value('code'),
                         'Description' => $invoice_details[$j]->remark,
                         'Quantity' => $invoice_details[$j]->quantity,
                         'UnitAmount' => $invoice_details[$j]->price,

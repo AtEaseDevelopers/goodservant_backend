@@ -286,13 +286,6 @@ class ProductController extends AppBaseController
             return redirect(route('products.index'));
         }
 
-        $usedIn = static::productUsedIn($id);
-        if($usedIn){
-            Flash::error('Unable to delete '.$product->name.': it is used in '.$usedIn.'. Set it to Inactive instead.');
-
-            return redirect(route('products.index'));
-        }
-
         $SpecialPrice = SpecialPrice::where('product_id',$id)->get()->toArray();
         if(count($SpecialPrice)>0){
             Flash::error('Unable to delete '.$product->name.', '.$product->name.' is being used in Special Price');
@@ -307,10 +300,7 @@ class ProductController extends AppBaseController
             return redirect(route('products.index'));
         }
 
-        if ($product->image_path) {
-            Storage::disk('public')->delete(ltrim($product->image_path, '/'));
-        }
-
+        // Soft delete: the record (and its image) stays for old documents.
         $this->productRepository->delete($id);
 
         Flash::success($product->code.__('products.deleted_successfully'));
@@ -327,10 +317,6 @@ class ProductController extends AppBaseController
 
         foreach ($ids as $id) {
 
-            if(static::productUsedIn($id)){
-                continue;
-            }
-
             $SpecialPrice = SpecialPrice::where('product_id',$id)->get()->toArray();
             if(count($SpecialPrice)>0){
                 continue;
@@ -345,30 +331,6 @@ class ProductController extends AppBaseController
         }
 
         return $count;
-    }
-
-    /**
-     * Where a product is still used, or null. A used product must not be
-     * deleted: invoices, orders and lorry stock would lose their product
-     * (the driver app then shows "Unknown"). It can be set Inactive instead.
-     */
-    private static function productUsedIn($id): ?string
-    {
-        $uses = [
-            'invoice_details' => 'invoices',
-            'deliveryorder_details' => 'delivery orders',
-            'sales_order_details' => 'sales orders',
-            'inventory_balances' => 'lorry stock',
-            'inventory_transactions' => 'stock transactions',
-            'trip_inventory_balances' => 'trips',
-        ];
-        foreach ($uses as $table => $label) {
-            if (\Illuminate\Support\Facades\DB::table($table)->where('product_id', $id)->exists()) {
-                return $label;
-            }
-        }
-
-        return null;
     }
 
     public function massupdatestatus(Request $request)
