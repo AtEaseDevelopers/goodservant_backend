@@ -810,6 +810,7 @@ class DriverController extends Controller
 
             $invoices = Invoice::where('driver_id', $driver->id)
                 ->where('trip_id', $tripId)
+                ->where('status', '!=', 2)
                 ->with('invoicedetail.product', 'customer')
                 ->get();
             $salesOrderCount = SalesOrder::where('driver_id', $driver->id)->where('trip_id', $tripId)->count();
@@ -2094,6 +2095,7 @@ class DriverController extends Controller
             //process
             $invoice = Invoice::where('customer_id', $data['customer_id'])
             ->where('id', $data['invoice_id'])
+            ->whereNull('driver_deleted_at')
             ->with('invoicedetail.product')
             ->with('customer')
             ->with('driver')
@@ -2596,6 +2598,7 @@ class DriverController extends Controller
                 ], 401);
             }
             $invoices = Invoice::where('driver_id', $driver->id)
+                ->whereNull('driver_deleted_at')
                 ->with('customer', 'invoicedetail.product')
                 ->orderby('date','desc')
                 ->get();
@@ -2626,6 +2629,7 @@ class DriverController extends Controller
             }
             $invoice = Invoice::where('id', $id)
                 ->where('driver_id', $driver->id)
+                ->whereNull('driver_deleted_at')
                 ->with('customer', 'driver', 'invoicedetail.product', 'paymentAttachments', 'invoicepayment')
                 ->first();
             if(empty($invoice)){
@@ -2663,6 +2667,21 @@ class DriverController extends Controller
      * promo counters precisely is out of scope for a same-trip undo.
      */
     public function cancelinvoice($id, Request $request){
+        return $this->voidinvoice($id, $request, false);
+    }
+
+    /**
+     * Delete invoice (driver app): the same as Cancel - stock back to the
+     * lorry, payments voided, status 2 so every report and the credit leave
+     * it out - but only for an invoice of the driver's current open trip, and
+     * it is marked as deleted by the driver: the app stops listing it and the
+     * admin portal shows it as Deleted.
+     */
+    public function deleteinvoice($id, Request $request){
+        return $this->voidinvoice($id, $request, true);
+    }
+
+    private function voidinvoice($id, Request $request, bool $delete){
         try{
             $driver = Driver::where('session', $request->header('session'))->first();
             if(empty($driver)){
@@ -2672,7 +2691,7 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
-            $invoice = Invoice::where('id', $id)->where('driver_id', $driver->id)->with('invoicedetail')->first();
+            $invoice = Invoice::where('id', $id)->where('driver_id', $driver->id)->whereNull('driver_deleted_at')->with('invoicedetail')->first();
             if(empty($invoice)){
                 return response()->json([
                     'result' => false,
@@ -2680,7 +2699,18 @@ class DriverController extends Controller
                     'data' => null
                 ], 404);
             }
-            if(!empty($invoice->trip_id) && $invoice->trip_id != $driver->trip_id){
+            if($delete){
+                // Only an invoice of the trip that is open right now.
+                $openTrip = Trip::where('driver_id', $driver->id)->orderby('date','desc')->orderby('id','desc')->first();
+                if(empty($openTrip) || $openTrip->type != 1 || empty($invoice->trip_id) || (int) $invoice->trip_id !== (int) $openTrip->id){
+                    return response()->json([
+                        'result' => false,
+                        'message' => __LINE__.$this->message_separator.'api.message.invoice_not_current_trip',
+                        'data' => null
+                    ], 400);
+                }
+            }
+            if(!$delete && !empty($invoice->trip_id) && $invoice->trip_id != $driver->trip_id){
                 return response()->json([
                     'result' => false,
                     'message' => __LINE__.$this->message_separator.'Invoice belongs to a previous trip and can no longer be cancelled.',
@@ -2724,7 +2754,7 @@ class DriverController extends Controller
                     $inventorytransaction->quantity = $line->quantity;
                     $inventorytransaction->type = 3;
                     $inventorytransaction->remark = $invoice->invoiceno;
-                    $inventorytransaction->user = $driver->employeeid . " (".$driver->name.") - invoice cancelled";
+                    $inventorytransaction->user = $driver->employeeid . " (".$driver->name.") - invoice " . ($delete ? "deleted" : "cancelled");
                     $inventorytransaction->date = date('Y-m-d H:i:s');
                     $inventorytransaction->trip_id = $invoice->trip_id;
                     $inventorytransaction->save();
@@ -2735,12 +2765,18 @@ class DriverController extends Controller
             // math, which only counts status-1 payments.
             InvoicePayment::where('invoice_id', $invoice->id)->update(['status' => 2]);
             // Keep the invoice and its lines for history; status 2 = Cancelled.
-            $invoice->status = 2;
-            $invoice->save();
+            // Only the changed columns: a full save also writes `date`, which
+            // the model formats for display.
+            $changes = ['status' => 2];
+            if($delete){
+                $changes['driver_deleted_at'] = date('Y-m-d H:i:s');
+                $changes['driver_deleted_by'] = $driver->id;
+            }
+            Invoice::where('id', $invoice->id)->update($changes);
             DB::commit();
             return response()->json([
                 'result' => true,
-                'message' => __LINE__.$this->message_separator.'api.message.invoice_cancelled_successfully',
+                'message' => __LINE__.$this->message_separator.($delete ? 'api.message.invoice_deleted_successfully' : 'api.message.invoice_cancelled_successfully'),
                 'data' => null
             ], 200);
         }

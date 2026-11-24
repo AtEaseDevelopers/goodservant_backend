@@ -39,6 +39,19 @@ class InvoiceDataTable extends DataTable
             return number_format(abs((float) $invoice->invoicedetail->where('product_id', $discountProductId)->sum('totalprice')), 2, '.', '');
         });
 
+        // Status filter: 2 = Cancelled (by the office or the driver's Cancel),
+        // 3 = Deleted (the driver's Delete; stored as status 2 + driver_deleted_at).
+        $dataTable->filterColumn('invoices.status', function ($query, $keyword) {
+            $keyword = trim($keyword, '^$ ');
+            if ($keyword === '3') {
+                $query->where('invoices.status', 2)->whereNotNull('invoices.driver_deleted_at');
+            } elseif ($keyword === '2') {
+                $query->where('invoices.status', 2)->whereNull('invoices.driver_deleted_at');
+            } elseif ($keyword !== '') {
+                $query->where('invoices.status', $keyword);
+            }
+        });
+
         return $dataTable->addColumn('action', 'invoices.datatables_actions');
     }
 
@@ -158,7 +171,7 @@ class InvoiceDataTable extends DataTable
                     ],
                     [
                     'targets' => 10,
-                    'render' => 'function(data, type){return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
+                    'render' => 'function(data, type, row){if(data == 2 && row.driver_deleted_at){return "<span class=\"badge badge-dark\">Deleted</span>";} return data == 2 ? "Cancelled" : (data == 1 ? "Completed" : "New");}'
                     ],
                     [
                     'targets' => 11,
@@ -196,7 +209,7 @@ class InvoiceDataTable extends DataTable
                         var column = this;
                         if(columns[index].searchable){
                             if(columns[index].title == \'Status\'){
-                                var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option></select>\';
+                                var input = \'<select class="border-0" style="width: 100%;"><option value="1">Completed</option><option value="0">New</option><option value="2">Cancelled</option><option value="3">Deleted</option></select>\';
                             }else if(columns[index].title == \'Payment Term\'){
                                 var input = \'<select class="border-0" style="width: 100%;"><option value=""></option><option value="1">Cash</option><option value="2">Credit</option><option value="3">Online Banking (QR Code)</option><option value="4">E-wallet</option><option value="5">Cheque</option></select>\';
                             }else if(columns[index].title == \'Date\'){

@@ -95,6 +95,12 @@ class Invoice extends Model
         return $this->belongsTo(\App\Models\Driver::class, 'driver_id', 'id');
     }
 
+    /** The driver who deleted this invoice in the app (status 2 + driver_deleted_at). */
+    public function deletedByDriver()
+    {
+        return $this->belongsTo(\App\Models\Driver::class, 'driver_deleted_by', 'id');
+    }
+
     public function trip()
     {
         return $this->belongsTo(\App\Models\Trip::class, 'trip_id', 'id');

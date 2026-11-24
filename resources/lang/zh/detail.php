@@ -10,6 +10,8 @@ return [
     'status_new' => '新建',
     'status_completed' => '已完成',
     'status_cancelled' => '已取消',
+    'status_deleted' => '已删除',
+    'deleted_by_driver' => '由 :driver 于 :date 在司机应用中删除',
     'term_cash' => '现金',
     'term_credit' => '赊账',
     'term_online' => '网上银行（二维码）',

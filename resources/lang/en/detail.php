@@ -10,6 +10,8 @@ return [
     'status_new' => 'New',
     'status_completed' => 'Completed',
     'status_cancelled' => 'Cancelled',
+    'status_deleted' => 'Deleted',
+    'deleted_by_driver' => 'Deleted in the driver app by :driver on :date',
     'term_cash' => 'Cash',
     'term_credit' => 'Credit',
     'term_online' => 'Online Banking (QR Code)',
