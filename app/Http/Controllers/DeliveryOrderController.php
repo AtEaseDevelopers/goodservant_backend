@@ -311,7 +311,7 @@ class DeliveryOrderController extends AppBaseController
         $first = $deliveryOrders->first();
 
         $invoice = new Invoice();
-        $invoice->invoiceno = Code::nextDocumentNumber('IV', $first->driver_id, false, $date);
+        $invoice->invoiceno = Code::nextDocumentNumber('IV', $first->driver_id, true, $date);
         $invoice->date = $date;
         $invoice->customer_id = $first->customer_id;
         $invoice->driver_id = $first->driver_id;

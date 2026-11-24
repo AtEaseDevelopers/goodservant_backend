@@ -95,7 +95,7 @@ class Code extends Model
             // Invoice numbers: a number freed by a cancelled invoice of this
             // month is handed out again before the counter moves on.
             if ($reuseCancelled && in_array($code, ['invoicerunningnumber', 'cashsalesrunningnumber'], true)) {
-                $reused = static::takeCancelledInvoiceNumber($prefix, $period);
+                $reused = static::takeCancelledNumber('invoices', 'invoiceno', $prefix . $period . '/');
                 if ($reused !== null) {
                     return $reused;
                 }
@@ -117,14 +117,16 @@ class Code extends Model
      * Next invoice, cash-sale, DO or sales order number for one driver:
      * {IV|CS|DO|SO}{yymm}/{driver code}/{0001}.
      *
-     * The number is the driver's highest number of that type this month + 1,
+     * A number freed by a cancelled document of the same series and month is
+     * handed out again first, lowest first (see takeCancelledNumber).
+     * Otherwise it is the driver's highest number of that type this month + 1,
      * read from the documents themselves (no counter is kept): the first one
-     * of each month is 0001. Cancelled documents keep their number and it is
-     * never handed out again: the driver's phone continues this same series
-     * without signal and must be able to rely on "highest + 1". Old offline
-     * numbers (.../A0001) are a separate, finished series and do not count.
+     * of each month is 0001. Old offline numbers (.../A0001) are a separate,
+     * finished series and do not count.
      *
-     * $reuseCancelled is ignored (kept for existing callers).
+     * Reuse is safe for the phone: it continues offline from the highest
+     * number (the renamed cancelled document still counts for that), and a
+     * reused number is always below it.
      *
      * $date: the document's date; its month gives the YYMM (default: today).
      * A November billing invoice made on 1 December is IV2611/....
@@ -142,7 +144,7 @@ class Code extends Model
             $prefix = 'CS';
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $date) {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($prefix, $driverId, $date, $reuseCancelled) {
             $driver = $driverId ? Driver::where('id', $driverId)->lockForUpdate()->first() : null;
             if (!$driver) {
                 static::lockDocumentCounters($prefix);
@@ -152,6 +154,14 @@ class Code extends Model
 
             $stem = $prefix . $period . '/' . $docCode . '/';
             [$table, $column] = ['DO' => ['deliveryorders', 'dono'], 'SO' => ['sales_orders', 'sono']][$prefix] ?? ['invoices', 'invoiceno'];
+
+            if ($reuseCancelled) {
+                $reused = static::takeCancelledNumber($table, $column, $stem);
+                if ($reused !== null) {
+                    return $reused;
+                }
+            }
+
             $row = \Illuminate\Support\Facades\DB::table($table)
                 ->where($column, 'like', $stem . '%')
                 ->where($column, 'not like', $stem . 'A%')
@@ -181,48 +191,56 @@ class Code extends Model
     }
 
     /**
-     * Lowest running number of this month held by a cancelled invoice, or null.
+     * Lowest number of this series ($stem = e.g. "IV2611/BK07/") held by a
+     * cancelled document (status 2), or null.
      *
-     * The cancelled invoice keeps its record but gives the number up: it is
-     * renamed with a "-C" suffix (IV2610/0005 -> IV2610/0005-C) so the number
-     * stays unique. Invoices already sent to AutoCount are left alone - their
-     * number exists there and must not be issued twice.
+     * The cancelled document keeps its record but gives the number up: it is
+     * renamed with a "-C" suffix (IV2611/BK07/0005 -> IV2611/BK07/0005-C) so
+     * the number stays unique. Invoices already sent to AutoCount or to
+     * e-invoice are left alone - their number exists there and must not be
+     * issued twice.
      *
      * Must run inside the caller's transaction (the driver row is held).
      */
-    protected static function takeCancelledInvoiceNumber(string $prefix, string $period, ?string $docCode = null): ?string
+    protected static function takeCancelledNumber(string $table, string $column, string $stem): ?string
     {
-        $pattern = $docCode
-            ? '^' . $prefix . $period . '/' . $docCode . '/[0-9]+$'
-            : '^' . $prefix . $period . '/[0-9]+$';
+        $db = \Illuminate\Support\Facades\DB::class;
+        $query = $db::table($table)
+            ->where('status', 2)
+            ->where($column, 'like', $stem . '%')
+            ->where($column, 'REGEXP', '^' . preg_quote($stem, '/') . '[0-9]+$');
 
-        $candidates = Invoice::where('status', 2)
-            ->where('invoiceno', 'REGEXP', $pattern)
-            ->whereNull('api_invoice_id')
-            ->whereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED])
-            ->orderBy('invoiceno')
-            ->lockForUpdate()
-            ->get(['id', 'invoiceno']);
-
-        foreach ($candidates as $cancelled) {
-            $number = $cancelled->invoiceno;
-
-            // Never hand out a number another invoice is still using
-            if (Invoice::where('invoiceno', $number)->where('id', '!=', $cancelled->id)->exists()) {
-                continue;
-            }
-
-            $suffix = 1;
-            do {
-                $renamed = $number . '-C' . ($suffix > 1 ? $suffix : '');
-                $suffix++;
-            } while (Invoice::where('invoiceno', $renamed)->exists());
-
-            Invoice::where('id', $cancelled->id)->update(['invoiceno' => $renamed]);
-
-            return $number;
+        if ($table === 'invoices') {
+            $query->whereNull('api_invoice_id')
+                ->where(function ($q) {
+                    $q->whereNull('sync_status')->orWhereNotIn('sync_status', [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED]);
+                })
+                ->whereNotExists(function ($q) {
+                    $q->from('einvoices')->whereColumn('einvoices.invoice_batch_id', 'invoices.id');
+                })
+                ->whereNotExists(function ($q) {
+                    $q->from('consolidated_einvoice_invoices')->whereColumn('consolidated_einvoice_invoices.invoice_id', 'invoices.id');
+                });
         }
 
-        return null;
+        $cancelled = $query
+            ->orderByRaw('CAST(SUBSTRING(' . $column . ', ?) AS UNSIGNED)', [strlen($stem) + 1])
+            ->lockForUpdate()
+            ->first(['id', $column]);
+
+        if (!$cancelled) {
+            return null;
+        }
+
+        $number = $cancelled->{$column};
+        $suffix = 1;
+        do {
+            $renamed = $number . '-C' . ($suffix > 1 ? $suffix : '');
+            $suffix++;
+        } while ($db::table($table)->where($column, $renamed)->exists());
+
+        $db::table($table)->where('id', $cancelled->id)->update([$column => $renamed, 'updated_at' => now()]);
+
+        return $number;
     }
 }
