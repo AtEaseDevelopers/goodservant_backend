@@ -318,6 +318,7 @@ Route::group(['middleware' => ['auth']], function() {
         Route::get('/reports/do-summary', [App\Http\Controllers\ReportController::class, 'doSummaryForm'])->name('reports.do-summary');
         Route::post('/reports/do-summary', [App\Http\Controllers\ReportController::class, 'doSummaryShow'])->name('reports.do-summary.show');
         Route::post('/reports/do-summary/pdf', [App\Http\Controllers\ReportController::class, 'doSummaryPdf'])->name('reports.do-summary.pdf');
+        Route::get('/reports/inventory-balance', [App\Http\Controllers\ReportController::class, 'inventoryBalance'])->name('reports.inventory-balance');
         Route::get('/reports/packing-list', [App\Http\Controllers\ReportController::class, 'packingListForm'])->name('reports.packing-list');
         Route::post('/reports/packing-list/pdf', [App\Http\Controllers\ReportController::class, 'packingListPdf'])->name('reports.packing-list.pdf');
         Route::resource('reports', App\Http\Controllers\ReportController::class);

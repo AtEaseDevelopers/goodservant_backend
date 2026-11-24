@@ -420,6 +420,70 @@ class ReportController extends AppBaseController
             ->get();
     }
 
+    /**
+     * Inventory Balance: the stock left on the lorry when each driver ended
+     * a trip, from the end-of-trip snapshot (trip_inventory_balances type 2,
+     * written by the driver app's End Trip just before the lorry is emptied).
+     */
+    public function inventoryBalance(Request $request)
+    {
+        $request->validate([
+            'driver_id' => 'nullable|integer',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+        $dateFrom = $request->input('date_from', date('Y-m-d', strtotime('-6 days')));
+        $dateTo = $request->input('date_to', date('Y-m-d'));
+        if ($dateTo < $dateFrom) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+        $driverId = $request->input('driver_id') ?: null;
+
+        $rows = \App\Models\TripInventoryBalance::where('type', \App\Models\TripInventoryBalance::TYPE_END)
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59'])
+            ->when($driverId, fn ($q) => $q->where('driver_id', $driverId))
+            ->orderByDesc('created_at')
+            ->get();
+
+        $products = Product::withTrashed()->whereIn('id', $rows->pluck('product_id')->unique())
+            ->get(['id', 'code', 'name', 'sequence'])->keyBy('id');
+        $driverNames = Driver::whereIn('id', $rows->pluck('driver_id')->unique())->pluck('name', 'id');
+        $lorryNos = Lorry::whereIn('id', $rows->pluck('lorry_id')->unique())->pluck('lorryno', 'id');
+
+        $trips = $rows->groupBy('trip_id')->map(function ($snapshot) use ($products, $driverNames, $lorryNos) {
+            $first = $snapshot->first();
+            $lines = $snapshot->filter(function ($row) use ($products) {
+                return $row->quantity != 0
+                    && !\App\Support\InvoiceDiscount::isDiscountProduct($row->product_id);
+            })->map(function ($row) use ($products) {
+                $product = $products[$row->product_id] ?? null;
+
+                return (object) [
+                    'code' => $product->code ?? '-',
+                    'name' => $product->name ?? ('Product #' . $row->product_id),
+                    'sequence' => $product->sequence ?? PHP_INT_MAX,
+                    'quantity' => (int) $row->quantity,
+                ];
+            })->sortBy(fn ($line) => [$line->sequence, $line->name])->values();
+
+            return (object) [
+                'driver_name' => $driverNames[$first->driver_id] ?? ('Driver #' . $first->driver_id),
+                'lorry_no' => $lorryNos[$first->lorry_id] ?? '-',
+                'ended_at' => Carbon::parse($snapshot->max('created_at')),
+                'lines' => $lines,
+                'total' => $lines->sum('quantity'),
+            ];
+        })->sortByDesc('ended_at')->values();
+
+        return view('reports.inventory_balance', [
+            'drivers' => Driver::orderBy('name')->pluck('name', 'id'),
+            'driverId' => $driverId,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'trips' => $trips,
+        ]);
+    }
+
     public function packingListForm()
     {
         $drivers = Driver::orderBy('name')->get();

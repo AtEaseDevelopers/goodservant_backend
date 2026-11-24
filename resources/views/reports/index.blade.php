@@ -86,6 +86,29 @@
                                     </div>
                                 </div>
 
+                                {{-- Inventory Balance --}}
+                                <div class="col-md-4 mb-4">
+                                    <div class="card h-100 shadow-sm" style="border-left: 4px solid #20c997;">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <span class="fa-stack fa-lg mr-3" style="color:#20c997;">
+                                                    <i class="fa fa-circle fa-stack-2x"></i>
+                                                    <i class="fa fa-cubes fa-stack-1x fa-inverse"></i>
+                                                </span>
+                                                <h5 class="mb-0">{{ __('Inventory Balance') }}</h5>
+                                            </div>
+                                            <p class="text-muted small">
+                                                {{ __('The stock each driver still had on the lorry when they ended their trip, trip by trip.') }}
+                                            </p>
+                                        </div>
+                                        <div class="card-footer bg-transparent border-0">
+                                            <a href="{{ route('reports.inventory-balance') }}" class="btn btn-sm text-white" style="background:#20c997;">
+                                                <i class="fa fa-arrow-right"></i> {{ __('Open Report') }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {{-- DO Summary --}}
                                 <div class="col-md-4 mb-4">
                                     <div class="card h-100 shadow-sm" style="border-left: 4px solid #fd7e14;">
