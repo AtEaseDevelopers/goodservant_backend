@@ -469,7 +469,7 @@ class SalesOrderController extends AppBaseController
         $invoice->agent_id = $salesOrder->agent_id;
         $invoice->supervisor_id = $salesOrder->supervisor_id;
         $invoice->paymentterm = $paymentterm;
-        $invoice->status = 0;
+        $invoice->status = 1;
         $invoice->remark = $salesOrder->remark;
         $invoice->chequeno = $chequeno;
         $invoice->trip_id = $salesOrder->trip_id;

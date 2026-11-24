@@ -319,7 +319,9 @@ class DeliveryOrderController extends AppBaseController
         $invoice->agent_id = $first->agent_id;
         $invoice->supervisor_id = $first->supervisor_id;
         $invoice->paymentterm = $first->paymentterm;
-        $invoice->status = 0;
+        // Goods already went out on the DOs: the invoice is complete, not
+        // waiting for a driver (the app showed it as PENDING).
+        $invoice->status = 1;
         $invoice->remark = $remark ?? ($deliveryOrders->count() > 1
             ? 'Combined from ' . $deliveryOrders->count() . ' delivery order(s)'
             : $first->remark);
