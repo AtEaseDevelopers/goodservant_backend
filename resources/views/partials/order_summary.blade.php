@@ -16,11 +16,6 @@
         1 => ['success', __('detail.status_completed')],
         2 => ['danger', __('detail.status_cancelled')],
     ][$order->status] ?? ['secondary', __('detail.unknown')];
-    // Invoices deleted by the driver in the app (kept as status 2).
-    $deletedAt = $order->driver_deleted_at ?? null;
-    if ($deletedAt) {
-        [$statusClass, $statusText] = ['dark', __('detail.status_deleted')];
-    }
     $customer = $order->customer;
 @endphp
 
@@ -31,12 +26,6 @@
         @isset($source){!! $source !!}@endisset
     </h2>
     <div class="dv-sub">{{ implode(' · ', array_filter([$order->date, $customer->company ?? null])) }}</div>
-    @if($deletedAt)
-        <div class="alert alert-dark py-2 mt-2 mb-0">
-            <i class="fa fa-trash mr-1"></i>
-            {{ __('detail.deleted_by_driver', ['driver' => optional($order->deletedByDriver)->name ?? '-', 'date' => date('d-m-Y H:i', strtotime($deletedAt))]) }}
-        </div>
-    @endif
 </div>
 
 <div class="row mb-3">

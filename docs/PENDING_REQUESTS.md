@@ -12,16 +12,13 @@ picked up again, start from its notes; when it is done, move it to the
 
 ## Done
 
-- **Good Servant "Delete invoice"** - built 24 Nov 2026 after the client
-  asked for **both** buttons:
-  - App invoice page: **Cancel Invoice** (stays in the app list as
-    Cancelled) and **Delete Invoice** (no longer shown in the app).
-  - Delete = Cancel on the server (stock back to the lorry, payments
-    voided, status 2 so reports and credit leave it out) plus
-    `invoices.driver_deleted_at` / `driver_deleted_by`. Only the driver's
-    own invoice of the trip open right now (`POST /driver/invoice/{id}/delete`).
-  - Admin Invoices list: new status **Deleted** (column + filter); the
-    invoice page shows "Deleted in the driver app by ... on ...".
-  - Last trip summary no longer counts cancelled / deleted invoices.
-  - Still open (raise with the client): DOs of a deleted DO-invoice stay
+- **Good Servant "Delete invoice"** - closed 24 Nov 2026. A Delete button
+  (hidden from the app, "Deleted" status in admin) was built and released in
+  1.0.79, then the client decided to keep **only Cancel Invoice**, moved into
+  the invoice page's top-right menu. Delete and the admin "Deleted" status
+  were removed again (backend revert of 75ddd6f + migration
+  2026_11_24_150000; no invoice had been deleted). Kept from that work: the
+  last trip summary leaves cancelled invoices out.
+  - Not done (raise with the client if needed): Cancel's trip check still
+    uses `drivers.trip_id`; cancelling a DO-made invoice leaves its DOs
     linked; FOC count is not reversed; a later credit payment is voided too.

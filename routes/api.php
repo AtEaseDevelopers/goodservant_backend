@@ -70,7 +70,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['check.app.version', 'offline.p
     Route::post('/driver/offline/attachments', [App\Http\Controllers\Api\V1\OfflineController::class, 'attachments']);
     Route::get('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'getinvoicebyid']);
     Route::delete('/driver/invoice/{id}', [App\Http\Controllers\Api\V1\DriverController::class, 'cancelinvoice']);
-    Route::post('/driver/invoice/{id}/delete', [App\Http\Controllers\Api\V1\DriverController::class, 'deleteinvoice']);
 
     //Sales Order
     Route::post('/driver/salesOrder', [App\Http\Controllers\Api\V1\DriverController::class, 'addsalesorder']);
