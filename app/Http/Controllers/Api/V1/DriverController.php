@@ -1777,11 +1777,18 @@ class DriverController extends Controller
             return $item->id ?? $item->product_id ?? null;
         })->filter()->unique()->values();
 
+        // Types switched off with "Show in driver app" are kept on the
+        // product in the admin portal but never sent to the app.
+        $hidden = DB::table('product_types')->where('show_in_app', false)->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
+
         $grouped = collect();
         if ($ids->isNotEmpty()) {
             $grouped = DB::table('product_product_type as ppt')
                 ->join('product_types as pt', 'pt.id', '=', 'ppt.product_type_id')
                 ->whereIn('ppt.product_id', $ids)
+                ->where('pt.show_in_app', true)
                 ->orderBy('pt.name')
                 ->get(['ppt.product_id', 'pt.id as type_id', 'pt.name'])
                 ->groupBy(function ($row) {
@@ -1789,8 +1796,14 @@ class DriverController extends Controller
                 });
         }
 
-        return $products->map(function ($item) use ($grouped) {
+        return $products->map(function ($item) use ($grouped, $hidden) {
             $productId = (int) ($item->id ?? $item->product_id ?? 0);
+            if (in_array((int) ($item->type_id ?? 0), $hidden, true)) {
+                // Old single type is a hidden one: use the first shown type.
+                $first = collect($grouped->get($productId, []))->first();
+                $item->type_id = $first ? (int) $first->type_id : null;
+                $item->type_name = $first ? $first->name : null;
+            }
             $types = collect($grouped->get($productId, []))->map(function ($type) {
                 return [
                     'id' => (int) $type->type_id,

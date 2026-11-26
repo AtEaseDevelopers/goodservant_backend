@@ -31,7 +31,7 @@ class ProductTypeController extends AppBaseController
             return redirect()->back()->withInput();
         }
 
-        $productType = ProductType::create($request->only(['name', 'status']));
+        $productType = ProductType::create($request->only(['name', 'status', 'show_in_app']));
 
         Flash::success($productType->name . ' saved successfully.');
 
@@ -67,7 +67,7 @@ class ProductTypeController extends AppBaseController
             return redirect()->back()->withInput();
         }
 
-        $productType->update($request->only(['name', 'status']));
+        $productType->update($request->only(['name', 'status', 'show_in_app']));
 
         Flash::success($productType->name . ' updated successfully.');
 

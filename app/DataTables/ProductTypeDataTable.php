@@ -17,7 +17,7 @@ class ProductTypeDataTable extends DataTable
 
     public function query(ProductType $model)
     {
-        return $model->newQuery()->select('product_types.id', 'product_types.name', 'product_types.status');
+        return $model->newQuery()->select('product_types.id', 'product_types.name', 'product_types.status', 'product_types.show_in_app');
     }
 
     public function html()
@@ -50,6 +50,10 @@ class ProductTypeDataTable extends DataTable
                         'targets' => 1,
                         'render' => 'function(data, type){return data == 1 ? "Active" : "Inactive";}'
                     ],
+                    [
+                        'targets' => 2,
+                        'render' => 'function(data, type){return data == 1 ? "Yes" : "No";}'
+                    ],
                 ],
                 'initComplete' => 'function(){
                     var columns = this.api().init().columns;
@@ -79,6 +83,10 @@ class ProductTypeDataTable extends DataTable
             'status'=> new \Yajra\DataTables\Html\Column(['title' => trans('products.status'),
             'data' => 'status',
             'name' => 'status']),
+
+            'show_in_app'=> new \Yajra\DataTables\Html\Column(['title' => 'Show in driver app',
+            'data' => 'show_in_app',
+            'name' => 'show_in_app']),
         ];
     }
 

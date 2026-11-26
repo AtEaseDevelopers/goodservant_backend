@@ -377,7 +377,9 @@ class CustomerDataTable extends DataTable
             'name' => 'status']),
             'credit'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.credit'),
             'data' => 'credit',
-            'name' => 'credit']),
+            'name' => 'credit',
+            // worked out in the SELECT, so it cannot be searched
+            'searchable' => false]),
 
             // 'sst'=> new \Yajra\DataTables\Html\Column(['title' => trans('customers.ssm'),
             // 'data' => 'sst',

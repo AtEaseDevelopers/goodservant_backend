@@ -14,12 +14,14 @@ class ProductType extends Model
     protected $fillable = [
         'name',
         'status',
+        'show_in_app',
     ];
 
     protected $casts = [
         'id' => 'integer',
         'name' => 'string',
         'status' => 'integer',
+        'show_in_app' => 'boolean',
     ];
 
     public static $rules = [
