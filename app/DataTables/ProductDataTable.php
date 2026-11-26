@@ -20,7 +20,26 @@ class ProductDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'products.datatables_actions');
+        return $dataTable->addColumn('action', 'products.datatables_actions')
+            // type_name is worked out in the SELECT (a product can have several
+            // types), so it cannot be filtered by name: match the product's
+            // types instead, or its single old type when it has none.
+            ->filterColumn('type_name', function ($query, $keyword) {
+                $like = '%' . $keyword . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->whereExists(function ($sub) use ($like) {
+                        $sub->select(DB::raw(1))
+                            ->from('product_product_type as ppt')
+                            ->join('product_types as pt', 'pt.id', '=', 'ppt.product_type_id')
+                            ->whereColumn('ppt.product_id', 'products.id')
+                            ->where('pt.name', 'like', $like);
+                    })->orWhere(function ($old) use ($like) {
+                        $old->whereNotExists(function ($sub) {
+                            $sub->select(DB::raw(1))->from('product_product_type as ppt')->whereColumn('ppt.product_id', 'products.id');
+                        })->where('product_types.name', 'like', $like);
+                    });
+                });
+            });
     }
 
     /**
