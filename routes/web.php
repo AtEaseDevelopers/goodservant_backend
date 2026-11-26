@@ -308,6 +308,8 @@ Route::group(['middleware' => ['auth']], function() {
     //     Route::get('/reports/vendoroneview/{id}/{datefrom}/{dateto}', [App\Http\Controllers\ReportController::class, 'vendoroneview'])->name('vendoroneview');
     //     Route::get('/reports/getVendoroneviewPDF/{id}/{datefrom}/{dateto}/{function}', [App\Http\Controllers\ReportController::class, 'getVendoroneviewPDF'])->name('getVendoroneviewPDF');
     // });
+    // Activity log: not in the menu, open /activity-logs directly.
+    Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->middleware('permission:user')->name('activity-logs.index');
     Route::group(['middleware' => ['permission:report']], function() {
         Route::get('/reports/daily-sales', [App\Http\Controllers\ReportController::class, 'dailySalesForm'])->name('reports.daily-sales');
         Route::post('/reports/daily-sales/pdf', [App\Http\Controllers\ReportController::class, 'dailySalesPdf'])->name('reports.daily-sales.pdf');

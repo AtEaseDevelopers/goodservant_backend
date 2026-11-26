@@ -24,6 +24,11 @@ class Kernel extends ConsoleKernel
         ->lastDayOfMonth('23:00')
         ->withoutOverlapping();
 
+        // Keep six months of the portal activity log.
+        $schedule->command('CronJob:pruneactivitylogs')
+        ->lastDayOfMonth('23:30')
+        ->withoutOverlapping();
+
     }
 
     /**
