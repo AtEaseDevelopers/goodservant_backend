@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Activity log for the admin portal (and the customer portal): who logged in,
  * every save / delete request, and the old and new values of each record that
- * changed. The driver app is covered by api_logs. Rows older than six months
- * are removed by CronJob:pruneactivitylogs.
+ * changed. The driver app is covered by api_logs. CronJob:pruneactivitylogs
+ * keeps this month and last month.
  */
 class CreateActivityLogsTable extends Migration
 {
