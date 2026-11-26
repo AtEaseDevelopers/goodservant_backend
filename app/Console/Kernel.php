@@ -16,8 +16,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('CronJob:updatedo')
-        ->everyMinute();
+        // CronJob:updatedo (old D/O billing-rate job with e-mails) is not
+        // used by Snoodle and must not run every minute once cron is on.
 
         // Keep only this month and last month of api_logs.
         $schedule->command('CronJob:pruneapilogs')

@@ -239,4 +239,9 @@ class Customer extends Model implements AuthenticatableContract
         return Code::where('code','customer_group')->whereRaw('find_in_set(codes.value, "'.$this->group.'")')->select(DB::raw("GROUP_CONCAT(codes.description) as group_descr"))->get()->first()->group_descr ?? '';
     }
 
+    /** Every invoice of this customer (used by the Credit / Debit Note customer picker). */
+    public function invoices()
+    {
+        return $this->hasMany(\App\Models\Invoice::class, 'customer_id');
+    }
 }
