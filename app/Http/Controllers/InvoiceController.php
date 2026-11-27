@@ -150,12 +150,50 @@ class InvoiceController extends AppBaseController
      * @return Response
      */
     /**
-     * Invoices that are syncing or already synced to AutoCount are locked:
-     * editing/deleting them here would silently diverge from AutoCount.
+     * Invoices mid-sync or already synced to AutoCount are locked: editing or
+     * deleting them here would silently diverge from AutoCount.
+     *
+     * Exception: when the customer is flagged auto_sync_autocount, an already
+     * synced invoice stays editable — saving it re-queues the invoice so the
+     * edit is pushed back to AutoCount (the plugin de-dups by Ref and updates
+     * the existing DocNo). A mid-flight sync (SYNC_SYNCING) is always locked to
+     * avoid racing the plugin.
      */
     private function lockedByAutoCount($invoice)
     {
-        return in_array($invoice->sync_status, [Invoice::SYNC_SYNCING, Invoice::SYNC_SYNCED]);
+        if ($invoice->sync_status == Invoice::SYNC_SYNCING) {
+            return true;
+        }
+
+        if ($invoice->sync_status == Invoice::SYNC_SYNCED) {
+            return ! optional($invoice->customer)->auto_sync_autocount;
+        }
+
+        return false;
+    }
+
+    /**
+     * Re-queue an edited invoice for AutoCount sync when its customer is flagged
+     * auto_sync_autocount. Called after any web-admin edit (header or line
+     * items). A mid-flight sync is left untouched to avoid racing the plugin.
+     */
+    private function requeueForAutoSync($invoice)
+    {
+        if (empty($invoice)) {
+            return;
+        }
+
+        if (! optional($invoice->customer)->auto_sync_autocount) {
+            return;
+        }
+
+        if ($invoice->sync_status == Invoice::SYNC_SYNCING) {
+            return;
+        }
+
+        $invoice->sync_status = Invoice::SYNC_PENDING;
+        $invoice->sync_error = null;
+        $invoice->save();
     }
 
     public function edit($id)
@@ -393,6 +431,9 @@ class InvoiceController extends AppBaseController
             Flash::success('Invoice updated successfully.');
         }
 
+        // Editing an auto-sync customer's invoice re-queues it for AutoCount.
+        $this->requeueForAutoSync($invoice);
+
         if($input['method'] == 1){
             return redirect(route('invoices.index'));
         }else{
@@ -564,7 +605,10 @@ class InvoiceController extends AppBaseController
         if ($res != null) {
             return $res;
         }
-        
+
+        // Adding a line to an auto-sync customer's invoice re-queues it.
+        $this->requeueForAutoSync($driver);
+
         return redirect(route('invoices.show',encrypt($id)));
     }
     
@@ -741,6 +785,9 @@ class InvoiceController extends AppBaseController
         $invoicedetail->delete($id);
 
         Flash::success('Invoice Detail deleted successfully.');
+
+        // Removing a line from an auto-sync customer's invoice re-queues it.
+        $this->requeueForAutoSync($parentInvoice);
 
         return redirect(route('invoices.show',encrypt($invoicedetail->invoice_id)));
     }

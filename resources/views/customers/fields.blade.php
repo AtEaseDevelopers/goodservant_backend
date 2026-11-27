@@ -42,6 +42,15 @@
             <small class="form-text text-muted">Weekly or Monthly: Delivery Orders &rarr; Billing Convert turns all pending DOs into one invoice per customer.</small>
         </div>
 
+        <!-- Auto-sync to AutoCount Field -->
+        <div class="form-group">
+            <div class="checkbox">
+                <label>
+                    {!! Form::checkbox('auto_sync_autocount', 1, null) !!} Auto-sync invoices to AutoCount (queue on create, re-queue on edit)
+                </label>
+            </div>
+        </div>
+
         <!-- Off Day Field -->
         <div class="form-group">
             <div class="checkbox">

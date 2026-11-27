@@ -114,6 +114,9 @@ class Customer extends Model implements AuthenticatableContract
         // ("30 DAYS", "C.O.D.") plus its parsed net-day count.
         'credit_term',
         'credit_term_days',
+        // When on, this customer's invoices auto-queue for AutoCount sync on
+        // create and re-queue on edit (see Invoice::booted()).
+        'auto_sync_autocount',
     ];
 
     /**
@@ -139,6 +142,7 @@ class Customer extends Model implements AuthenticatableContract
         'product_price_category_id' => 'integer',
         'credit_term' => 'string',
         'credit_term_days' => 'integer',
+        'auto_sync_autocount' => 'boolean',
         'sst' => 'string',
         'tin' => 'string',
         'portal_token' => 'string',

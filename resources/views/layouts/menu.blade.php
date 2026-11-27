@@ -127,6 +127,13 @@
             </li>
         </ul>
         <ul class="nav-dropdown-items">
+            <li class="nav-item {{ Request::is('settings/autocount*') ? 'active' : '' }}">
+                <a class="nav-link {{ Request::is('settings/autocount*') ? 'active' : '' }}" href="{{ route('settings.autocount') }}">
+                    <span>{{ __('AutoCount Sync Settings') }}</span>
+                </a>
+            </li>
+        </ul>
+        <ul class="nav-dropdown-items">
             <li class="nav-item {{ Request::is('invoiceDetails*') ? 'active' : '' }}">
                 <a class="nav-link {{ Request::is('invoiceDetails*') ? 'active' : '' }}" href="{{ route('invoiceDetails.index') }}">
                     <span>{{ trans('side_menu.invoice_details') }}</span>

@@ -85,6 +85,29 @@ class Invoice extends Model
         'updated_at' => 'nullable|nullable'
     ];
 
+    protected static function booted()
+    {
+        // Auto-queue an invoice for AutoCount sync when its customer is flagged
+        // with auto_sync_autocount. Hooking `creating` covers every creation
+        // path at once: web admin store, the driver API (addinvoice, bulk) and
+        // the SO/DO -> invoice conversions. We only act when no explicit sync
+        // state was already set, and read the flag with a lightweight lookup so
+        // we don't depend on the relation being loaded.
+        static::creating(function (self $invoice) {
+            if ((int) ($invoice->sync_status ?? self::SYNC_NONE) !== self::SYNC_NONE) {
+                return;
+            }
+            if (empty($invoice->customer_id)) {
+                return;
+            }
+            $autoSync = \App\Models\Customer::whereKey($invoice->customer_id)
+                ->value('auto_sync_autocount');
+            if ($autoSync) {
+                $invoice->sync_status = self::SYNC_PENDING;
+            }
+        });
+    }
+
     public function customer()
     {
         return $this->belongsTo(\App\Models\Customer::class, 'customer_id', 'id');

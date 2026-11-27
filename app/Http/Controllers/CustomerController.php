@@ -72,6 +72,7 @@ class CustomerController extends AppBaseController
         $input['group'] = implode(",",$input['group'] ?? []);
         $input['is_do_customer'] = $request->has('is_do_customer');
         $input['off_day'] = $request->has('off_day');
+        $input['auto_sync_autocount'] = $request->has('auto_sync_autocount');
         $input['billing_cycle'] = in_array($request->input('billing_cycle'), ['weekly', 'monthly'], true) ? $request->input('billing_cycle') : null;
         // Empty "No default driver" select submits '' — store as null.
         $input['so_default_driver_id'] = $request->input('so_default_driver_id') ?: null;
@@ -240,6 +241,7 @@ class CustomerController extends AppBaseController
         $input['group'] = implode(",",$input['group'] ?? []);
         $input['is_do_customer'] = $request->has('is_do_customer');
         $input['off_day'] = $request->has('off_day');
+        $input['auto_sync_autocount'] = $request->has('auto_sync_autocount');
         $input['billing_cycle'] = in_array($request->input('billing_cycle'), ['weekly', 'monthly'], true) ? $request->input('billing_cycle') : null;
         // Empty "No default driver" select submits '' — store as null.
         $input['so_default_driver_id'] = $request->input('so_default_driver_id') ?: null;

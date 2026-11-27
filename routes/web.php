@@ -455,6 +455,9 @@ Route::group(['middleware' => ['auth']], function() {
         Route::post('/invoices/massdestroy', [App\Http\Controllers\InvoiceController::class, 'massdestroy']);
         Route::post('/invoices/massupdatestatus', [App\Http\Controllers\InvoiceController::class, 'massupdatestatus']);
         Route::post('/invoices/markpendingsync', [App\Http\Controllers\InvoiceController::class, 'markpendingsync']);
+        //AutoCount sync settings (nightly batch time)
+        Route::get('/settings/autocount', [App\Http\Controllers\SettingController::class, 'autocount'])->name('settings.autocount');
+        Route::post('/settings/autocount', [App\Http\Controllers\SettingController::class, 'updateAutocount'])->name('settings.autocount.update');
         //Invoice Detail
         Route::get('invoiceDetails/getprice/{invoice_id}/{product_id}', [App\Http\Controllers\InvoiceDetailController::class, 'getprice']);
         Route::resource('invoiceDetails', App\Http\Controllers\InvoiceDetailController::class);
