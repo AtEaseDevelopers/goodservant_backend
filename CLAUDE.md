@@ -18,6 +18,13 @@ After the owner asks for a change and it is done and checked:
 Only deploy when the owner has asked for the change to go live. If they say
 "don't deploy yet", commit locally and stop.
 
+**The system is live since 28 Nov 2026.** Never change production data
+(insert, update, delete, clean-up or data-fix migrations, artisan commands
+that write) without asking the owner first and getting a clear yes for that
+specific change. Reading production data to investigate is fine. A code deploy
+the owner asked for is fine; a migration that also rewrites existing rows must
+be named to the owner before it runs.
+
 ## Deploying this backend
 
 No server login is needed, only push access to this repository:
