@@ -1213,6 +1213,18 @@ class DriverController extends Controller
                     'data' => null
                 ], 401);
             }
+            // Not on a trip (before Start Trip or after End Trip): no "today"
+            // list, so the app shows the driver's full assigned list. After End
+            // Trip only the visited customers' tasks are still open, and Task
+            // Sequence showed (and saved) just those few customers.
+            $latestTrip = Trip::where('driver_id', $driver->id)->orderBy('date', 'desc')->orderBy('id', 'desc')->first();
+            if(empty($latestTrip) || (int) $latestTrip->type !== 1){
+                return response()->json([
+                    'result' => false,
+                    'message' => __LINE__.$this->message_separator.'api.message.customer_not_found',
+                    'data' => null
+                ], 200);
+            }
             $tasks = Task::where('driver_id', $driver->id)
                 ->where('date', date('Y-m-d'))
                 ->where('status', '!=', 9)
